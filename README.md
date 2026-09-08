@@ -6,9 +6,12 @@ app does not depend on Telegram.
 
 **Status:** development preview with notification/SMS capture, a persistent encrypted outbox,
 background delivery, automatic retries and a delivery journal. Webhook authentication is not
-implemented yet. Signed APK release automation is configured; see [Releases](docs/releases.md).
+implemented yet. Signed APK release automation is configured; see [Releases](docs/en/releases.md).
 
 ## Getting started
+
+Guides: [n8n webhook](docs/en/n8n-webhook.md) · [Telegram forwarding](docs/en/n8n-telegram.md).
+На русском: [n8n webhook](docs/ru/n8n-webhook.md) · [Пересылка в Telegram](docs/ru/n8n-telegram.md).
 
 1. Save the full published webhook URL and a device code in **Connection**. Send a test event.
 2. Check **Journal** and find the same event ID in n8n **Executions**.
@@ -89,14 +92,14 @@ In VS Code, select **Run Message487 on Emulator** and **Run Without Debugging**,
 The debug app starts with the local n8n receive endpoint configured. Follow the capture checks in
 [DevServer/README.md](DevServer/README.md) using synthetic data only. Release builds require HTTPS.
 UI strings are supplied in English and Russian. The interface supports light/dark themes,
-bottom navigation on phones and rail navigation on wider windows. See the [design notes](docs/design.md)
+bottom navigation on phones and rail navigation on wider windows. See the [design notes](docs/en/design.md)
 for the visual conventions and references.
 
 Fastlane's `debug_artifact` lane builds only the debug APK. `checks` runs JVM/Robolectric tests,
 debug/release lint, and builds debug and unsigned release APKs under `app/build/outputs/apk/`.
 PR CI has no release signing credentials and does not require an emulator.
 
-See the [project context](docs/project-context.md) for remaining product decisions.
+See the [project context](docs/en/project-context.md) for remaining product decisions.
 This project succeeds [sms487](https://github.com/andre487/sms487).
 [AndroidMegaProxy](https://github.com/andre487/AndroidMegaProxy) is the reference for project conventions.
 
@@ -108,6 +111,6 @@ Open the bug icon in the top bar to view or clear local diagnostic logs and prep
 `der-morgenstern@yandex.ru`. A ZIP contains rotating logs, the last crash and device/app information;
 message content and connection secrets are excluded. Sending requires action in your email app.
 After an unhandled crash the next launch offers to review the report.
-See [diagnostic behavior and development checks](docs/diagnostics.md) and [privacy details](PRIVACY.md).
+See [diagnostic behavior and development checks](docs/en/diagnostics.md) and [privacy details](PRIVACY.md).
 
-Test categories, local commands, CI jobs and device-only limitations: [Testing](docs/testing.md).
+Test categories, local commands, CI jobs and device-only limitations: [Testing](docs/en/testing.md).

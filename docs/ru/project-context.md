@@ -1,5 +1,7 @@
 # Контекст Message487
 
+[English](../en/project-context.md) | [Русский](../ru/project-context.md)
+
 Обновлено 8 сентября 2026 года.
 
 ## Подтверждено пользователем
@@ -111,8 +113,8 @@ VPN, Go/JNI, DNS-диагностика и детали публикации Meg
 Политику конфиденциальности нельзя копировать дословно: Message487 передаёт содержимое событий
 выбранному получателю, а n8n и последующие сервисы имеют собственные правила хранения.
 
-Local rotating diagnostics, a next-launch crash prompt and manual ZIP email reports are implemented; see [diagnostics](diagnostics.md). Recipient: der-morgenstern@yandex.ru.
+Реализованы локальные логи с ротацией, диалог после креша и ручная отправка ZIP-отчёта; см. [диагностику](diagnostics.md). Адрес: der-morgenstern@yandex.ru.
 
-CI test categories and commands are documented in [testing](testing.md); Compose UI tests run on Robolectric without an emulator.
+Наборы тестов и команды CI описаны в [тестировании](testing.md); Compose UI-тесты выполняются на Robolectric без эмулятора.
 
-Signed APK releases use environment-based signing as in MegaProxy; see [releases](releases.md).
+Подписанные APK используют параметры окружения, как в MegaProxy; см. [релизы](releases.md).
