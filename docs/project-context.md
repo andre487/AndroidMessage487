@@ -114,3 +114,5 @@ VPN, Go/JNI, DNS-диагностика и детали публикации Meg
 Local rotating diagnostics, a next-launch crash prompt and manual ZIP email reports are implemented; see [diagnostics](diagnostics.md). Recipient: der-morgenstern@yandex.ru.
 
 CI test categories and commands are documented in [testing](testing.md); Compose UI tests run on Robolectric without an emulator.
+
+Signed APK releases use environment-based signing as in MegaProxy; see [releases](releases.md).

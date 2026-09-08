@@ -4,6 +4,15 @@ plugins {
     id("org.jetbrains.kotlin.plugin.compose")
 }
 
+val releaseKeystorePath = providers.environmentVariable("MESSAGE487_KEYSTORE_PATH").orNull
+val releaseKeystorePassword = providers.environmentVariable("MESSAGE487_KEYSTORE_PASSWORD").orNull
+val releaseKeyAlias = providers.environmentVariable("MESSAGE487_KEY_ALIAS").orNull
+val releaseKeyPassword = providers.environmentVariable("MESSAGE487_KEY_PASSWORD").orNull
+val signingInputs = listOf(releaseKeystorePath, releaseKeystorePassword, releaseKeyAlias, releaseKeyPassword)
+if (signingInputs.any { it != null } && signingInputs.any { it.isNullOrBlank() }) {
+    throw GradleException("Release signing environment is incomplete")
+}
+
 android {
     namespace = "life.andre.message487"
     compileSdk = 36
@@ -13,13 +22,24 @@ android {
         minSdk = 26
         targetSdk = 36
         versionCode = 1
-        versionName = "0.1.0-dev"
+        versionName = "0.0.1"
+    }
+    signingConfigs {
+        if (signingInputs.all { !it.isNullOrBlank() }) {
+            create("release") {
+                storeFile = file(releaseKeystorePath!!)
+                storePassword = releaseKeystorePassword
+                keyAlias = releaseKeyAlias
+                keyPassword = releaseKeyPassword
+            }
+        }
     }
     buildTypes {
         getByName("debug") {
             buildConfigField("String", "DEFAULT_WEBHOOK_URL", "\"http://10.0.2.2:5678/webhook/message487/receive\"")
         }
         getByName("release") {
+            signingConfig = signingConfigs.findByName("release")
             buildConfigField("String", "DEFAULT_WEBHOOK_URL", "\"\"")
             isMinifyEnabled = true
             isShrinkResources = true

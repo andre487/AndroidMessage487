@@ -5,8 +5,8 @@ A custom webhook is also supported. Telegram forwarding is one possible workflow
 app does not depend on Telegram.
 
 **Status:** development preview with notification/SMS capture, a persistent encrypted outbox,
-background delivery, automatic retries and a delivery journal. Webhook authentication and
-production release signing are not implemented yet.
+background delivery, automatic retries and a delivery journal. Webhook authentication is not
+implemented yet. Signed APK release automation is configured; see [Releases](docs/releases.md).
 
 ## Getting started
 

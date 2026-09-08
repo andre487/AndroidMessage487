@@ -33,3 +33,6 @@ not prove notification/SMS permission delivery, WorkManager/OS scheduling, real 
 process death handling or email-client behavior. Those remain device/emulator checks; see
 [diagnostics](diagnostics.md) for the crash/report scenario. Required hosted CI does not depend on
 an Android emulator, following MegaProxy's approach to unreliable KVM availability.
+
+Signed release verification runs the Android test/lint suite separately with signing inputs. PR
+checks reject those inputs and remain unsigned. See [release automation](releases.md).

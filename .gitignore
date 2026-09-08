@@ -40,3 +40,4 @@ DevServer/.env
 
 .venv/
 __pycache__/
+dist/

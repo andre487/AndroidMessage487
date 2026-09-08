@@ -39,6 +39,14 @@ Run Python tests and formatting checks for the development server
 
 Exercise the running development n8n server
 
+### android release_artifacts
+
+```sh
+[bundle exec] fastlane android release_artifacts
+```
+
+Build, sign and verify the release APK and checksums
+
 ### android debug_artifact
 
 ```sh

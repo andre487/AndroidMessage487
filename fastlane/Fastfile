@@ -7,6 +7,10 @@ project_root = File.expand_path("..", __dir__)
 platform :android do
   desc "Run JVM tests, Android lint, and build debug and unsigned release APKs"
   lane :checks do
+    signing_variables = %w[MESSAGE487_KEYSTORE_PATH MESSAGE487_KEYSTORE_PASSWORD MESSAGE487_KEY_ALIAS MESSAGE487_KEY_PASSWORD MESSAGE487_KEY_PASSWORD_FILE]
+    if signing_variables.any? { |name| !ENV.fetch(name, "").empty? }
+      UI.user_error!("Signing configuration must not be available to PR checks")
+    end
     gradle(
       tasks: %w[testDebugUnitTest lintDebug lintRelease assembleDebug assembleRelease],
       flags: "--no-daemon",
@@ -39,6 +43,11 @@ platform :android do
   desc "Exercise the running development n8n server"
   lane :server_tests do
     sh(ENV.fetch("PYTHON", "python3"), File.join(project_root, "DevServer/tests/smoke.py"))
+  end
+
+  desc "Build, sign and verify the release APK and checksums"
+  lane :release_artifacts do
+    sh(File.join(project_root, "scripts/build-release-apk.sh"))
   end
 
   desc "Build a debug APK"
