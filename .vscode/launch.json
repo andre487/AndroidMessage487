@@ -1,0 +1,12 @@
+{
+  "version": "0.2.0",
+  "configurations": [
+    {
+      "type": "node-terminal",
+      "name": "Run Message487 on Emulator",
+      "request": "launch",
+      "command": "\"${workspaceFolder}/scripts/run-without-debugging.sh\"",
+      "cwd": "${workspaceFolder}"
+    }
+  ]
+}

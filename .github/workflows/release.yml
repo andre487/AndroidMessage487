@@ -1,0 +1,102 @@
+name: Release Android artifacts
+
+on:
+  push:
+    tags:
+      - "v*"
+      - "release-check/*"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: release-${{ github.ref }}
+  cancel-in-progress: false
+
+jobs:
+  release:
+    name: Build and verify signed APK
+    runs-on: ubuntu-latest
+    timeout-minutes: 40
+    steps:
+      - uses: actions/checkout@v6
+        with:
+          fetch-depth: 0
+          persist-credentials: false
+      - name: Validate publication tag
+        if: startsWith(github.ref, 'refs/tags/v')
+        run: |
+          version_name="$(sed -nE 's/^[[:space:]]*versionName = "([^"]+)"/\1/p' app/build.gradle.kts)"
+          test "$GITHUB_REF_NAME" = "v$version_name"
+          git merge-base --is-ancestor HEAD origin/main
+      - uses: actions/setup-java@v5
+        with:
+          distribution: temurin
+          java-version: "21"
+      - uses: gradle/actions/setup-gradle@v4
+      - uses: ruby/setup-ruby@v1
+        with:
+          ruby-version: "3.4.10"
+          bundler-cache: true
+      - name: Install Android SDK components
+        run: '"$ANDROID_HOME/cmdline-tools/latest/bin/sdkmanager" "platforms;android-36" "build-tools;36.0.0"'
+      - name: Restore Android signing key
+        env:
+          SIGNING_KEY_BASE64: ${{ secrets.ANDROID_SIGNING_KEY_BASE64 }}
+          KEYSTORE_PASSWORD: ${{ secrets.ANDROID_KEYSTORE_PASSWORD }}
+        run: |
+          test -n "$SIGNING_KEY_BASE64" && test -n "$KEYSTORE_PASSWORD"
+          umask 077
+          keystore="$RUNNER_TEMP/message487-release.p12"
+          password_file="$RUNNER_TEMP/message487-keystore-password"
+          printf '%s' "$SIGNING_KEY_BASE64" | base64 --decode > "$keystore"
+          printf '%s' "$KEYSTORE_PASSWORD" > "$password_file"
+          echo "MESSAGE487_KEYSTORE_PATH=$keystore" >> "$GITHUB_ENV"
+          echo "MESSAGE487_KEY_PASSWORD_FILE=$password_file" >> "$GITHUB_ENV"
+      - name: Build and verify signed release
+        env:
+          MESSAGE487_KEY_ALIAS: ${{ secrets.ANDROID_KEY_ALIAS }}
+          MESSAGE487_KEY_PASSWORD: ${{ secrets.ANDROID_KEY_PASSWORD }}
+        run: bundle exec fastlane android release_artifacts
+      - name: Remove signing files
+        if: always()
+        run: rm -f "$RUNNER_TEMP/message487-release.p12" "$RUNNER_TEMP/message487-keystore-password"
+      - uses: actions/upload-artifact@v7
+        with:
+          name: message487-signed-release
+          path: dist/release/*
+          if-no-files-found: error
+          retention-days: 14
+      - name: Publish test and lint reports
+        if: always()
+        uses: actions/upload-artifact@v7
+        with:
+          name: release-test-reports
+          path: |
+            app/build/reports/tests/
+            app/build/test-results/
+            app/build/reports/lint-results-*
+          retention-days: 14
+
+  publish:
+    name: Publish GitHub Release
+    needs: release
+    if: startsWith(github.ref, 'refs/tags/v') && github.event_name == 'push'
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    steps:
+      - uses: actions/download-artifact@v8
+        with:
+          name: message487-signed-release
+          path: dist/release
+      - name: Publish verified artifacts
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          cd dist/release
+          sha256sum -c SHA256SUMS
+          gh release create "$GITHUB_REF_NAME" ./*.apk mapping.txt SHA256SUMS \
+            --repo "$GITHUB_REPOSITORY" --verify-tag --generate-notes \
+            --title "Message487 $GITHUB_REF_NAME"
