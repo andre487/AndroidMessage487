@@ -14,6 +14,8 @@ production release signing are not implemented yet.
 2. Check **Journal** and find the same event ID in n8n **Executions**.
 3. In **Sources**, enable notification forwarding, grant notification access in Android settings,
    and select applications. Add a package manually if it has no launcher icon.
+   **Select all applications** selects the entire available list, regardless of the search filter;
+   manually added selections are preserved. Newly installed apps must be selected separately.
 4. Enable SMS forwarding separately and grant SMS permission. Only new incoming SMS are read;
    existing history is not imported. Multipart SMS are combined into one event.
 
@@ -44,7 +46,8 @@ cause duplicate delivery: downstream workflows should deduplicate using `event_i
 
 Queued events retain the URL and confirmation mode from capture time. Changing the connection
 does not reroute them. Undelivered events remain until confirmed or explicitly deleted. The
-journal persists across restarts and hides message contents. Confirmed payloads are removed;
+journal persists across restarts and hides message contents. Tap an event for its ID, HTTP result,
+retry and deletion controls. Confirmed payloads are removed;
 only a bounded recent history of delivery metadata remains. See [PRIVACY.md](PRIVACY.md).
 
 The JSON event carries `schema_version`, `event_id`, `device_id`, `device_code`, `message_type`,
@@ -85,7 +88,9 @@ In VS Code, select **Run Message487 on Emulator** and **Run Without Debugging**,
 
 The debug app starts with the local n8n receive endpoint configured. Follow the capture checks in
 [DevServer/README.md](DevServer/README.md) using synthetic data only. Release builds require HTTPS.
-UI strings are supplied in English and Russian.
+UI strings are supplied in English and Russian. The interface supports light/dark themes,
+bottom navigation on phones and rail navigation on wider windows. See the [design notes](docs/design.md)
+for the visual conventions and references.
 
 Fastlane's `debug_artifact` lane builds only the debug APK. `checks` runs JVM/Robolectric tests,
 debug/release lint, and builds debug and unsigned release APKs under `app/build/outputs/apk/`.
