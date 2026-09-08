@@ -1,0 +1,32 @@
+<resources>
+    <string name="app_name">Message487</string>
+    <string name="tagline">Подключите Android к n8n</string>
+    <string name="development_status">Версия для разработки: только тестовые события. Пересылка уведомлений и SMS пока не реализована.</string>
+    <string name="connection">Подключение</string>
+    <string name="device_code">Код устройства</string>
+    <string name="device_code_hint">Метка в каждом событии, например personal-phone.</string>
+    <string name="invalid_device_code">Укажите код устройства.</string>
+    <string name="webhook_url">Адрес webhook</string>
+    <string name="url_hint">Укажите полный адрес опубликованного workflow.</string>
+    <string name="invalid_url">Укажите HTTPS-адрес без встроенных учётных данных и фрагмента. В debug-сборке также разрешён HTTP к хосту эмулятора и localhost.</string>
+    <string name="n8n_mode">Подтверждение n8n</string>
+    <string name="n8n_hint">Требовать ответ accepted с идентификатором отправленного события.</string>
+    <string name="raw_hint">Произвольный webhook: любой ответ HTTP 2xx означает успех HTTP-запроса.</string>
+    <string name="save">Сохранить подключение</string>
+    <string name="send_test">Сохранить и отправить тест</string>
+    <string name="sending">Ожидаем ответ webhook…</string>
+    <string name="saved">Подключение сохранено</string>
+    <string name="save_failed">Не удалось сохранить настройки подключения. Событие не отправлено.</string>
+    <string name="journal">Последние тесты</string>
+    <string name="no_events">В этой сессии тестов ещё не было</string>
+    <string name="event_id">ID события: %1$s</string>
+    <string name="duration">Длительность запроса: %1$d мс</string>
+    <string name="http_code">HTTP %1$d</string>
+    <string name="accepted">Принято webhook</string>
+    <string name="http_success">HTTP-запрос выполнен успешно</string>
+    <string name="http_error">Webhook вернул ошибку HTTP</string>
+    <string name="invalid_ack">Подтверждение отсутствует или неверно</string>
+    <string name="timeout">Истекло время ожидания ответа</string>
+    <string name="network_error">Не удалось завершить подключение</string>
+    <string name="delivery_note">Ответ webhook не подтверждает доставку в Telegram. Тест содержит искусственный текст, ID установки и указанный код устройства. Автоматических повторов нет; последние результаты хранятся в памяти.</string>
+</resources>

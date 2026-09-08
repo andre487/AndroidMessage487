@@ -1,0 +1,86 @@
+{
+  "id": "message487-slow",
+  "name": "Message487 \u00b7 slow",
+  "active": false,
+  "nodes": [
+    {
+      "parameters": {
+        "httpMethod": "POST",
+        "path": "message487/slow",
+        "responseMode": "responseNode",
+        "options": {}
+      },
+      "id": "webhook",
+      "name": "Webhook",
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 2.1,
+      "position": [
+        0,
+        0
+      ],
+      "webhookId": "message487-slow"
+    },
+    {
+      "parameters": {
+        "amount": 20,
+        "unit": "seconds"
+      },
+      "id": "wait",
+      "name": "Delay",
+      "type": "n8n-nodes-base.wait",
+      "typeVersion": 1.1,
+      "position": [
+        220,
+        0
+      ],
+      "webhookId": "message487-delay"
+    },
+    {
+      "parameters": {
+        "respondWith": "json",
+        "responseBody": "={{ { status: (typeof $json.body.event_id === 'string' && $json.body.event_id.length > 0 && $json.body.schema_version === 1 && ['test', 'notification', 'sms'].includes($json.body.message_type) && typeof $json.body.text === 'string') ? 'accepted' : 'rejected', event_id: $json.body.event_id ?? null } }}",
+        "options": {
+          "responseCode": "={{ (typeof $json.body.event_id === 'string' && $json.body.event_id.length > 0 && $json.body.schema_version === 1 && ['test', 'notification', 'sms'].includes($json.body.message_type) && typeof $json.body.text === 'string') ? 200 : 400 }}"
+        }
+      },
+      "id": "response",
+      "name": "Respond",
+      "type": "n8n-nodes-base.respondToWebhook",
+      "typeVersion": 1.4,
+      "position": [
+        440,
+        0
+      ]
+    }
+  ],
+  "connections": {
+    "Webhook": {
+      "main": [
+        [
+          {
+            "node": "Delay",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Delay": {
+      "main": [
+        [
+          {
+            "node": "Respond",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "settings": {
+    "executionOrder": "v1",
+    "saveDataErrorExecution": "all",
+    "saveDataSuccessExecution": "all",
+    "saveManualExecutions": true
+  }
+}

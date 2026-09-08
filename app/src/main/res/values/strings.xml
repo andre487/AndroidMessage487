@@ -1,0 +1,32 @@
+<resources>
+    <string name="app_name">Message487</string>
+    <string name="tagline">Connect your Android to n8n</string>
+    <string name="development_status">Development preview: test events only. Notification and SMS forwarding is not implemented yet.</string>
+    <string name="connection">Connection</string>
+    <string name="device_code">Device code</string>
+    <string name="device_code_hint">A label sent with each event, for example personal-phone.</string>
+    <string name="invalid_device_code">Enter a device code.</string>
+    <string name="webhook_url">Webhook URL</string>
+    <string name="url_hint">Enter the full URL from your published workflow.</string>
+    <string name="invalid_url">Enter an HTTPS URL without embedded credentials or a fragment. Debug builds also allow HTTP to the emulator host or localhost.</string>
+    <string name="n8n_mode">n8n confirmation</string>
+    <string name="n8n_hint">Require an accepted response matching the event ID.</string>
+    <string name="raw_hint">Custom webhook: any HTTP 2xx response counts as HTTP success.</string>
+    <string name="save">Save connection</string>
+    <string name="send_test">Save and send test event</string>
+    <string name="sending">Waiting for the webhook response…</string>
+    <string name="saved">Connection saved</string>
+    <string name="save_failed">Could not save connection settings. No event was sent.</string>
+    <string name="journal">Recent tests</string>
+    <string name="no_events">No tests in this session</string>
+    <string name="event_id">Event ID: %1$s</string>
+    <string name="duration">Request duration: %1$d ms</string>
+    <string name="http_code">HTTP %1$d</string>
+    <string name="accepted">Accepted by webhook</string>
+    <string name="http_success">HTTP request succeeded</string>
+    <string name="http_error">Webhook returned an HTTP error</string>
+    <string name="invalid_ack">Missing or invalid confirmation</string>
+    <string name="timeout">Response timed out</string>
+    <string name="network_error">Could not complete the connection</string>
+    <string name="delivery_note">A webhook response does not confirm delivery to Telegram. Test events contain synthetic text, an installation ID and your device code. Tests are not retried automatically; recent results are kept in memory.</string>
+</resources>

@@ -32,3 +32,8 @@ google-services.json
 
 # Android Profiling
 *.hprof
+.bundle/
+.kotlin/
+.DS_Store
+fastlane/report.xml
+DevServer/.env

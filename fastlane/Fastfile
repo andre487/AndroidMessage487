@@ -1,0 +1,26 @@
+default_platform(:android)
+opt_out_usage
+ensure_bundle_exec
+
+project_root = File.expand_path("..", __dir__)
+
+platform :android do
+  desc "Run JVM tests, Android lint, and build debug and unsigned release APKs"
+  lane :checks do
+    gradle(
+      tasks: %w[testDebugUnitTest lintDebug lintRelease assembleDebug assembleRelease],
+      flags: "--no-daemon",
+      project_dir: project_root
+    )
+  end
+
+  desc "Build a debug APK"
+  lane :debug_artifact do
+    gradle(task: "assembleDebug", project_dir: project_root)
+  end
+
+  desc "Install the debug APK on the connected emulator or device"
+  lane :install do
+    gradle(task: "installDebug", project_dir: project_root)
+  end
+end
