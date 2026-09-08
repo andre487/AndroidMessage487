@@ -19,23 +19,29 @@ data class DeliveryResult(
     val durationMs: Long = 0,
 )
 
-data class TestEvent(
+data class MessageEvent(
     val deviceId: String,
     val deviceCode: String,
     val source: AppSource,
     val eventId: String = UUID.randomUUID().toString(),
     val occurredAt: String = Instant.now().toString(),
+    val messageType: String = "test",
+    val text: String = "Message487 connection test",
+    val title: String? = null,
+    val sender: String? = null,
 ) {
     fun toJson(): String = JSONObject()
         .put("schema_version", 1)
         .put("event_id", eventId)
         .put("device_id", deviceId)
         .put("device_code", deviceCode)
-        .put("message_type", "test")
+        .put("message_type", messageType)
         .put("occurred_at", occurredAt)
         .put("source", source.packageName)
         .put("source_name", source.name)
-        .put("text", "Message487 connection test")
+        .put("text", text)
+        .put("title", title)
+        .put("sender", sender)
         .toString()
 }
 
@@ -48,7 +54,10 @@ fun validWebhookUrl(value: String, allowLocalHttp: Boolean): Boolean = runCatchi
 }.getOrDefault(false)
 
 class WebhookClient(private val timeoutMs: Int = 10_000) {
-    fun send(url: String, event: TestEvent, requireAck: Boolean): DeliveryResult {
+    fun send(url: String, event: MessageEvent, requireAck: Boolean): DeliveryResult =
+        sendJson(url, event.eventId, event.toJson(), requireAck)
+
+    fun sendJson(url: String, eventId: String, json: String, requireAck: Boolean): DeliveryResult {
         val start = System.nanoTime()
         var connection: HttpURLConnection? = null
         var httpCode: Int? = null
@@ -63,7 +72,7 @@ class WebhookClient(private val timeoutMs: Int = 10_000) {
                 setRequestProperty("Content-Type", "application/json; charset=utf-8")
                 setRequestProperty("Accept", "application/json")
             }
-            val payload = event.toJson().toByteArray(StandardCharsets.UTF_8)
+            val payload = json.toByteArray(StandardCharsets.UTF_8)
             connection.setFixedLengthStreamingMode(payload.size)
             connection.outputStream.use { it.write(payload) }
             httpCode = connection.responseCode
@@ -82,7 +91,7 @@ class WebhookClient(private val timeoutMs: Int = 10_000) {
                         output.toByteArray()
                     }
                     if (bytes.size > MAX_ACK_BYTES) DeliveryStatus.INVALID_ACK
-                    else validateAck(String(bytes, StandardCharsets.UTF_8), event.eventId)
+                    else validateAck(String(bytes, StandardCharsets.UTF_8), eventId)
                 }
             }
         } catch (_: SocketTimeoutException) {
@@ -92,7 +101,7 @@ class WebhookClient(private val timeoutMs: Int = 10_000) {
         } finally {
             connection?.disconnect()
         }
-        return DeliveryResult(event.eventId, status, httpCode, (System.nanoTime() - start) / 1_000_000)
+        return DeliveryResult(eventId, status, httpCode, (System.nanoTime() - start) / 1_000_000)
     }
 
     companion object {

@@ -25,7 +25,7 @@ returns an HTTP error; its n8n execution itself may still be marked successful.
 
 The standard Android Emulator reaches the host through `10.0.2.2`. The debug app starts with the
 receive endpoint configured. Its **Save and send test event** button submits synthetic data and
-shows the event ID and confirmation result. Find the same ID in the workflow's execution input.
+shows the event ID and confirmation result in **Journal**. Find the same ID in the workflow's execution input.
 In the Webhook output, `body.device_id` is the installation UUID and `body.device_code` is the
 editable device label. Both are preserved in execution history; older events may lack the label.
 `body.source` contains the package identifier and `body.source_name` the application's display name.
@@ -40,8 +40,35 @@ Use **n8n confirmation** for this server; generic webhook mode only checks the H
 
 These are published webhooks, so **Listen for test event** is unnecessary. They confirm a test
 execution only; there is no durable delivery queue, deduplication, or Telegram integration here.
-The JSON fixtures define the accepted test contract. The client preserves no automatic retry
-queue at this stage.
+The JSON fixtures define the accepted event contract. The Android client keeps a persistent
+retry queue; the server does not deduplicate repeated requests.
+
+## Capture checks on an emulator
+
+Use synthetic data only. In the app, save the receive connection, enable SMS and notifications
+in **Sources**, grant the requested permissions, and add `com.android.shell` to selected packages.
+Then generate real Android events:
+
+```sh
+adb emu sms send +15551234567 'Message487 synthetic SMS'
+adb shell 'cmd notification post -t "Message487 test" message487-test "Synthetic notification"'
+```
+
+Open **Journal** and match each accepted event ID with n8n **Executions → Webhook → Output → body**.
+The SMS event includes `sender`; the notification includes `title`. Repeat the notification command
+with identical content: it should create no new event. Change its text: a new event should appear.
+A long SMS exceeding one segment should arrive as one event with its complete text.
+
+For recovery testing, stop this Compose server, generate an event, and check that it remains queued
+or waiting for retry. Restart the server and wait for Android background scheduling. The same event
+ID should become accepted. The app must retain the event across process restarts. **Retry now** can
+request another attempt after a transient failure; pause prevents delivery until resumed.
+
+The `error` endpoint exercises automatic retries. `invalid-ack` requires a manual retry; changing
+the saved URL will not redirect an already queued event. Remove unwanted test records in the journal.
+Disable sources or pause before generating events that should not be forwarded, and verify there
+is no new journal record. Keep your SMS app unselected to avoid forwarding both its notification
+and the SMS broadcast during this check.
 
 ## Lifecycle
 

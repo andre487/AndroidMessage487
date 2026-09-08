@@ -30,10 +30,17 @@ def main():
         'message_type': 'test',
         'text': 'Synthetic smoke test',
     }
-    code, body = post('receive', event)
-    assert code == 200 and body == {
-        'status': 'accepted', 'event_id': event['event_id']
-    }, (code, body)
+    for message_type in ('test', 'notification', 'sms'):
+        event.update(message_type=message_type, event_id=str(uuid.uuid4()))
+        if message_type == 'notification':
+            event['title'] = 'Synthetic notification'
+        if message_type == 'sms':
+            event.pop('title', None)
+            event['sender'] = '+15551234567'
+        code, body = post('receive', event)
+        assert code == 200 and body == {
+            'status': 'accepted', 'event_id': event['event_id']
+        }, (code, body)
     code, body = post('receive', {})
     assert code == 400 and body['status'] == 'rejected', (code, body)
     code, body = post('error', event)
@@ -46,7 +53,7 @@ def main():
         pass
     else:
         raise AssertionError('Slow endpoint did not time out')
-    print('Passed: receive, validation, HTTP error, invalid ACK, timeout')
+    print('Passed: test/notification/SMS receive, validation, HTTP error, invalid ACK, timeout')
 
 
 if __name__ == '__main__':

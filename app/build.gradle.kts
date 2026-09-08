@@ -35,6 +35,12 @@ android {
         targetCompatibility = JavaVersion.VERSION_17
     }
     lint { abortOnError = true }
+    testOptions {
+        unitTests.isIncludeAndroidResources = true
+        unitTests.all {
+            it.systemProperty("robolectric.dependency.repo.url", "https://repo.maven.apache.org/maven2")
+        }
+    }
 }
 
 kotlin {
@@ -49,6 +55,8 @@ dependencies {
     implementation("androidx.compose.material3:material3")
     implementation("androidx.lifecycle:lifecycle-runtime-compose:2.8.7")
     implementation("androidx.lifecycle:lifecycle-viewmodel-compose:2.8.7")
+    implementation("androidx.work:work-runtime-ktx:2.11.2")
+    testImplementation("org.robolectric:robolectric:4.16")
     testImplementation("junit:junit:4.13.2")
     testImplementation("org.json:json:20250107")
     testImplementation("com.squareup.okhttp3:mockwebserver:4.12.0")
