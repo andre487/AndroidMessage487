@@ -1,5 +1,6 @@
 package life.andre.message487
 
+import life.andre.message487.diagnostics.DiagnosticEvent
 import android.Manifest
 import android.app.Application
 import android.content.ComponentName
@@ -55,7 +56,8 @@ class ConnectionViewModel(application: Application) : AndroidViewModel(applicati
                     }
                 } catch (cancelled: kotlinx.coroutines.CancellationException) {
                     throw cancelled
-                } catch (_: Exception) {
+                } catch (error: Exception) {
+                    graph.diagnostics.record(DiagnosticEvent.LOCAL_OPERATION_FAILED, error = error)
                     mutableState.value = state.value.copy(notice = R.string.local_error)
                 }
             }
@@ -114,9 +116,12 @@ class ConnectionViewModel(application: Application) : AndroidViewModel(applicati
         if (!paused) graph.recover()
     }
     fun retry(id: String) = action {
-        if (graph.outbox.retry(id)) graph.scheduler.schedule(id, replace = true)
+        if (graph.outbox.retry(id)) {
+            graph.diagnostics.record(DiagnosticEvent.MANUAL_RETRY)
+            graph.scheduler.schedule(id, replace = true)
+        }
     }
-    fun delete(id: String) = action { graph.outbox.delete(id) }
+    fun delete(id: String) = action { graph.outbox.delete(id); graph.diagnostics.record(DiagnosticEvent.EVENT_DELETED) }
     fun clearError() = action { graph.settings.update { it.copy(captureFailed = false) } }
     fun rebind() {
         NotificationListenerService.requestRebind(ComponentName(getApplication(), NotificationCaptureService::class.java))
@@ -132,7 +137,8 @@ class ConnectionViewModel(application: Application) : AndroidViewModel(applicati
                 notice
             } catch (cancelled: kotlinx.coroutines.CancellationException) {
                 throw cancelled
-            } catch (_: Exception) {
+            } catch (error: Exception) {
+                    graph.diagnostics.record(DiagnosticEvent.LOCAL_OPERATION_FAILED, error = error)
                 R.string.local_error
             }
             mutableState.value = state.value.copy(busy = false, notice = result)

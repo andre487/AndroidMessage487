@@ -1,0 +1,2 @@
+-keepattributes SourceFile,LineNumberTable
+-keepnames class life.andre.message487.** { *; }

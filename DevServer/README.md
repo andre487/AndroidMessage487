@@ -4,7 +4,7 @@ Run from the repository root with Docker Compose installed and a Docker engine r
 
 ```sh
 docker compose -f DevServer/compose.yaml up -d --wait
-python3 DevServer/tests/smoke.py
+bundle exec fastlane android server_tests
 ```
 
 Open the editor at <http://localhost:5678>. Local development login:

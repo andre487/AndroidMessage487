@@ -19,8 +19,8 @@ class SmsCaptureReceiver : BroadcastReceiver() {
                     val sender = messages.first().originatingAddress.orEmpty()
                     graph.captureSms(sender, messages.joinToString("") { it.messageBody.orEmpty() }, messages.first().timestampMillis)
                 }
-            } catch (_: Exception) {
-                graph.captureFailed()
+            } catch (error: Exception) {
+                graph.captureFailed(error)
             } finally {
                 pending.finish()
             }

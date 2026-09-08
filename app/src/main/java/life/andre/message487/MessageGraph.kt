@@ -6,17 +6,26 @@ import java.security.MessageDigest
 import java.time.Instant
 import java.util.UUID
 import java.util.concurrent.Executors
+import java.io.File
+import life.andre.message487.diagnostics.CrashHandler
+import life.andre.message487.diagnostics.DiagnosticLog
+import life.andre.message487.diagnostics.DiagnosticEvent
 
-class MessageApplication : Application() {
+open class MessageApplication : Application() {
+    internal val diagnostics by lazy { DiagnosticLog(File(filesDir, "logs")) }
+    internal val crashHandler by lazy { CrashHandler(this, diagnostics) }
     val graph by lazy { MessageGraph(this) }
 
     override fun onCreate() {
         super.onCreate()
+        crashHandler.install()
+        diagnostics.record(DiagnosticEvent.APP_STARTED)
         graph.start()
     }
 }
 
 class MessageGraph internal constructor(private val context: Application) {
+    internal val diagnostics get() = (context as MessageApplication).diagnostics
     val settings = SettingsStore(context)
     val outbox = Outbox(context, KeystorePayloadCipher())
     val scheduler by lazy { DeliveryScheduler(context) }
@@ -29,12 +38,16 @@ class MessageGraph internal constructor(private val context: Application) {
                 settings.update { it }
                 scheduler.startRecovery()
                 recover()
-            } catch (_: Exception) { captureFailed() }
+            } catch (error: Exception) { captureFailed(error) }
         }
     }
 
     fun recover() {
-        if (!settings.state.value.paused) outbox.pendingIds().forEach { scheduler.schedule(it) }
+        if (!settings.state.value.paused) {
+            val pending = outbox.pendingIds()
+            pending.forEach { scheduler.schedule(it) }
+            diagnostics.record(DiagnosticEvent.RECOVERY, count = pending.size)
+        }
     }
 
     fun enqueueTest() {
@@ -69,10 +82,14 @@ class MessageGraph internal constructor(private val context: Application) {
     }
 
     private fun enqueue(event: MessageEvent, config: ForwardingSettings, key: String? = null, fingerprint: String? = null) {
-        if (outbox.enqueue(event, config, key, fingerprint)) scheduler.schedule(event.eventId)
+        if (outbox.enqueue(event, config, key, fingerprint)) {
+            diagnostics.record(DiagnosticEvent.EVENT_QUEUED, type = event.messageType)
+            scheduler.schedule(event.eventId)
+        } else diagnostics.record(DiagnosticEvent.DUPLICATE_SKIPPED, type = event.messageType)
     }
 
-    fun captureFailed() {
+    fun captureFailed(error: Throwable? = null) {
+        diagnostics.record(DiagnosticEvent.CAPTURE_FAILED, error = error)
         try { settings.update { it.copy(captureFailed = true) } } catch (_: Exception) { }
     }
 

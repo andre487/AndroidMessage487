@@ -1,5 +1,6 @@
 package life.andre.message487
 
+import life.andre.message487.diagnostics.DiagnosticEvent
 import android.app.Notification
 import android.service.notification.NotificationListenerService
 import android.service.notification.StatusBarNotification
@@ -21,14 +22,18 @@ object ListenerState {
 
 class NotificationCaptureService : NotificationListenerService() {
     override fun onListenerConnected() {
+        MessageGraph.get(this).diagnostics.record(DiagnosticEvent.LISTENER_CONNECTED)
         ListenerState.mutableConnected.value = true
         val graph = MessageGraph.get(this)
         graph.captureExecutor.execute {
-            try { graph.recover() } catch (_: Exception) { graph.captureFailed() }
+            try { graph.recover() } catch (error: Exception) { graph.captureFailed(error) }
         }
     }
 
-    override fun onListenerDisconnected() { ListenerState.mutableConnected.value = false }
+    override fun onListenerDisconnected() {
+        MessageGraph.get(this).diagnostics.record(DiagnosticEvent.LISTENER_DISCONNECTED)
+        ListenerState.mutableConnected.value = false
+    }
 
     override fun onDestroy() {
         ListenerState.mutableConnected.value = false
@@ -49,15 +54,15 @@ class NotificationCaptureService : NotificationListenerService() {
             if (title.isBlank() && text.isBlank()) return
             val captured = CapturedNotification(sbn.key, sbn.packageName, title, text, sbn.postTime)
             graph.captureExecutor.execute {
-                try { graph.captureNotification(captured) } catch (_: Exception) { graph.captureFailed() }
+                try { graph.captureNotification(captured) } catch (error: Exception) { graph.captureFailed(error) }
             }
-        } catch (_: Exception) { graph.captureFailed() }
+        } catch (error: Exception) { graph.captureFailed(error) }
     }
 
     override fun onNotificationRemoved(sbn: StatusBarNotification) {
         val graph = MessageGraph.get(this)
         graph.captureExecutor.execute {
-            try { graph.outbox.forgetNotification(digest(sbn.key)) } catch (_: Exception) { graph.captureFailed() }
+            try { graph.outbox.forgetNotification(digest(sbn.key)) } catch (error: Exception) { graph.captureFailed(error) }
         }
     }
 }

@@ -23,6 +23,22 @@ For _fastlane_ installation instructions, see [Installing _fastlane_](https://do
 
 Run JVM tests, Android lint, and build debug and unsigned release APKs
 
+### android python_checks
+
+```sh
+[bundle exec] fastlane android python_checks
+```
+
+Run Python tests and formatting checks for the development server
+
+### android server_tests
+
+```sh
+[bundle exec] fastlane android server_tests
+```
+
+Exercise the running development n8n server
+
 ### android debug_artifact
 
 ```sh

@@ -23,6 +23,7 @@ data class ForwardingSettings(
 }
 
 class SettingsStore(context: Context) {
+    private val diagnostics = (context.applicationContext as? MessageApplication)?.diagnostics
     private val preferences = context.getSharedPreferences("connection", Context.MODE_PRIVATE)
     private val mutableState = MutableStateFlow(read())
     val state = mutableState.asStateFlow()
@@ -51,6 +52,7 @@ class SettingsStore(context: Context) {
                 .putBoolean("paused", next.paused).putStringSet("packages", next.packages)
                 .putBoolean("capture_failed", next.captureFailed).commit()
         ) throw IOException("Could not save settings")
+        diagnostics?.record(life.andre.message487.diagnostics.DiagnosticEvent.SETTINGS_SAVED)
         mutableState.value = next
         return next
     }

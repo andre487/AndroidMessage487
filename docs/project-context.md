@@ -110,3 +110,7 @@ WorkManager не гарантирует немедленную доставку.
 VPN, Go/JNI, DNS-диагностика и детали публикации MegaProxy не являются требованиями Message487.
 Политику конфиденциальности нельзя копировать дословно: Message487 передаёт содержимое событий
 выбранному получателю, а n8n и последующие сервисы имеют собственные правила хранения.
+
+Local rotating diagnostics, a next-launch crash prompt and manual ZIP email reports are implemented; see [diagnostics](diagnostics.md). Recipient: der-morgenstern@yandex.ru.
+
+CI test categories and commands are documented in [testing](testing.md); Compose UI tests run on Robolectric without an emulator.

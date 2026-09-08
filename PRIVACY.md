@@ -27,6 +27,26 @@ retained. Undelivered payloads are not automatically deleted by age. Database de
 and does not guarantee forensic erasure of previously allocated storage.
 Message bodies and server response bodies are not written to diagnostic logs by the app.
 
+## Diagnostics and voluntary email reports
+
+The app records local diagnostic events: startup, listener connectivity, capture and delivery
+outcomes, HTTP status codes, queue counts and failures. Logs exclude message and response bodies,
+notification titles, SMS senders, source packages, webhook URLs, device codes and installation IDs.
+Exception messages are omitted; limited stack traces contain exception classes and code locations.
+Unhandled Java/Kotlin exceptions are saved synchronously and a report prompt appears on next launch.
+
+Diagnostic files reside in private app storage without additional encryption. Three rotating files
+are limited to 256 KiB each, with a separate last-crash file up to 256 KiB. In Diagnostics you can
+view recent logs, clear them, or prepare an email to **der-morgenstern@yandex.ru**. The ZIP attachment
+includes these logs and an environment summary: app version, Android version/security patch,
+manufacturer/model, CPU architecture, enabled-source flags and selected-app count. Up to three
+archives are retained in private cache. Clearing logs also removes the last crash and cached archives.
+
+Nothing is sent automatically. Your selected email/sharing app receives temporary read access to
+the attachment; review it before sending. Sent copies and your email address are processed by your
+email provider and the recipient and are not erased by clearing local logs. Reports are used to
+investigate the problem you report. You may request deletion of a received report at the address above.
+
 ## Network requests
 
 Your selected endpoint receives event text, an event ID, installation ID, device code, timestamp,

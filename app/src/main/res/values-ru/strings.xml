@@ -102,4 +102,19 @@
     <string name="queue_clear_hint">Нет событий, ожидающих подтверждения.</string>
     <string name="empty_journal_hint">Отправьте тест или включите источник — здесь появятся результаты доставки.</string>
     <string name="needs_attention">Требует внимания</string>
+    <string name="diagnostics">Диагностика</string>
+    <string name="diagnostic_report">Сообщить о проблеме</string>
+    <string name="diagnostics_description">Подготовьте письмо с ZIP-архивом: локальные логи, последний креш, версии приложения и Android, модель устройства. Тексты сообщений, отправители, URL веб-хука и идентификаторы устройства исключены. Проверьте вложение перед отправкой в почтовом приложении.</string>
+    <string name="send_diagnostics">Подготовить письмо</string>
+    <string name="feedback_body">Опишите проблему, время её возникновения и шаги для повторения. Проверьте диагностическое вложение перед отправкой.</string>
+    <string name="local_log">Локальный лог</string>
+    <string name="diagnostics_limits">Автоматическая ротация: 3 × 256 КиБ и последний креш до 256 КиБ. Здесь показаны последние 48 КиБ и последний креш. В кеше приложения хранится до 3 архивов для писем.</string>
+    <string name="refresh_log">Обновить</string>
+    <string name="clear_log">Очистить логи</string>
+    <string name="log_empty">Диагностических записей пока нет.</string>
+    <string name="diagnostics_error">Не удалось прочитать, сохранить или передать диагностику. Проверьте свободное место и наличие почтового приложения.</string>
+    <string name="clear_log_description">Удалить локальные логи, последний креш и архивы писем из кеша? Уже отправленные копии останутся у получателей.</string>
+    <string name="crash_title">Приложение аварийно завершилось</string>
+    <string name="crash_description">Локальный отчёт о креше поможет разобраться в проблеме. Можно просмотреть его и подготовить письмо разработчику. Ничего не отправляется автоматически.</string>
+    <string name="review_report">Посмотреть отчёт</string>
 </resources>

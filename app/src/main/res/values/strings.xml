@@ -102,4 +102,19 @@
     <string name="queue_clear_hint">There are no unconfirmed events.</string>
     <string name="empty_journal_hint">Send a test event or enable a source to see delivery activity here.</string>
     <string name="needs_attention">Needs attention</string>
+    <string name="diagnostics">Diagnostics</string>
+    <string name="diagnostic_report">Report a problem</string>
+    <string name="diagnostics_description">Prepare an email with a ZIP containing local logs, the last crash and app / Android / device versions. Message contents, senders, webhook URL and device IDs are excluded. Review the attachment before sending in your email app.</string>
+    <string name="send_diagnostics">Prepare email</string>
+    <string name="feedback_body">Please describe the problem, when it happened and how to reproduce it. Review the diagnostic attachment before sending.</string>
+    <string name="local_log">Local log</string>
+    <string name="diagnostics_limits">Rotates automatically: 3 × 256 KiB, plus the last crash up to 256 KiB. This preview shows the latest 48 KiB and the last crash. Up to 3 email archives are kept in the app cache.</string>
+    <string name="refresh_log">Refresh</string>
+    <string name="clear_log">Clear logs</string>
+    <string name="log_empty">No diagnostic entries yet.</string>
+    <string name="diagnostics_error">Could not read, save or share diagnostics. Check available storage and that an email app is installed.</string>
+    <string name="clear_log_description">Delete local logs, the last crash and cached email archives? Copies already shared remain with their recipients.</string>
+    <string name="crash_title">The app stopped unexpectedly</string>
+    <string name="crash_description">A local crash report may help diagnose the problem. You can review it and prepare an email to the developer. Nothing is sent automatically.</string>
+    <string name="review_report">Review report</string>
 </resources>

@@ -5,9 +5,9 @@ import urllib.request
 import uuid
 
 
-def post(scenario, payload, timeout=5):
+def post(scenario, payload, timeout=5, base_url='http://127.0.0.1:5678'):
     request = urllib.request.Request(
-        f'http://127.0.0.1:5678/webhook/message487/{scenario}',
+        f'{base_url}/webhook/message487/{scenario}',
         data=json.dumps(payload).encode(),
         headers={'Content-Type': 'application/json'},
     )
@@ -39,7 +39,8 @@ def main():
             event['sender'] = '+15551234567'
         code, body = post('receive', event)
         assert code == 200 and body == {
-            'status': 'accepted', 'event_id': event['event_id']
+            'status': 'accepted',
+            'event_id': event['event_id'],
         }, (code, body)
     code, body = post('receive', {})
     assert code == 400 and body['status'] == 'rejected', (code, body)
@@ -53,7 +54,9 @@ def main():
         pass
     else:
         raise AssertionError('Slow endpoint did not time out')
-    print('Passed: test/notification/SMS receive, validation, HTTP error, invalid ACK, timeout')
+    print(
+        'Passed: test/notification/SMS receive, validation, HTTP error, invalid ACK, timeout'
+    )
 
 
 if __name__ == '__main__':

@@ -67,7 +67,7 @@ Start the [development server](DevServer/README.md), which provisions n8n and pu
 
 ```sh
 docker compose -f DevServer/compose.yaml up -d --wait
-python3 DevServer/tests/smoke.py
+bundle exec fastlane android server_tests
 ```
 
 Build with JDK 21, Ruby/Bundler and the Android SDK; the emulator launcher also uses Python 3.
@@ -101,3 +101,13 @@ This project succeeds [sms487](https://github.com/andre487/sms487).
 [AndroidMegaProxy](https://github.com/andre487/AndroidMegaProxy) is the reference for project conventions.
 
 Licensed under the [MIT License](LICENSE).
+
+## Diagnostics
+
+Open the bug icon in the top bar to view or clear local diagnostic logs and prepare an email to
+`der-morgenstern@yandex.ru`. A ZIP contains rotating logs, the last crash and device/app information;
+message content and connection secrets are excluded. Sending requires action in your email app.
+After an unhandled crash the next launch offers to review the report.
+See [diagnostic behavior and development checks](docs/diagnostics.md) and [privacy details](PRIVACY.md).
+
+Test categories, local commands, CI jobs and device-only limitations: [Testing](docs/testing.md).

@@ -1,5 +1,6 @@
 package life.andre.message487
 
+import life.andre.message487.diagnostics.DiagnosticEvent
 import android.content.Context
 import androidx.work.BackoffPolicy
 import androidx.work.Constraints
@@ -45,19 +46,23 @@ class DeliveryWorker(context: Context, parameters: WorkerParameters) : Coroutine
                 graph.outbox.beginAttempt(id)
             } catch (databaseError: android.database.SQLException) {
                 throw databaseError
-            } catch (_: Exception) {
+            } catch (error: Exception) {
+                graph.diagnostics.record(DiagnosticEvent.PAYLOAD_UNREADABLE, error = error)
                 graph.outbox.blockUnreadable(id)
                 return@withContext Result.success()
             } ?: return@withContext Result.success()
+            graph.diagnostics.record(DiagnosticEvent.DELIVERY_STARTED)
             val request = attempt.request
             val result = if (validWebhookUrl(request.url, BuildConfig.DEBUG)) {
                 WebhookClient().sendJson(request.url, id, request.json, request.requireAck)
             } else DeliveryResult(id, DeliveryStatus.HTTP_ERROR)
+            graph.diagnostics.record(DiagnosticEvent.DELIVERY_FINISHED, outcome = result.status.name, http = result.httpCode)
             val state = graph.outbox.finish(id, attempt.token, result)
             if (state == QueueState.RETRY) Result.retry() else Result.success()
         } catch (cancelled: CancellationException) {
             throw cancelled
-        } catch (_: Exception) {
+        } catch (error: Exception) {
+            graph.diagnostics.record(DiagnosticEvent.DELIVERY_FAILED, error = error)
             graph.captureFailed()
             Result.retry()
         }
@@ -71,7 +76,8 @@ class RecoveryWorker(context: Context, parameters: WorkerParameters) : Coroutine
             Result.success()
         } catch (cancelled: CancellationException) {
             throw cancelled
-        } catch (_: Exception) {
+        } catch (error: Exception) {
+            MessageGraph.get(applicationContext).diagnostics.record(DiagnosticEvent.RECOVERY_FAILED, error = error)
             Result.retry()
         }
     }

@@ -12,6 +12,33 @@ platform :android do
       flags: "--no-daemon",
       project_dir: project_root
     )
+    unsigned_apk = File.join(project_root, "app/build/outputs/apk/release/app-release-unsigned.apk")
+    UI.user_error!("Expected unsigned release APK was not produced") unless File.file?(unsigned_apk)
+    local_properties = File.join(project_root, "local.properties")
+    sdk = ENV["ANDROID_HOME"] || ENV["ANDROID_SDK_ROOT"]
+    sdk ||= File.readlines(local_properties).find { |line| line.start_with?("sdk.dir=") }&.split("=", 2)&.last&.strip if File.file?(local_properties)
+    UI.user_error!("Android SDK location is required to verify the unsigned APK") unless sdk
+    apksigner = File.join(sdk, "build-tools", "36.0.0", "apksigner")
+    UI.user_error!("Android apksigner is unavailable") unless File.executable?(apksigner)
+    if system(apksigner, "verify", unsigned_apk, out: File::NULL, err: File::NULL)
+      UI.user_error!("CI release APK is unexpectedly signed")
+    end
+    UI.success("Verified unsigned release APK")
+  end
+
+  desc "Run Python tests and formatting checks for the development server"
+  lane :python_checks do
+    python = ENV.fetch("PYTHON", "python3")
+    Dir.chdir(project_root) do
+      sh(python, "-m", "isort", "--check-only", "DevServer/tests")
+      sh(python, "-m", "black", "--check", "DevServer/tests")
+      sh(python, "-m", "unittest", "discover", "-s", "DevServer/tests", "-v")
+    end
+  end
+
+  desc "Exercise the running development n8n server"
+  lane :server_tests do
+    sh(ENV.fetch("PYTHON", "python3"), File.join(project_root, "DevServer/tests/smoke.py"))
   end
 
   desc "Build a debug APK"
