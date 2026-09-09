@@ -51,6 +51,15 @@ forwards only the content the system exposes.
 
 ## Delivery and data
 
+**Skip duplicate messages** in **Sources** is on by default. SMS and notifications are
+compared by source package, exact original timestamp and exact text (including whitespace).
+Titles and SMS senders are not part of this key. SMS uses the system source `android`.
+A different timestamp counts as a new message, even with identical text. Turn the switch off
+to forward repeated captures. Manual connection tests are exempt; network retries keep their event ID.
+Deduplication hashes survive restarts, delivery and journal deletion until app data is cleared.
+They are recorded even while the switch is off so re-enabling it covers those captures too.
+On upgrade, this history starts with newly captured events; existing queued events are preserved.
+
 The n8n confirmation mode requires JSON with `status: "accepted"` and the matching `event_id`.
 This is our fixture contract, not a built-in n8n response. Turn off **n8n confirmation** for a
 custom webhook that acknowledges with HTTP 2xx. Neither response proves delivery to a downstream

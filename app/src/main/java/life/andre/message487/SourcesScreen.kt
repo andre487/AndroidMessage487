@@ -94,6 +94,12 @@ internal fun SourcesScreen(settings: ForwardingSettings, permissions: Permission
             }
         }
         item {
+            Panel {
+                SourceSwitch(Icons.Outlined.FilterList, R.string.deduplication_enabled, R.string.deduplication_hint,
+                    settings.deduplication, !busy, model::deduplication)
+            }
+        }
+        item {
             SectionTitle(stringResource(R.string.selected_apps, settings.packages.size), stringResource(R.string.add_package)) { addPackage = true }
             SupportingText(stringResource(R.string.app_selection_short))
             OutlinedButton(

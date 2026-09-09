@@ -4,7 +4,6 @@ import android.app.Application
 import android.content.Context
 import java.security.MessageDigest
 import java.time.Instant
-import java.util.UUID
 import java.util.concurrent.Executors
 import java.io.File
 import life.andre.message487.diagnostics.CrashHandler
@@ -66,24 +65,22 @@ class MessageGraph internal constructor(private val context: Application) {
             occurredAt = Instant.ofEpochMilli(notification.postedAt).toString(),
             messageType = "notification", text = notification.text, title = notification.title,
         )
-        enqueue(event, config, digest(notification.key), digest(notification.title + "\u0000" + notification.text))
+        enqueue(event, config)
     }
 
     fun captureSms(sender: String, text: String, timestamp: Long) {
         val config = settings.state.value
         if (config.paused || !config.sms || !config.ready()) return
-        val identity = "${config.deviceId}\u0000$sender\u0000$timestamp\u0000$text"
         val event = MessageEvent(
             config.deviceId, config.deviceCode, sources.resolve("android"),
-            eventId = UUID.nameUUIDFromBytes(identity.toByteArray(Charsets.UTF_8)).toString(),
             occurredAt = Instant.ofEpochMilli(timestamp).toString(),
             messageType = "sms", text = text, sender = sender,
         )
         enqueue(event, config)
     }
 
-    private fun enqueue(event: MessageEvent, config: ForwardingSettings, key: String? = null, fingerprint: String? = null) {
-        if (outbox.enqueue(event, config, key, fingerprint)) {
+    private fun enqueue(event: MessageEvent, config: ForwardingSettings) {
+        if (outbox.enqueue(event, config)) {
             diagnostics.record(DiagnosticEvent.EVENT_QUEUED, type = event.messageType)
             scheduler.schedule(event.eventId)
         } else diagnostics.record(DiagnosticEvent.DUPLICATE_SKIPPED, type = event.messageType)

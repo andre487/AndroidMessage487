@@ -18,6 +18,17 @@ class SettingsStoreTest {
         override fun decrypt(value: ByteArray) = String(value).reversed()
     }
 
+    @Test fun `deduplication defaults on and opt out survives restart`() {
+        context.getSharedPreferences("connection", Context.MODE_PRIVATE).edit().clear().commit()
+        val store = SettingsStore(context, cipher)
+        assertTrue(store.state.value.deduplication)
+        store.update { it.copy(deduplication = false) }
+        val reopened = SettingsStore(context, cipher)
+        assertFalse(reopened.state.value.deduplication)
+        reopened.update { it.copy(deduplication = true) }
+        assertTrue(SettingsStore(context, cipher).state.value.deduplication)
+    }
+
     @Test fun `token survives restart through injected encryption and is redacted`() {
         val store = SettingsStore(context, cipher)
         store.update { it.copy(authToken = "private-token", url = "https://example.test/hook") }

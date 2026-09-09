@@ -40,7 +40,7 @@ fun deliveryQueueState(result: DeliveryResult): QueueState = when (result.status
     } else QueueState.BLOCKED
 }
 
-class Outbox(context: Context, private val cipher: PayloadCipher) : SQLiteOpenHelper(context, "outbox.db", null, 1) {
+class Outbox(context: Context, private val cipher: PayloadCipher) : SQLiteOpenHelper(context, "outbox.db", null, 2) {
     private val mutableRevision = MutableStateFlow(0L)
     val revision = mutableRevision.asStateFlow()
 
@@ -51,21 +51,34 @@ class Outbox(context: Context, private val cipher: PayloadCipher) : SQLiteOpenHe
             outcome TEXT, http_code INTEGER, payload BLOB, attempt_token TEXT
         )""")
         db.execSQL("CREATE INDEX events_state ON events(state)")
-        db.execSQL("CREATE TABLE notifications (notification_key TEXT PRIMARY KEY, fingerprint TEXT NOT NULL)")
+        createDeduplicationTable(db)
     }
 
     override fun onUpgrade(db: SQLiteDatabase, oldVersion: Int, newVersion: Int) {
-        error("Missing forward migration from $oldVersion to $newVersion")
+        if (oldVersion < 2) {
+            createDeduplicationTable(db)
+            db.execSQL("DROP TABLE IF EXISTS notifications")
+        }
+    }
+
+    private fun createDeduplicationTable(db: SQLiteDatabase) {
+        db.execSQL("CREATE TABLE message_fingerprints (fingerprint TEXT PRIMARY KEY)")
     }
 
     @Synchronized
-    fun enqueue(event: MessageEvent, settings: ForwardingSettings, notificationKey: String? = null, fingerprint: String? = null): Boolean {
+    fun enqueue(event: MessageEvent, settings: ForwardingSettings): Boolean {
         val db = writableDatabase
         db.beginTransaction()
         try {
-            if (notificationKey != null) {
-                db.rawQuery("SELECT fingerprint FROM notifications WHERE notification_key = ?", arrayOf(notificationKey)).use {
-                    if (it.moveToFirst() && it.getString(0) == fingerprint) return false
+            // JSON preserves field boundaries; normalize equivalent timestamp representations.
+            // Test requests are deliberate user actions and are never content-deduplicated.
+            val fingerprint = if (event.messageType in setOf("sms", "notification")) digest(
+                org.json.JSONArray().put(event.source.packageName)
+                    .put(java.time.Instant.parse(event.occurredAt).toString()).put(event.text).toString()
+            ) else null
+            if (settings.deduplication && fingerprint != null) {
+                db.rawQuery("SELECT 1 FROM message_fingerprints WHERE fingerprint = ?", arrayOf(fingerprint)).use {
+                    if (it.moveToFirst()) return false
                 }
             }
             db.rawQuery("SELECT id FROM events WHERE id = ?", arrayOf(event.eventId)).use {
@@ -81,12 +94,8 @@ class Outbox(context: Context, private val cipher: PayloadCipher) : SQLiteOpenHe
                 put("state", QueueState.PENDING.name)
                 put("payload", cipher.encrypt(envelope))
             })
-            if (notificationKey != null) {
-                db.insertWithOnConflict("notifications", null, ContentValues().apply {
-                    put("notification_key", notificationKey)
-                    put("fingerprint", requireNotNull(fingerprint))
-                }, SQLiteDatabase.CONFLICT_REPLACE)
-                db.execSQL("DELETE FROM notifications WHERE rowid NOT IN (SELECT rowid FROM notifications ORDER BY rowid DESC LIMIT 2000)")
+            if (fingerprint != null) {
+                db.execSQL("INSERT OR IGNORE INTO message_fingerprints (fingerprint) VALUES (?)", arrayOf(fingerprint))
             }
             db.setTransactionSuccessful()
         } finally {
@@ -94,11 +103,6 @@ class Outbox(context: Context, private val cipher: PayloadCipher) : SQLiteOpenHe
         }
         changed()
         return true
-    }
-
-    @Synchronized
-    fun forgetNotification(key: String) {
-        writableDatabase.delete("notifications", "notification_key = ?", arrayOf(key))
     }
 
     @Synchronized
