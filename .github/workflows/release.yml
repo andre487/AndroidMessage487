@@ -16,7 +16,7 @@ concurrency:
 
 jobs:
   release:
-    name: Build and verify signed APK
+    name: Build and verify signed APK and AAB
     runs-on: ubuntu-latest
     timeout-minutes: 40
     steps:
@@ -97,6 +97,6 @@ jobs:
         run: |
           cd dist/release
           sha256sum -c SHA256SUMS
-          gh release create "$GITHUB_REF_NAME" ./*.apk mapping.txt SHA256SUMS \
+          gh release create "$GITHUB_REF_NAME" ./*.apk ./*.aab mapping.txt SHA256SUMS \
             --repo "$GITHUB_REPOSITORY" --verify-tag --generate-notes \
             --title "Message487 $GITHUB_REF_NAME"

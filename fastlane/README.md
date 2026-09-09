@@ -21,7 +21,7 @@ For _fastlane_ installation instructions, see [Installing _fastlane_](https://do
 [bundle exec] fastlane android checks
 ```
 
-Run JVM tests, Android lint, and build debug and unsigned release APKs
+Run JVM tests, Android lint, and build debug APK and unsigned release APK/AAB
 
 ### android python_checks
 
@@ -45,7 +45,7 @@ Exercise the running development n8n server
 [bundle exec] fastlane android release_artifacts
 ```
 
-Build, sign and verify the release APK and checksums
+Build, sign and verify release APK, App Bundle and checksums
 
 ### android debug_artifact
 

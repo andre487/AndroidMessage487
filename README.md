@@ -1,18 +1,33 @@
 # Message487
 
+[![CI](https://github.com/andre487/AndroidMessage487/actions/workflows/ci.yml/badge.svg?branch=main&event=push)](https://github.com/andre487/AndroidMessage487/actions/workflows/ci.yml?query=branch%3Amain+event%3Apush)
+[![Release](https://img.shields.io/github/v/release/andre487/AndroidMessage487)](https://github.com/andre487/AndroidMessage487/releases/latest)
+[![License: MIT](https://img.shields.io/badge/license-MIT-blue.svg)](LICENSE)
+[![Android 8+](https://img.shields.io/badge/Android-8.0%2B-3DDC84?logo=android&logoColor=white)](https://developer.android.com/about/versions/oreo)
+
+<p align="center">
+  <img src="assets/branding/message487-icon.png" width="160" alt="Message487 app icon">
+</p>
+
 Message487 connects selected Android notifications and incoming SMS to your n8n workflows.
 A custom webhook is also supported. Telegram forwarding is one possible workflow; the Android
 app does not depend on Telegram.
 
 **Status:** development preview with notification/SMS capture, a persistent encrypted outbox,
-background delivery, automatic retries and a delivery journal. Webhook requests require a Bearer token, stored encrypted on the device. Signed APK release automation is configured; see [Releases](docs/en/releases.md).
+background delivery, automatic retries and a delivery journal. Webhook requests require a Bearer token, stored encrypted on the device. Signed APK/AAB release automation is configured; see [Releases](docs/en/releases.md).
 
 ## Getting started
+
+**[Download the latest signed APK](https://github.com/andre487/AndroidMessage487/releases/latest/download/message487.apk)**
+
+The stable link follows the latest published release; it does not point to development builds.
+Read the [release notes](https://github.com/andre487/AndroidMessage487/releases/latest) for supported features.
+Release 0.0.1 predates Bearer authentication.
 
 Guides: [n8n webhook](docs/en/n8n-webhook.md) · [Telegram forwarding](docs/en/n8n-telegram.md).
 На русском: [n8n webhook](docs/ru/n8n-webhook.md) · [Пересылка в Telegram](docs/ru/n8n-telegram.md).
 
-1. Save the full published webhook URL and a device code in **Connection**. Send a test event.
+1. Save the full published webhook URL, a Bearer token and a device code in **Connection**. Send a test event.
 2. Check **Journal** and find the same event ID in n8n **Executions**.
 3. In **Sources**, enable notification forwarding, grant notification access in Android settings,
    and select applications. Add a package manually if it has no launcher icon.
@@ -46,7 +61,7 @@ connection failures and transient HTTP errors retry with backoff; other HTTP fai
 confirmations need a manual retry from **Journal** after fixing the server. A lost response can
 cause duplicate delivery: downstream workflows should deduplicate using `event_id`.
 
-Queued events retain the URL and confirmation mode from capture time. Changing the connection
+Queued events retain the URL, token and confirmation mode from capture time. Changing the connection
 does not reroute them. Undelivered events remain until confirmed or explicitly deleted. The
 journal persists across restarts and hides message contents. Tap an event for its ID, HTTP result,
 retry and deletion controls. Confirmed payloads are removed;
@@ -95,8 +110,11 @@ bottom navigation on phones and rail navigation on wider windows. See the [desig
 for the visual conventions and references.
 
 Fastlane's `debug_artifact` lane builds only the debug APK. `checks` runs JVM/Robolectric tests,
-debug/release lint, and builds debug and unsigned release APKs under `app/build/outputs/apk/`.
+debug/release lint, and builds debug and unsigned release APKs under `app/build/outputs/apk/`, plus an unsigned AAB under
+`app/build/outputs/bundle/`.
 PR CI has no release signing credentials and does not require an emulator.
+For signed APK/AAB artifacts and manual Play Console upload, see [Releases](docs/en/releases.md).
+Store graphics and their provenance are documented in [Branding](assets/branding/README.md).
 
 See the [project context](docs/en/project-context.md) for remaining product decisions.
 This project succeeds [sms487](https://github.com/andre487/sms487).

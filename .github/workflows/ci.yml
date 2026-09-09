@@ -53,14 +53,16 @@ jobs:
       - uses: actions/upload-artifact@v7
         id: apk
         with:
-          name: message487-apks
-          path: app/build/outputs/apk/**/*.apk
+          name: message487-builds
+          path: |
+            app/build/outputs/apk/**/*.apk
+            app/build/outputs/bundle/**/*.aab
           if-no-files-found: error
           retention-days: 14
-      - name: Link APK artifacts
+      - name: Link build artifacts
         env:
           ARTIFACT_URL: ${{ steps.apk.outputs.artifact-url }}
-        run: echo "[Download debug and unsigned release APKs]($ARTIFACT_URL)" >> "$GITHUB_STEP_SUMMARY"
+        run: echo "[Download debug APK and unsigned release APK/AAB]($ARTIFACT_URL)" >> "$GITHUB_STEP_SUMMARY"
 
   python:
     name: Python tests and style

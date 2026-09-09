@@ -21,8 +21,8 @@ android {
         applicationId = "life.andre.message487"
         minSdk = 26
         targetSdk = 36
-        versionCode = 1
-        versionName = "0.0.1"
+        versionCode = 2
+        versionName = "0.0.2"
     }
     signingConfigs {
         if (signingInputs.all { !it.isNullOrBlank() }) {

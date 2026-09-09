@@ -17,7 +17,7 @@
 
 `.github/workflows/ci.yml` запускает все три job на PR, push в main и вручную.
 XML/HTML-отчёты Android-тестов и lint загружаются и при ошибках. Успешный Android-job
-также публикует debug APK и неподписанный release APK. Подпись release в этих проверках
+также публикует debug APK и неподписанные release APK и AAB. Подпись release в этих проверках
 не используется. Локальный успех не подтверждает результат GitHub для неотправленных изменений.
 
 ## Сравнение с MegaProxy

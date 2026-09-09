@@ -6,7 +6,7 @@ Run the same suites locally and in GitHub Actions:
 
 | Suite | Command | Coverage |
 | --- | --- | --- |
-| Android | `bundle exec fastlane android checks` | JVM logic, MockWebServer HTTP integration, Robolectric database/preferences/provider integration, Compose interactions, localization, manifest security, light/dark contrast, debug/release lint and APK builds, unsigned release verification |
+| Android | `bundle exec fastlane android checks` | JVM logic, MockWebServer HTTP integration, Robolectric database/preferences/provider integration, Compose interactions, localization, manifest security, light/dark contrast, debug/release lint and APK/AAB builds, unsigned release verification |
 | Python | `PYTHON=.venv/bin/python bundle exec fastlane android python_checks` | DevServer HTTP test-client behavior against a local HTTP server; pinned Black/isort style checks |
 | n8n | `bundle exec fastlane android server_tests` | Live receive/validation, notification/SMS/test payloads, HTTP failure, invalid ACK and timeout |
 
@@ -16,7 +16,7 @@ The server suite uses synthetic data and retains it in the development execution
 
 `.github/workflows/ci.yml` runs all three jobs on pull requests, main pushes and manual dispatch.
 Android XML/HTML test and lint reports are uploaded even if a check fails. Successful Android jobs
-also publish debug and unsigned release APKs. These checks never sign release artifacts.
+also publish a debug APK and unsigned release APK/AAB files. These checks never sign release artifacts.
 Local success does not establish a GitHub run result for uncommitted/unpushed changes.
 
 ## Comparison with MegaProxy
