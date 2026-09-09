@@ -2,6 +2,8 @@
 
 [English](../en/releases.md) | [Русский](../ru/releases.md)
 
+Installing on a phone? See [APK installation and Android restrictions](apk-installation.md).
+
 Run `bundle exec fastlane android release_artifacts` with JDK 21 and Android SDK 36.
 The lane runs Android JVM/Compose tests and debug/release lint, then builds signed APK and AAB
 from the same release variant. It checks the APK certificate, package/version and non-debuggable

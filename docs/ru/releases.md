@@ -2,6 +2,8 @@
 
 [English](../en/releases.md) | [Русский](../ru/releases.md)
 
+Для установки на телефон см. [инструкцию по APK и ограничениям Android](apk-installation.md).
+
 Запустите `bundle exec fastlane android release_artifacts` с JDK 21 и Android SDK 36.
 Lane выполняет JVM/Compose-тесты и debug/release lint, затем собирает подписанные APK и AAB
 из одного release-варианта. Проверяются сертификат, пакет, версия и отсутствие debug-флага

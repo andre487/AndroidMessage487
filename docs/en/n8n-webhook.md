@@ -2,6 +2,8 @@
 
 [English](../en/n8n-webhook.md) | [Русский](../ru/n8n-webhook.md)
 
+Installing on a phone? See [APK installation and Android restrictions](apk-installation.md).
+
 This guide targets Message487 0.0.2 and later, with Bearer authentication. You need the n8n editor and an HTTPS endpoint
 reachable from your phone. For a local Android emulator, use the debug build and
 [DevServer](../../DevServer/README.md). Release APKs reject HTTP endpoints.

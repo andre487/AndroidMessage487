@@ -2,6 +2,8 @@
 
 [English](../en/n8n-webhook.md) | [Русский](../ru/n8n-webhook.md)
 
+Для установки на телефон см. [инструкцию по APK и ограничениям Android](apk-installation.md).
+
 Инструкция для Message487 0.0.2 и новее, с Bearer-авторизацией. Нужен доступ к редактору n8n и HTTPS-адрес,
 доступный с телефона. Для локального Android-эмулятора используйте debug-сборку и
 [готовый DevServer](../../DevServer/README.md). Релизный APK не принимает HTTP-адреса.
