@@ -82,49 +82,31 @@ flowchart LR
 подтвердит событие раньше отправки.
 
 Добавьте узел **Code**, имя `Prepare Telegram text`, язык **JavaScript**, режим
-**Run Once for All Items**, и вставьте:
+**Run Once for All Items**, и вставьте
+содержимое файла ниже:
 
-```javascript
-const event = $('Webhook').first().json.body;
-if (!event || event.schema_version !== 1 ||
-    typeof event.event_id !== 'string' || !event.event_id ||
-    !['test', 'notification', 'sms'].includes(event.message_type) ||
-    typeof event.text !== 'string') {
-  throw new Error('Invalid Message487 event');
-}
+[telegram-format.js](../../DevServer/telegram-format.js).
 
-const text = [
-  `Устройство: ${event.device_code || event.device_id || '—'}`,
-  `Источник: ${event.source_name || event.source || '—'}`,
-  `Тип: ${event.message_type}`,
-  event.title ? `Заголовок: ${event.title}` : '',
-  event.sender ? `Отправитель: ${event.sender}` : '',
-  event.text,
-].filter(line => line !== '').join('\n');
+Формат повторяет структуру [citadel487-bot](https://github.com/andre487/citadel487-bot/blob/main/sms.go):
+источник выделен жирным в первой строке. Тип, устройство и дата со временем
+также выделены жирным и расположены каждый на отдельной строке.
+Название приложения заменено на Message487; заголовок уведомления идёт перед текстом.
+Пример SMS:
 
-const chunks = [];
-let chunk = '';
-for (const character of text) {
-  if (chunk.length + character.length > 3500) {
-    chunks.push(chunk);
-    chunk = '';
-  }
-  chunk += character;
-}
-if (chunk) chunks.push(chunk);
-const escapeHtml = value => value.replace(/[&<>]/g, character => ({
-  '&': '&amp;', '<': '&lt;', '>': '&gt;',
-})[character]);
-return chunks.map((part, index) => ({
-  json: {
-    telegram_text: escapeHtml(chunks.length > 1
-      ? `[${index + 1}/${chunks.length}]\n${part}` : part),
-  },
-}));
-```
+Message487: **+79991234567**\
+**SMS**\
+**personal-phone**\
+**09.09.2026 12:30:00**\
+Ваше сообщение
+
+В начале скрипта можно изменить `timeZone`, `locale` и названия типов в `messageTypes`.
+Время берётся из `occurred_at`, а не из времени выполнения workflow; при отсутствии
+или некорректной дате показывается `—`. Для SMS источником служит отправитель,
+для уведомлений — имя приложения с запасным вариантом идентификатора пакета.
 
 Код сохраняет полный текст, разделяя длинное событие на несколько сообщений.
-Эмодзи не разрезаются внутри UTF-16-пары; `<`, `>` и `&` экранируются для HTML.
+Эмодзи не разрезаются внутри UTF-16-пары; `<`, `>` и `&` из входных данных
+экранируются для HTML. В каждой части теги жирного текста закрыты.
 Запас по длине оставлен под номер части. Telegram допускает до 4096 символов
 после разбора entities; см. [sendMessage](https://core.telegram.org/bots/api#sendmessage).
 
