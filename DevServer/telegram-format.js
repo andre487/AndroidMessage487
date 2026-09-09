@@ -19,7 +19,7 @@ const timestamp = typeof event.occurred_at === 'string' && !Number.isNaN(date.ge
   ? new Intl.DateTimeFormat(locale, {
     timeZone, day: '2-digit', month: '2-digit', year: 'numeric',
     hour: '2-digit', minute: '2-digit', second: '2-digit', hourCycle: 'h23',
-  }).format(date)
+  }).format(date).replace(/,/g, '')
   : '—';
 const source = firstText(event.sender, event.source_name, event.source);
 const device = firstText(event.device_code, event.device_id);
@@ -27,7 +27,7 @@ const segments = [
   { text: 'Message487: ', bold: false },
   { text: source, bold: true },
   { text: '\n', bold: false },
-  { text: `${messageTypes[event.message_type]} ${device} ${timestamp}`, bold: true },
+  { text: `${messageTypes[event.message_type]}\n${device}\n${timestamp}`, bold: true },
   { text: '\n', bold: false },
   { text: typeof event.title === 'string' && event.title ? `${event.title}\n` : '', bold: false },
   { text: event.text, bold: false },

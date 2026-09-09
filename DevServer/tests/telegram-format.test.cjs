@@ -23,7 +23,7 @@ const plain = html => html.replace(/<\/?b>/g, '')
 test('SMS uses the compact bold header and event time in Moscow', () => {
   assert.equal(format({})[0],
     'Message487: <b>+79991234567</b>\n' +
-    '<b>SMS personal-phone 09.09.2026, 12:30:00</b>\nYour message');
+    '<b>SMS\npersonal-phone\n09.09.2026 12:30:00</b>\nYour message');
 });
 
 test('Notification preserves title and escapes every input field', () => {
@@ -33,7 +33,7 @@ test('Notification preserves title and escapes every input field', () => {
     title: '<b>Title</b>', text: 'A & B < C',
   })[0];
   assert.ok(result.startsWith('Message487: <b>&lt;App &amp; Co&gt;</b>\n'));
-  assert.ok(result.includes('Уведомление &lt;phone&gt;'));
+  assert.ok(result.includes('Уведомление\n&lt;phone&gt;'));
   assert.ok(result.endsWith('&lt;b&gt;Title&lt;/b&gt;\nA &amp; B &lt; C'));
 });
 
@@ -43,8 +43,8 @@ test('Missing display fields fall back without inventing an event timestamp', ()
     source: 'life.andre.message487', device_code: undefined, occurred_at: null,
   })[0];
   assert.equal(result, 'Message487: <b>life.andre.message487</b>\n' +
-    '<b>Тест installation-id —</b>\nYour message');
-  assert.ok(format({ occurred_at: 'invalid' })[0].includes('personal-phone —'));
+    '<b>Тест\ninstallation-id\n—</b>\nYour message');
+  assert.ok(format({ occurred_at: 'invalid' })[0].includes('personal-phone\n—'));
 });
 
 test('Long headers and body preserve text, Unicode and balanced HTML in each part', () => {
@@ -59,7 +59,7 @@ test('Long headers and body preserve text, Unicode and balanced HTML in each par
     assert.ok(plain(part).isWellFormed());
     return plain(part.replace(/^\[\d+\/\d+\]\n/, ''));
   }).join('');
-  assert.equal(restored, `Message487: ${sender}\nSMS personal-phone 09.09.2026, 12:30:00\n${text}`);
+  assert.equal(restored, `Message487: ${sender}\nSMS\npersonal-phone\n09.09.2026 12:30:00\n${text}`);
 });
 
 test('Invalid events fail before producing Telegram messages', () => {

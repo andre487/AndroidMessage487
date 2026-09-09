@@ -86,12 +86,15 @@ Add a **Code** node named `Prepare Telegram text`, select **JavaScript** and
 [telegram-format.js](../../DevServer/telegram-format.js).
 
 The format follows [citadel487-bot](https://github.com/andre487/citadel487-bot/blob/main/sms.go):
-the source is bold on the first line; the type, device and time are bold on the second.
+the source is bold on the first line. The type, device and date/time are also bold,
+each on its own line.
 The app name is updated to Message487, and notification titles precede the body.
 Example SMS:
 
 Message487: **+79991234567**\
-**SMS personal-phone 09.09.2026, 12:30:00**\
+**SMS**\
+**personal-phone**\
+**09.09.2026 12:30:00**\
 Your message
 
 Adjust `timeZone`, `locale` and the labels in `messageTypes` at the top of the script.
