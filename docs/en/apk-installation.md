@@ -40,8 +40,28 @@ this warning from a harmful-app detection. See [Google's warning descriptions](h
 Expand the warning details and check the exact wording. If Android offers an explicit
 option to proceed, review it and use it only for an APK whose source you trust. Some
 blocks offer no such option. Granting “Allow from this source” or “Allow restricted
-settings” does not resolve every Play Protect block. This guide does not require
-turning off Play Protect globally.
+settings” does not resolve every Play Protect block.
+
+### Temporarily pause scanning to install
+
+If there is no option to proceed, but your device allows pausing protection or turning off
+scanning, you can use that option for an APK from the
+[official Message487 release](https://github.com/andre487/AndroidMessage487/releases/latest).
+
+1. Open **Google Play → profile icon → Play Protect → ⚙️ Settings**.
+2. Turn off **Scan apps with Play Protect** and confirm. If the system offers a timed pause,
+   choose a short period sufficient for installation. Names and available options vary by device.
+3. Open the downloaded APK again and install Message487.
+4. Immediately after the installation attempt, return to Play Protect and turn scanning back on,
+   even if installation failed. For a timed pause, also check that protection has resumed instead
+   of relying only on the timer.
+
+Google documents the switch in [Play Protect help](https://support.google.com/googleplay/answer/2812853?hl=en).
+While disabled, scanning protection is reduced for the entire device, not just Message487.
+This does not change the APK's classification: warnings or blocks can return after scanning
+resumes, and the app may be disabled or removed. If the switch is unavailable or installation
+is still blocked, this method will not resolve it; device-administrator restrictions remain.
+Notification access after installation must be configured separately as described below.
 
 If installation stays blocked, report the release version, phone model, Android version
 and exact warning in [Issues](https://github.com/andre487/AndroidMessage487/issues), with
