@@ -24,8 +24,8 @@ The stable link follows the latest published release; it does not point to devel
 Read the [release notes](https://github.com/andre487/AndroidMessage487/releases/latest) for supported features.
 Release 0.0.1 predates Bearer authentication.
 
-Guides: [Install from APK](docs/en/apk-installation.md) · [n8n webhook](docs/en/n8n-webhook.md) · [Telegram forwarding](docs/en/n8n-telegram.md).
-На русском: [Установка из APK](docs/ru/apk-installation.md) · [n8n webhook](docs/ru/n8n-webhook.md) · [Пересылка в Telegram](docs/ru/n8n-telegram.md).
+Guides: [Install from APK](docs/en/apk-installation.md) · [n8n Cloud](docs/en/n8n-cloud.md) · [Self-hosted n8n](docs/en/n8n-self-hosted.md) · [Telegram forwarding](docs/en/n8n-telegram.md).
+На русском: [Установка из APK](docs/ru/apk-installation.md) · [n8n Cloud](docs/ru/n8n-cloud.md) · [Свой сервер n8n](docs/ru/n8n-self-hosted.md) · [Пересылка в Telegram](docs/ru/n8n-telegram.md).
 
 1. Save the full published webhook URL, a Bearer token and a device code in **Connection**. Send a test event.
 2. Check **Journal** and find the same event ID in n8n **Executions**.

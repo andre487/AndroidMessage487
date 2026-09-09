@@ -2,8 +2,8 @@
 
 [English](../en/n8n-telegram.md) | [Русский](../ru/n8n-telegram.md)
 
-First configure the [n8n webhook](n8n-webhook.md) and confirm a test event. That guide
-also links to official documentation, n8n Cloud and self-hosted installation options.
+First follow the [n8n Cloud](n8n-cloud.md) or [self-hosted n8n](n8n-self-hosted.md)
+guide and confirm a test event. The following steps are the same for both setups.
 Keep the bot token in **n8n Credentials**; it is not needed in Android. Forwarded
 messages are available to the selected Telegram chat and may remain in n8n history.
 
