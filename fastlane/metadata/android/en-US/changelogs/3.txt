@@ -1,0 +1,1 @@
+Prepare Message487 for F-Droid with localized store descriptions and artwork. Disable AGP dependency metadata in APKs and App Bundles. Update the n8n Telegram guide with a shared formatter, separate header lines and configurable event time formatting.

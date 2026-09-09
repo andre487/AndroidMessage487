@@ -1,0 +1,14 @@
+Message487 forwards selected Android notifications and new incoming SMS to an HTTPS webhook you configure. Connect your phone to n8n workflows or another webhook service; no n8n account is required when using a different server.
+
+• Choose which applications can forward notifications, or select all visible launcher apps.
+• Enable SMS forwarding separately. Existing SMS history is not read.
+• Authenticate requests with a Bearer token and optionally require an event acknowledgement.
+• Keep events in an encrypted local outbox and retry temporary delivery failures.
+• Pause forwarding, review delivery status, retry or delete queued events.
+• Identify your phone using a custom device code.
+• Use light or dark themes and English or Russian interfaces.
+• View rotating local diagnostics and optionally share a report by email.
+
+Notification and SMS capture are off by default. Android notification access and SMS permission are requested for the corresponding features. Android may hide sensitive notification content. The app lists visible launcher apps rather than requesting access to the entire installed-app inventory.
+
+You need your own HTTPS endpoint and token. The app has no advertising, analytics or automatic crash uploads. Your endpoint and downstream services receive forwarded message contents and apply their own retention policies. Retried requests can produce duplicates; configure deduplication on your server if needed.

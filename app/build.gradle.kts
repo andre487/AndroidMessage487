@@ -21,8 +21,8 @@ android {
         applicationId = "life.andre.message487"
         minSdk = 26
         targetSdk = 36
-        versionCode = 2
-        versionName = "0.0.2"
+        versionCode = 3
+        versionName = "0.0.3"
     }
     signingConfigs {
         if (signingInputs.all { !it.isNullOrBlank() }) {
@@ -49,6 +49,10 @@ android {
     buildFeatures {
         compose = true
         buildConfig = true
+    }
+    dependenciesInfo {
+        includeInApk = false
+        includeInBundle = false
     }
     compileOptions {
         sourceCompatibility = JavaVersion.VERSION_17
