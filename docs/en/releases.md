@@ -92,3 +92,8 @@ use JDK 21, and compare against the versioned GitHub release APK with the expect
 signing certificate. Keep dependency metadata disabled for both APKs and bundles.
 A successful GitHub build alone does not establish reproducibility: the F-Droid
 build and binary comparison must pass before marking that verification complete.
+
+Android baseline/startup profile tasks are disabled because AGP generated different
+profile contents for identical DEX code in GitHub and F-Droid builds. Android still
+optimizes the app through its normal runtime profiling; initial launches do not get
+the bundled profile optimization. See the [F-Droid reproducibility guidance](https://f-droid.org/docs/Reproducible_Builds/#bug-baselineprof-not-deterministic).

@@ -1,0 +1,1 @@
+Make release APKs reproducible by disabling nondeterministic Android baseline profiles. App version, commit hash and privacy policy link remain available in the interface.
