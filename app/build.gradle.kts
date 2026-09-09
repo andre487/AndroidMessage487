@@ -13,6 +13,16 @@ if (signingInputs.any { it != null } && signingInputs.any { it.isNullOrBlank() }
     throw GradleException("Release signing environment is incomplete")
 }
 
+val gitCommitHash = providers.environmentVariable("GITHUB_SHA")
+    .orElse(providers.environmentVariable("MESSAGE487_GIT_COMMIT"))
+    .orElse(providers.exec {
+        workingDir(rootProject.projectDir)
+        commandLine("git", "rev-parse", "HEAD")
+        isIgnoreExitValue = true
+    }.standardOutput.asText)
+    .map { value -> value.trim().take(8).takeIf { it.matches(Regex("[0-9a-fA-F]{8}")) } ?: "unknown" }
+    .get()
+
 android {
     namespace = "life.andre.message487"
     compileSdk = 36
@@ -21,8 +31,9 @@ android {
         applicationId = "life.andre.message487"
         minSdk = 26
         targetSdk = 36
-        versionCode = 2
-        versionName = "0.0.2"
+        versionCode = 3
+        versionName = "0.0.3"
+        buildConfigField("String", "GIT_COMMIT_HASH", "\"$gitCommitHash\"")
     }
     signingConfigs {
         if (signingInputs.all { !it.isNullOrBlank() }) {
@@ -49,6 +60,10 @@ android {
     buildFeatures {
         compose = true
         buildConfig = true
+    }
+    dependenciesInfo {
+        includeInApk = false
+        includeInBundle = false
     }
     compileOptions {
         sourceCompatibility = JavaVersion.VERSION_17

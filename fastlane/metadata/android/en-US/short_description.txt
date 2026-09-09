@@ -1,0 +1,1 @@
+Forward notifications and SMS to n8n or your own webhook

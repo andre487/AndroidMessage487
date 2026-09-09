@@ -6,7 +6,7 @@
 [![Android 8+](https://img.shields.io/badge/Android-8.0%2B-3DDC84?logo=android&logoColor=white)](https://developer.android.com/about/versions/oreo)
 
 <p align="center">
-  <img src="assets/branding/message487-icon.png" width="160" alt="Message487 app icon">
+  <img src="fastlane/metadata/android/en-US/images/icon.png" width="160" alt="Message487 app icon">
 </p>
 
 Message487 connects selected Android notifications and incoming SMS to your n8n workflows.

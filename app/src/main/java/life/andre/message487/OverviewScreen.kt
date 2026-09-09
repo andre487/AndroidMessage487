@@ -116,6 +116,7 @@ internal fun OverviewScreen(settings: ForwardingSettings, permissions: Permissio
                 }
             }
         }
+        item { AppInfo() }
     }
 }
 

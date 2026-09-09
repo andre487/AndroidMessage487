@@ -68,5 +68,6 @@ internal fun ConnectionScreen(state: ConnectionState, model: ConnectionViewModel
             }
         }
         item { SupportingText(stringResource(R.string.destination_note)) }
+        item { AppInfo() }
     }
 }

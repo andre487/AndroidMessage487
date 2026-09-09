@@ -81,3 +81,14 @@ CI builds and verifies the artifacts; it does not upload to Google Play or requi
 account. Native symbol packaging from MegaProxy is unnecessary here: this app has no native core.
 The bundle signature verifier also rejects unsigned added entries, modified entries, missing
 required bundle entries and unexpected certificates; its regression fixtures run in Android CI.
+
+## F-Droid
+
+Store descriptions, changelogs and artwork live in
+[`fastlane/metadata/android`](../../fastlane/metadata/android). Update both locales
+before tagging a release. The submission recipe is maintained in `fdroid/fdroiddata`,
+not duplicated in this repository. Pin each build to the full release commit SHA,
+use JDK 21, and compare against the versioned GitHub release APK with the expected
+signing certificate. Keep dependency metadata disabled for both APKs and bundles.
+A successful GitHub build alone does not establish reproducibility: the F-Droid
+build and binary comparison must pass before marking that verification complete.

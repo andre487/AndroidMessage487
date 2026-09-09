@@ -120,4 +120,7 @@
     <string name="auth_token">Токен веб-хука</string>
     <string name="token_hint">Введите токен без префикса Bearer. Хранится на устройстве в зашифрованном виде.</string>
     <string name="invalid_token">Введите токен без пробелов и префикса Bearer.</string>
+    <string name="app_version">Версия %1$s · %2$s</string>
+    <string name="privacy_policy">Политика конфиденциальности</string>
+    <string name="no_browser">Не удалось открыть политику конфиденциальности: браузер недоступен.</string>
 </resources>
