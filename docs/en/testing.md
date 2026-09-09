@@ -1,5 +1,7 @@
 # Tests and CI
 
+[English](../en/testing.md) | [Русский](../ru/testing.md)
+
 Run the same suites locally and in GitHub Actions:
 
 | Suite | Command | Coverage |

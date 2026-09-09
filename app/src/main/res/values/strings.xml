@@ -36,7 +36,7 @@
     <string name="dismiss">Dismiss</string>
     <string name="local_error">Could not complete the local operation. Check storage and settings.</string>
     <string name="settings_unavailable">Could not open Android settings.</string>
-    <string name="destination_note">Queued events keep the recipient and confirmation mode used when they were captured.</string>
+    <string name="destination_note">Queued events keep the recipient, token and confirmation mode used when they were captured.</string>
     <string name="sources_disclosure">Enabled sources send message text, source names and timestamps to your saved webhook. SMS also includes the sender. Both sources are off initially.</string>
     <string name="notifications_enabled">Notifications</string>
     <string name="notifications_hint">Selected apps only. Ongoing notifications and group summaries are skipped.</string>
@@ -117,4 +117,7 @@
     <string name="crash_title">The app stopped unexpectedly</string>
     <string name="crash_description">A local crash report may help diagnose the problem. You can review it and prepare an email to the developer. Nothing is sent automatically.</string>
     <string name="review_report">Review report</string>
+    <string name="auth_token">Webhook token</string>
+    <string name="token_hint">Enter the token without the Bearer prefix. Stored encrypted on this device.</string>
+    <string name="invalid_token">Enter a token without spaces or the Bearer prefix.</string>
 </resources>

@@ -1,5 +1,7 @@
 # Diagnostics
 
+[English](../en/diagnostics.md) | [Русский](../ru/diagnostics.md)
+
 The top-bar bug icon opens diagnostics. Refresh reads a bounded log preview; Prepare email creates
 an immutable ZIP attachment using FileProvider and temporary read-only access. Email apps are
 preferred, with the Android share sheet as fallback. No message is sent by Message487 itself.

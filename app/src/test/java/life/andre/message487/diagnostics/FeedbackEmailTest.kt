@@ -47,7 +47,7 @@ class FeedbackEmailTest {
         DiagnosticLog(temporary.newFolder()).use { log ->
             val chooser = FeedbackEmail.createIntent(context, log, ForwardingSettings(
                 url = "https://secret.example/token", deviceId = "secret-id", deviceCode = "secret-code",
-                packages = setOf("secret.package")))
+                authToken = "secret-token", packages = setOf("secret.package")))
             @Suppress("DEPRECATION")
             val send = chooser.getParcelableExtra<Intent>(Intent.EXTRA_INTENT)!!
             assertArrayEquals(arrayOf("der-morgenstern@yandex.ru"), send.getStringArrayExtra(Intent.EXTRA_EMAIL))

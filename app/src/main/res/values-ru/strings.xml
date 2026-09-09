@@ -36,7 +36,7 @@
     <string name="dismiss">Скрыть</string>
     <string name="local_error">Не удалось выполнить операцию. Проверьте место на устройстве и настройки.</string>
     <string name="settings_unavailable">Не удалось открыть настройки Android.</string>
-    <string name="destination_note">События в очереди сохраняют адрес получателя и режим подтверждения на момент приёма.</string>
+    <string name="destination_note">События в очереди сохраняют адрес получателя, токен и режим подтверждения на момент приёма.</string>
     <string name="sources_disclosure">Включённые источники передают текст, имя источника и время на сохранённый webhook. SMS также содержит отправителя. По умолчанию оба источника выключены.</string>
     <string name="notifications_enabled">Уведомления</string>
     <string name="notifications_hint">Только выбранные приложения. Постоянные уведомления и сводки групп пропускаются.</string>
@@ -117,4 +117,7 @@
     <string name="crash_title">Приложение аварийно завершилось</string>
     <string name="crash_description">Локальный отчёт о креше поможет разобраться в проблеме. Можно просмотреть его и подготовить письмо разработчику. Ничего не отправляется автоматически.</string>
     <string name="review_report">Посмотреть отчёт</string>
+    <string name="auth_token">Токен веб-хука</string>
+    <string name="token_hint">Введите токен без префикса Bearer. Хранится на устройстве в зашифрованном виде.</string>
+    <string name="invalid_token">Введите токен без пробелов и префикса Bearer.</string>
 </resources>

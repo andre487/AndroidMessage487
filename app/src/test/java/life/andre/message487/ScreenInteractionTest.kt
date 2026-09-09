@@ -15,6 +15,10 @@ import org.robolectric.annotation.LooperMode
 
 // UI tests retain real stores/screens but do not install a process crash handler or start workers.
 class UiTestApplication : MessageApplication() {
+    override val payloadCipher = object : PayloadCipher {
+        override fun encrypt(value: String) = value.reversed().toByteArray()
+        override fun decrypt(value: ByteArray) = String(value).reversed()
+    }
     override fun onCreate() {
         val intent = android.content.Intent(android.content.Intent.ACTION_MAIN).addCategory(android.content.Intent.CATEGORY_LAUNCHER)
         for (pkg in listOf("example.alpha", "example.beta", packageName)) {
@@ -70,11 +74,21 @@ class ScreenInteractionTest {
     @Test fun `invalid URL is rejected then valid connection persists across store recreation`() {
         node(R.string.connection_nav).performClick()
         node(R.string.webhook_url).performTextReplacement("not a URL")
+        compose.onNode(hasScrollToIndexAction()).performScrollToNode(hasText(application.getString(R.string.save)))
         node(R.string.save).performScrollTo().performSemanticsAction(androidx.compose.ui.semantics.SemanticsActions.OnClick) { it() }
+        compose.onNode(hasScrollToIndexAction()).performScrollToNode(hasText(application.getString(R.string.invalid_url)))
         node(R.string.invalid_url).performScrollTo().assertIsDisplayed()
         assertNotEquals("not a URL", application.graph.settings.state.value.url)
         node(R.string.webhook_url).performTextReplacement("https://example.test/webhook")
+        compose.onNode(hasScrollToIndexAction()).performScrollToNode(hasText(application.getString(R.string.save)))
+        node(R.string.save).performSemanticsAction(androidx.compose.ui.semantics.SemanticsActions.OnClick) { it() }
+        compose.onNode(hasScrollToIndexAction()).performScrollToNode(hasText(application.getString(R.string.invalid_token)))
+        node(R.string.invalid_token).assertIsDisplayed()
+        assertEquals("", application.graph.settings.state.value.authToken)
+        node(R.string.auth_token).performScrollTo().performTextReplacement("test-token")
+        compose.onNode(hasScrollToIndexAction()).performScrollToNode(hasText(application.getString(R.string.device_code)))
         node(R.string.device_code).performScrollTo().performTextReplacement("test-phone")
+        compose.onNode(hasScrollToIndexAction()).performScrollToNode(hasText(application.getString(R.string.save)))
         node(R.string.save).performScrollTo().performSemanticsAction(androidx.compose.ui.semantics.SemanticsActions.OnClick) { it() }
         compose.waitForIdle()
         assertSame(application.graph.settings.state, model.settings)
@@ -87,6 +101,7 @@ class ScreenInteractionTest {
         val restored = SettingsStore(application).state.value
         assertEquals("https://example.test/webhook", restored.url)
         assertEquals("test-phone", restored.deviceCode)
+        assertEquals("test-token", restored.authToken)
         assertTrue(restored.deviceId.isNotBlank())
     }
 

@@ -25,7 +25,9 @@ data class QueueEntry(
     val delivered: Boolean get() = state == QueueState.ACCEPTED || state == QueueState.HTTP_SUCCESS
 }
 
-data class QueuedRequest(val url: String, val requireAck: Boolean, val json: String)
+data class QueuedRequest(val url: String, val requireAck: Boolean, val json: String, val authToken: String) {
+    override fun toString(): String = "QueuedRequest(redacted)"
+}
 data class Attempt(val token: String, val entry: QueueEntry, val request: QueuedRequest)
 
 fun deliveryQueueState(result: DeliveryResult): QueueState = when (result.status) {
@@ -69,7 +71,7 @@ class Outbox(context: Context, private val cipher: PayloadCipher) : SQLiteOpenHe
             db.rawQuery("SELECT id FROM events WHERE id = ?", arrayOf(event.eventId)).use {
                 if (it.moveToFirst()) return false
             }
-            val envelope = JSONObject().put("url", settings.url).put("require_ack", settings.requireAck)
+            val envelope = JSONObject().put("url", settings.url).put("require_ack", settings.requireAck).put("auth_token", settings.authToken)
                 .put("event", JSONObject(event.toJson())).toString()
             db.insertOrThrow("events", null, ContentValues().apply {
                 put("id", event.eventId)
@@ -122,7 +124,9 @@ class Outbox(context: Context, private val cipher: PayloadCipher) : SQLiteOpenHe
             val entry = it.entry()
             if (entry.delivered || entry.state == QueueState.BLOCKED) return null
             val envelope = JSONObject(cipher.decrypt(it.getBlob(it.getColumnIndexOrThrow("payload"))))
-            entry to QueuedRequest(envelope.getString("url"), envelope.getBoolean("require_ack"), envelope.getJSONObject("event").toString())
+            val authToken = envelope.getString("auth_token")
+            require(validAuthToken(authToken)) { "Missing queued authentication token" }
+            entry to QueuedRequest(envelope.getString("url"), envelope.getBoolean("require_ack"), envelope.getJSONObject("event").toString(), authToken)
         }
         val token = UUID.randomUUID().toString()
         db.execSQL("UPDATE events SET state = 'SENDING', attempts = attempts + 1, attempt_token = ? WHERE id = ?", arrayOf(token, id))

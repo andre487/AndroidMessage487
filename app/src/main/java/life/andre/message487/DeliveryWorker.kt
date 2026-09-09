@@ -54,7 +54,7 @@ class DeliveryWorker(context: Context, parameters: WorkerParameters) : Coroutine
             graph.diagnostics.record(DiagnosticEvent.DELIVERY_STARTED)
             val request = attempt.request
             val result = if (validWebhookUrl(request.url, BuildConfig.DEBUG)) {
-                WebhookClient().sendJson(request.url, id, request.json, request.requireAck)
+                WebhookClient().sendJson(request.url, id, request.json, request.requireAck, request.authToken)
             } else DeliveryResult(id, DeliveryStatus.HTTP_ERROR)
             graph.diagnostics.record(DiagnosticEvent.DELIVERY_FINISHED, outcome = result.status.name, http = result.httpCode)
             val state = graph.outbox.finish(id, attempt.token, result)

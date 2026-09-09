@@ -9,7 +9,12 @@ import smoke
 class Handler(http.server.BaseHTTPRequestHandler):
     def do_POST(self):
         payload = json.loads(self.rfile.read(int(self.headers['Content-Length'])))
-        self.server.received = (self.path, self.headers['Content-Type'], payload)
+        self.server.received = (
+            self.path,
+            self.headers['Content-Type'],
+            self.headers.get('Authorization'),
+            payload,
+        )
         self.send_response(500 if self.path.endswith('/error') else 200)
         self.end_headers()
         if self.path.endswith('/malformed'):
@@ -42,7 +47,12 @@ class SmokeTransportTest(unittest.TestCase):
             smoke.post('receive', event, base_url=self.base_url),
         )
         self.assertEqual(
-            ('/webhook/message487/receive', 'application/json', event),
+            (
+                '/webhook/message487/receive',
+                'application/json',
+                f'Bearer {smoke.DEV_TOKEN}',
+                event,
+            ),
             self.server.received,
         )
 

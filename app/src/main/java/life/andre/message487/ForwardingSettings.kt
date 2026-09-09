@@ -16,19 +16,30 @@ data class ForwardingSettings(
     val paused: Boolean = false,
     val packages: Set<String> = emptySet(),
     val captureFailed: Boolean = false,
+    val authToken: String = "",
 ) {
-    fun ready(): Boolean = deviceCode.isNotBlank() && validWebhookUrl(url, BuildConfig.DEBUG)
+    override fun toString(): String = "ForwardingSettings(redacted)"
+
+    fun ready(): Boolean = deviceCode.isNotBlank() && validWebhookUrl(url, BuildConfig.DEBUG) && validAuthToken(authToken)
     fun acceptsPackage(packageName: String, ownPackage: String): Boolean =
         !paused && notifications && packageName != ownPackage && packageName in packages && ready()
 }
 
-class SettingsStore(context: Context) {
+class SettingsStore(
+    context: Context,
+    private val cipher: PayloadCipher = (context.applicationContext as? MessageApplication)?.payloadCipher ?: KeystorePayloadCipher(),
+) {
     private val diagnostics = (context.applicationContext as? MessageApplication)?.diagnostics
     private val preferences = context.getSharedPreferences("connection", Context.MODE_PRIVATE)
     private val mutableState = MutableStateFlow(read())
     val state = mutableState.asStateFlow()
 
     private fun read() = ForwardingSettings(
+        authToken = runCatching {
+            preferences.getString("auth_token_encrypted", null)?.let {
+                cipher.decrypt(android.util.Base64.decode(it, android.util.Base64.NO_WRAP))
+            }.orEmpty()
+        }.getOrDefault(""),
         url = preferences.getString("url", BuildConfig.DEFAULT_WEBHOOK_URL).orEmpty(),
         deviceId = preferences.getString("device_id", "").orEmpty(),
         deviceCode = preferences.getString("device_code", "android-device").orEmpty(),
@@ -45,7 +56,13 @@ class SettingsStore(context: Context) {
         val next = transform(mutableState.value).let {
             if (it.deviceId.isBlank()) it.copy(deviceId = UUID.randomUUID().toString()) else it
         }
-        if (!preferences.edit()
+        val editor = preferences.edit()
+        if (next.authToken != mutableState.value.authToken) {
+            require(validAuthToken(next.authToken))
+            editor.putString("auth_token_encrypted", android.util.Base64.encodeToString(
+                cipher.encrypt(next.authToken), android.util.Base64.NO_WRAP))
+        }
+        if (!editor
                 .putString("url", next.url).putString("device_id", next.deviceId)
                 .putString("device_code", next.deviceCode).putBoolean("require_ack", next.requireAck)
                 .putBoolean("notifications", next.notifications).putBoolean("sms", next.sms)

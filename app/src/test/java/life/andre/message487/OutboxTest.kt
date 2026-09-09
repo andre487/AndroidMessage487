@@ -21,7 +21,7 @@ class OutboxTest {
         override fun decrypt(value: ByteArray) = String(value).reversed()
     }
     private lateinit var outbox: Outbox
-    private val settings = ForwardingSettings(url = "https://original.example/receive", deviceId = "device")
+    private val settings = ForwardingSettings(authToken = "test-token", url = "https://original.example/receive", deviceId = "device")
     private fun event(id: String = java.util.UUID.randomUUID().toString()) = MessageEvent(
         "device", "phone", AppSource("example.chat", "Chat"), eventId = id,
         messageType = "notification", title = "Заголовок", text = "Text\nСообщение",
@@ -41,6 +41,8 @@ class OutboxTest {
         outbox = Outbox(context, codec)
         val first = outbox.beginAttempt(event.eventId)!!
         assertEquals(settings.url, first.request.url)
+        assertEquals(settings.authToken, first.request.authToken)
+        assertFalse(first.request.toString().contains(settings.authToken))
         assertTrue(first.request.requireAck)
         assertEquals(event.text, JSONObject(first.request.json).getString("text"))
         outbox.finish(event.eventId, first.token, DeliveryResult(event.eventId, DeliveryStatus.TIMEOUT))
@@ -48,6 +50,16 @@ class OutboxTest {
         assertEquals(first.request, second.request)
         assertNotEquals(first.token, second.token)
         assertEquals(2, outbox.entries().single().attempts)
+    }
+
+    @Test fun `legacy payload without authentication cannot start delivery`() {
+        val event = event()
+        outbox.enqueue(event, settings)
+        val envelope = JSONObject().put("url", settings.url).put("require_ack", true)
+            .put("event", JSONObject(event.toJson()))
+        val values = android.content.ContentValues().apply { put("payload", codec.encrypt(envelope.toString())) }
+        outbox.writableDatabase.update("events", values, "id = ?", arrayOf(event.eventId))
+        assertThrows(org.json.JSONException::class.java) { outbox.beginAttempt(event.eventId) }
     }
 
     @Test fun `success removes payload but retains journal and rejects stale completion`() {
