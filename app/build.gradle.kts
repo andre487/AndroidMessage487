@@ -31,8 +31,8 @@ android {
         applicationId = "life.andre.message487"
         minSdk = 26
         targetSdk = 36
-        versionCode = 3
-        versionName = "0.0.3"
+        versionCode = 4
+        versionName = "0.0.4"
         buildConfigField("String", "GIT_COMMIT_HASH", "\"$gitCommitHash\"")
     }
     signingConfigs {
@@ -81,6 +81,10 @@ android {
 kotlin {
     jvmToolchain(21)
     compilerOptions { jvmTarget.set(org.jetbrains.kotlin.gradle.dsl.JvmTarget.JVM_17) }
+}
+
+tasks.configureEach {
+    if (name.contains("ArtProfile")) enabled = false
 }
 
 dependencies {
