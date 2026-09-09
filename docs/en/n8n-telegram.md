@@ -81,49 +81,28 @@ Keep **Webhook → Respond → Using 'Respond to Webhook' Node**. If you importe
 and Telegram before Respond. Do not leave another branch acknowledging early.
 
 Add a **Code** node named `Prepare Telegram text`, select **JavaScript** and
-**Run Once for All Items**, and paste:
+**Run Once for All Items**, and paste the contents of:
 
-```javascript
-const event = $('Webhook').first().json.body;
-if (!event || event.schema_version !== 1 ||
-    typeof event.event_id !== 'string' || !event.event_id ||
-    !['test', 'notification', 'sms'].includes(event.message_type) ||
-    typeof event.text !== 'string') {
-  throw new Error('Invalid Message487 event');
-}
+[telegram-format.js](../../DevServer/telegram-format.js).
 
-const text = [
-  `Device: ${event.device_code || event.device_id || '—'}`,
-  `Source: ${event.source_name || event.source || '—'}`,
-  `Type: ${event.message_type}`,
-  event.title ? `Title: ${event.title}` : '',
-  event.sender ? `Sender: ${event.sender}` : '',
-  event.text,
-].filter(line => line !== '').join('\n');
+The format follows [citadel487-bot](https://github.com/andre487/citadel487-bot/blob/main/sms.go):
+the source is bold on the first line; the type, device and time are bold on the second.
+The app name is updated to Message487, and notification titles precede the body.
+Example SMS:
 
-const chunks = [];
-let chunk = '';
-for (const character of text) {
-  if (chunk.length + character.length > 3500) {
-    chunks.push(chunk);
-    chunk = '';
-  }
-  chunk += character;
-}
-if (chunk) chunks.push(chunk);
-const escapeHtml = value => value.replace(/[&<>]/g, character => ({
-  '&': '&amp;', '<': '&lt;', '>': '&gt;',
-})[character]);
-return chunks.map((part, index) => ({
-  json: {
-    telegram_text: escapeHtml(chunks.length > 1
-      ? `[${index + 1}/${chunks.length}]\n${part}` : part),
-  },
-}));
-```
+Message487: **+79991234567**\
+**SMS personal-phone 09.09.2026, 12:30:00**\
+Your message
+
+Adjust `timeZone`, `locale` and the labels in `messageTypes` at the top of the script.
+The shared script defaults to Russian labels and Moscow time. It uses `occurred_at`,
+not the workflow execution time; missing or invalid dates display `—`.
+SMS uses the sender as its source; notifications use the app name with the package
+identifier as a fallback.
 
 This preserves the complete text by splitting long events into several messages.
-It does not split emoji UTF-16 pairs and escapes `<`, `>` and `&` for HTML.
+It does not split emoji UTF-16 pairs and escapes incoming `<`, `>` and `&` for HTML.
+Each part closes its bold tags independently.
 The chunk size leaves room for part numbers. Telegram accepts up to 4096 characters
 after entity parsing; see [sendMessage](https://core.telegram.org/bots/api#sendmessage).
 

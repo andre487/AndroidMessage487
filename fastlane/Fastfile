@@ -45,6 +45,10 @@ platform :android do
 
   desc "Exercise the running development n8n server"
   lane :server_tests do
+    Dir.chdir(project_root) do
+      sh("docker", "compose", "-f", "DevServer/compose.yaml", "exec", "-T", "n8n",
+         "node", "--test", "/bootstrap/tests/telegram-format.test.cjs")
+    end
     sh(ENV.fetch("PYTHON", "python3"), File.join(project_root, "DevServer/tests/smoke.py"))
   end
 
