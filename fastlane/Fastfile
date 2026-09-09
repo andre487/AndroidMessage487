@@ -5,14 +5,14 @@ ensure_bundle_exec
 project_root = File.expand_path("..", __dir__)
 
 platform :android do
-  desc "Run JVM tests, Android lint, and build debug and unsigned release APKs"
+  desc "Run JVM tests, Android lint, and build debug APK and unsigned release APK/AAB"
   lane :checks do
     signing_variables = %w[MESSAGE487_KEYSTORE_PATH MESSAGE487_KEYSTORE_PASSWORD MESSAGE487_KEY_ALIAS MESSAGE487_KEY_PASSWORD MESSAGE487_KEY_PASSWORD_FILE]
     if signing_variables.any? { |name| !ENV.fetch(name, "").empty? }
       UI.user_error!("Signing configuration must not be available to PR checks")
     end
     gradle(
-      tasks: %w[testDebugUnitTest lintDebug lintRelease assembleDebug assembleRelease],
+      tasks: %w[testDebugUnitTest lintDebug lintRelease assembleDebug assembleRelease bundleRelease],
       flags: "--no-daemon",
       project_dir: project_root
     )
@@ -27,7 +27,10 @@ platform :android do
     if system(apksigner, "verify", unsigned_apk, out: File::NULL, err: File::NULL)
       UI.user_error!("CI release APK is unexpectedly signed")
     end
-    UI.success("Verified unsigned release APK")
+    sh("java", File.join(project_root, "scripts/VerifyBundle.java"),
+       File.join(project_root, "app/build/outputs/bundle/release/app-release.aab"), "unsigned")
+    sh(File.join(project_root, "scripts/test-bundle-verification.sh"))
+    UI.success("Verified unsigned release APK and App Bundle")
   end
 
   desc "Run Python tests and formatting checks for the development server"
@@ -45,7 +48,7 @@ platform :android do
     sh(ENV.fetch("PYTHON", "python3"), File.join(project_root, "DevServer/tests/smoke.py"))
   end
 
-  desc "Build, sign and verify the release APK and checksums"
+  desc "Build, sign and verify release APK, App Bundle and checksums"
   lane :release_artifacts do
     sh(File.join(project_root, "scripts/build-release-apk.sh"))
   end
