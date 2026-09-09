@@ -9,8 +9,8 @@ background delivery, automatic retries and a delivery journal. Webhook requests 
 
 ## Getting started
 
-Guides: [n8n webhook](docs/en/n8n-webhook.md) · [Telegram forwarding](docs/en/n8n-telegram.md).
-На русском: [n8n webhook](docs/ru/n8n-webhook.md) · [Пересылка в Telegram](docs/ru/n8n-telegram.md).
+Guides: [Install from APK](docs/en/apk-installation.md) · [n8n webhook](docs/en/n8n-webhook.md) · [Telegram forwarding](docs/en/n8n-telegram.md).
+На русском: [Установка из APK](docs/ru/apk-installation.md) · [n8n webhook](docs/ru/n8n-webhook.md) · [Пересылка в Telegram](docs/ru/n8n-telegram.md).
 
 1. Save the full published webhook URL and a device code in **Connection**. Send a test event.
 2. Check **Journal** and find the same event ID in n8n **Executions**.

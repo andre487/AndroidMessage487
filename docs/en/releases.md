@@ -2,6 +2,8 @@
 
 [English](../en/releases.md) | [Русский](../ru/releases.md)
 
+Installing on a phone? See [APK installation and Android restrictions](apk-installation.md).
+
 Run `bundle exec fastlane android release_artifacts` with JDK 21 and Android SDK 36. The lane runs
 Android JVM/Compose tests, debug/release lint and a signed release build, then checks the certificate,
 package ID, version and non-debuggable flag. Outputs are `dist/release/message487-<version>.apk`,
