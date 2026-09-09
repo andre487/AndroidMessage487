@@ -8,7 +8,8 @@
         "httpMethod": "POST",
         "path": "message487/error",
         "responseMode": "responseNode",
-        "options": {}
+        "options": {},
+        "authentication": "headerAuth"
       },
       "id": "webhook",
       "name": "Webhook",
@@ -18,7 +19,13 @@
         0,
         0
       ],
-      "webhookId": "message487-error"
+      "webhookId": "message487-error",
+      "credentials": {
+        "httpHeaderAuth": {
+          "id": "message487-header-auth",
+          "name": "Message487 local webhook"
+        }
+      }
     },
     {
       "parameters": {

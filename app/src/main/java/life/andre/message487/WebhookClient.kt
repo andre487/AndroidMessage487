@@ -53,11 +53,15 @@ fun validWebhookUrl(value: String, allowLocalHttp: Boolean): Boolean = runCatchi
         (uri.scheme == "https" || (allowLocalHttp && local && uri.scheme == "http"))
 }.getOrDefault(false)
 
-class WebhookClient(private val timeoutMs: Int = 10_000) {
-    fun send(url: String, event: MessageEvent, requireAck: Boolean): DeliveryResult =
-        sendJson(url, event.eventId, event.toJson(), requireAck)
+fun validAuthToken(value: String): Boolean = value.length in 1..4096 &&
+    value.matches(Regex("[A-Za-z0-9._~+/-]+=*"))
 
-    fun sendJson(url: String, eventId: String, json: String, requireAck: Boolean): DeliveryResult {
+class WebhookClient(private val timeoutMs: Int = 10_000) {
+    fun send(url: String, event: MessageEvent, requireAck: Boolean, authToken: String): DeliveryResult =
+        sendJson(url, event.eventId, event.toJson(), requireAck, authToken)
+
+    fun sendJson(url: String, eventId: String, json: String, requireAck: Boolean, authToken: String): DeliveryResult {
+        require(validAuthToken(authToken)) { "Invalid authentication token" }
         val start = System.nanoTime()
         var connection: HttpURLConnection? = null
         var httpCode: Int? = null
@@ -71,6 +75,7 @@ class WebhookClient(private val timeoutMs: Int = 10_000) {
                 doOutput = true
                 setRequestProperty("Content-Type", "application/json; charset=utf-8")
                 setRequestProperty("Accept", "application/json")
+                setRequestProperty("Authorization", "Bearer $authToken")
             }
             val payload = json.toByteArray(StandardCharsets.UTF_8)
             connection.setFixedLengthStreamingMode(payload.size)

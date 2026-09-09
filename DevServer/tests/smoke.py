@@ -3,20 +3,36 @@ import socket
 import urllib.error
 import urllib.request
 import uuid
+from pathlib import Path
+
+DEV_TOKEN = json.loads(
+    (Path(__file__).resolve().parents[1] / 'credentials/header-auth.json').read_text()
+)[0]['data']['value'].removeprefix('Bearer ')
 
 
-def post(scenario, payload, timeout=5, base_url='http://127.0.0.1:5678'):
+def post(
+    scenario, payload, timeout=5, base_url='http://127.0.0.1:5678', token=DEV_TOKEN
+):
+    headers = {'Content-Type': 'application/json'}
+    if token is not None:
+        headers['Authorization'] = f'Bearer {token}'
     request = urllib.request.Request(
         f'{base_url}/webhook/message487/{scenario}',
         data=json.dumps(payload).encode(),
-        headers={'Content-Type': 'application/json'},
+        headers=headers,
     )
     opener = urllib.request.build_opener(urllib.request.ProxyHandler({}))
     try:
         with opener.open(request, timeout=timeout) as response:
             return response.status, json.load(response)
     except urllib.error.HTTPError as error:
-        return error.code, json.load(error)
+        with error:
+            body = error.read().decode()
+        try:
+            body = json.loads(body)
+        except json.JSONDecodeError:
+            pass
+        return error.code, body
 
 
 def main():
@@ -30,6 +46,10 @@ def main():
         'message_type': 'test',
         'text': 'Synthetic smoke test',
     }
+    for scenario in ('receive', 'error', 'slow', 'invalid-ack'):
+        for token in (None, '', 'wrong-token'):
+            code, _ = post(scenario, event, token=token)
+            assert code in (401, 403), (scenario, code)
     for message_type in ('test', 'notification', 'sms'):
         event.update(message_type=message_type, event_id=str(uuid.uuid4()))
         if message_type == 'notification':
@@ -55,7 +75,7 @@ def main():
     else:
         raise AssertionError('Slow endpoint did not time out')
     print(
-        'Passed: test/notification/SMS receive, validation, HTTP error, invalid ACK, timeout'
+        'Passed: mandatory authorization on all endpoints, test/notification/SMS receive, validation, HTTP error, invalid ACK, timeout'
     )
 
 

@@ -13,7 +13,8 @@ Open the editor at <http://localhost:5678>. Local development login:
 - Password: `Message487-Local-Only`
 
 These are public test credentials. This configuration is for synthetic local development data.
-The webhook endpoints do not require authentication. The published port is bound to host loopback.
+All webhook endpoints require `Authorization: Bearer <token>`. The public local token is
+the `data.value` in [header-auth.json](credentials/header-auth.json), without the `Bearer ` prefix. The published port is bound to host loopback.
 The editor account and its bcrypt password hash are provisioned through n8n environment variables.
 
 The image version, execution retention, and runtime settings live in [compose.yaml](compose.yaml).
@@ -24,7 +25,7 @@ returns an HTTP error; its n8n execution itself may still be marked successful.
 ## Android connection
 
 The standard Android Emulator reaches the host through `10.0.2.2`. The debug app starts with the
-receive endpoint configured. Its **Save and send test event** button submits synthetic data and
+receive endpoint configured. Enter the local token in **Webhook token** before saving. Its **Save and send test event** button submits synthetic data and
 shows the event ID and confirmation result in **Journal**. Find the same ID in the workflow's execution input.
 In the Webhook output, `body.device_id` is the installation UUID and `body.device_code` is the
 editable device label. Both are preserved in execution history; older events may lack the label.
@@ -78,7 +79,8 @@ docker compose -f DevServer/compose.yaml stop
 docker compose -f DevServer/compose.yaml up -d --wait
 ```
 
-Bootstrap runs once per data volume. Restarts preserve editor changes. To explicitly replace the
+The authorization upgrade reimports the four fixtures and their credential once on existing
+volumes; subsequent bootstrap runs once per data volume. Restarts preserve editor changes. To explicitly replace the
 bundled workflows with the checked-in versions, stop n8n before importing:
 
 ```sh

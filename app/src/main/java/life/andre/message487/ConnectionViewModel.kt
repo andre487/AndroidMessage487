@@ -26,7 +26,11 @@ data class ConnectionState(
     val invalidUrl: Boolean = false,
     val invalidDeviceCode: Boolean = false,
     val notice: Int? = null,
-)
+    val authToken: String = "",
+    val invalidToken: Boolean = false,
+) {
+    override fun toString(): String = "ConnectionState(redacted)"
+}
 
 data class QueueSnapshot(val entries: List<QueueEntry> = emptyList(), val pending: Int = 0)
 data class PermissionState(val notifications: Boolean = false, val sms: Boolean = false)
@@ -36,7 +40,7 @@ class ConnectionViewModel(application: Application) : AndroidViewModel(applicati
     val settings = graph.settings.state
     val listenerConnected = ListenerState.connected
     private val mutableState = MutableStateFlow(settings.value.let {
-        ConnectionState(it.url, it.deviceCode, it.requireAck)
+        ConnectionState(it.url, it.deviceCode, it.requireAck, authToken = it.authToken)
     })
     val state = mutableState.asStateFlow()
     private val mutableQueue = MutableStateFlow(QueueSnapshot())
@@ -82,6 +86,7 @@ class ConnectionViewModel(application: Application) : AndroidViewModel(applicati
         )
     }
 
+    fun setAuthToken(token: String) { mutableState.value = state.value.copy(authToken = token, invalidToken = false, notice = null) }
     fun setUrl(url: String) { mutableState.value = state.value.copy(url = url, invalidUrl = false, notice = null) }
     fun setDeviceCode(code: String) { mutableState.value = state.value.copy(deviceCode = code, invalidDeviceCode = false, notice = null) }
     fun setRequireAck(value: Boolean) { mutableState.value = state.value.copy(requireAck = value, notice = null) }
@@ -92,8 +97,9 @@ class ConnectionViewModel(application: Application) : AndroidViewModel(applicati
         val code = draft.deviceCode.trim()
         if (code.isBlank()) { mutableState.value = draft.copy(invalidDeviceCode = true); return }
         if (!validWebhookUrl(url, BuildConfig.DEBUG)) { mutableState.value = draft.copy(invalidUrl = true); return }
+        if (!validAuthToken(draft.authToken)) { mutableState.value = draft.copy(invalidToken = true); return }
         action(if (sendTest) R.string.test_queued else R.string.saved) {
-            graph.settings.update { it.copy(url = url, deviceCode = code, requireAck = draft.requireAck) }
+            graph.settings.update { it.copy(url = url, deviceCode = code, requireAck = draft.requireAck, authToken = draft.authToken) }
             if (sendTest) graph.enqueueTest()
         }
     }

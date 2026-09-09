@@ -6,7 +6,7 @@ import org.junit.Test
 
 class ForwardingTest {
     @Test fun `capture requires opt in and selected package and excludes self`() {
-        val settings = ForwardingSettings(url = "https://example.com/receive", packages = setOf("example.chat", "self"))
+        val settings = ForwardingSettings(authToken = "test-token", url = "https://example.com/receive", packages = setOf("example.chat", "self"))
         assertFalse(settings.acceptsPackage("example.chat", "self"))
         val enabled = settings.copy(notifications = true)
         assertTrue(enabled.acceptsPackage("example.chat", "self"))

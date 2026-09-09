@@ -41,12 +41,14 @@ class WebhookClientTest {
     fun `HTTP transport sends event and validates confirmation`() = withServer { server ->
         val event = MessageEvent(deviceId = "installation", deviceCode = "test-device", source = source)
         server.enqueue(MockResponse().setBody("""{"status":"accepted","event_id":"${event.eventId}"}"""))
-        val result = WebhookClient().send(server.url("/receive").toString(), event, true)
+        val result = WebhookClient().send(server.url("/receive").toString(), event, true, "test-token")
         assertEquals(DeliveryStatus.ACCEPTED, result.status)
         assertEquals(200, result.httpCode)
         val request = server.takeRequest(1, TimeUnit.SECONDS)!!
         assertEquals("POST", request.method)
+        assertEquals("Bearer test-token", request.getHeader("Authorization"))
         val body = JSONObject(request.body.readUtf8())
+        assertFalse(body.toString().contains("test-token"))
         assertEquals(event.eventId, body.getString("event_id"))
         assertEquals("installation", body.getString("device_id"))
         assertEquals("test-device", body.getString("device_code"))
@@ -60,26 +62,36 @@ class WebhookClientTest {
         val client = WebhookClient()
         val url = server.url("/receive").toString()
         server.enqueue(MockResponse().setBody("{}"))
-        assertEquals(DeliveryStatus.INVALID_ACK, client.send(url, MessageEvent("d", "test-device", source), true).status)
+        assertEquals(DeliveryStatus.INVALID_ACK, client.send(url, MessageEvent("d", "test-device", source), true, "test-token").status)
         server.enqueue(MockResponse().setResponseCode(204))
-        assertEquals(DeliveryStatus.HTTP_SUCCESS, client.send(url, MessageEvent("d", "test-device", source), false).status)
-        for (code in listOf(302, 500)) {
+        assertEquals(DeliveryStatus.HTTP_SUCCESS, client.send(url, MessageEvent("d", "test-device", source), false, "test-token").status)
+        for (code in listOf(302, 401, 403, 500)) {
             server.enqueue(MockResponse().setResponseCode(code).addHeader("Location", url))
-            assertEquals(DeliveryStatus.HTTP_ERROR, client.send(url, MessageEvent("d", "test-device", source), true).status)
+            assertEquals(DeliveryStatus.HTTP_ERROR, client.send(url, MessageEvent("d", "test-device", source), true, "test-token").status)
         }
-        assertEquals(4, server.requestCount)
+        assertEquals(6, server.requestCount)
     }
 
     @Test
     fun `oversized ACK is rejected`() = withServer { server ->
         server.enqueue(MockResponse().setBody(" ".repeat(70_000)))
-        assertEquals(DeliveryStatus.INVALID_ACK, WebhookClient().send(server.url("/").toString(), MessageEvent("d", "test-device", source), true).status)
+        assertEquals(DeliveryStatus.INVALID_ACK, WebhookClient().send(server.url("/").toString(), MessageEvent("d", "test-device", source), true, "test-token").status)
     }
 
     @Test
     fun `slow server produces timeout`() = withServer { server ->
         server.enqueue(MockResponse().setBody("{}").setBodyDelay(300, TimeUnit.MILLISECONDS))
-        assertEquals(DeliveryStatus.TIMEOUT, WebhookClient(50).send(server.url("/").toString(), MessageEvent("d", "test-device", source), true).status)
+        assertEquals(DeliveryStatus.TIMEOUT, WebhookClient(50).send(server.url("/").toString(), MessageEvent("d", "test-device", source), true, "test-token").status)
+    }
+
+    @Test
+    fun `invalid token cannot start a request`() = withServer { server ->
+        for (token in listOf("", "Bearer token", "token\r\nX-Injected: yes")) {
+            org.junit.Assert.assertThrows(IllegalArgumentException::class.java) {
+                WebhookClient().send(server.url("/").toString(), MessageEvent("d", "test", source), true, token)
+            }
+        }
+        assertEquals(0, server.requestCount)
     }
 
     private fun withServer(block: (MockWebServer) -> Unit) {

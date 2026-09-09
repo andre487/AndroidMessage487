@@ -30,6 +30,12 @@ internal fun ConnectionScreen(state: ConnectionState, model: ConnectionViewModel
                     isError = state.invalidUrl, keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Uri),
                     shape = MaterialTheme.shapes.small,
                     supportingText = { Text(stringResource(if (state.invalidUrl) R.string.invalid_url else R.string.url_hint)) })
+                OutlinedTextField(value = state.authToken, onValueChange = model::setAuthToken,
+                    label = { Text(stringResource(R.string.auth_token)) }, modifier = Modifier.fillMaxWidth(),
+                    enabled = !state.busy, singleLine = true, isError = state.invalidToken,
+                    visualTransformation = androidx.compose.ui.text.input.PasswordVisualTransformation(),
+                    keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Password),
+                    supportingText = { Text(stringResource(if (state.invalidToken) R.string.invalid_token else R.string.token_hint)) })
                 HorizontalDivider(color = MaterialTheme.colorScheme.outlineVariant)
                 Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(12.dp)) {
                     Icon(Icons.Outlined.VerifiedUser, null, tint = MaterialTheme.colorScheme.primary)

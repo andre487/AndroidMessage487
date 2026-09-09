@@ -12,6 +12,7 @@ import life.andre.message487.diagnostics.DiagnosticLog
 import life.andre.message487.diagnostics.DiagnosticEvent
 
 open class MessageApplication : Application() {
+    internal open val payloadCipher: PayloadCipher by lazy { KeystorePayloadCipher() }
     internal val diagnostics by lazy { DiagnosticLog(File(filesDir, "logs")) }
     internal val crashHandler by lazy { CrashHandler(this, diagnostics) }
     val graph by lazy { MessageGraph(this) }
@@ -27,7 +28,7 @@ open class MessageApplication : Application() {
 class MessageGraph internal constructor(private val context: Application) {
     internal val diagnostics get() = (context as MessageApplication).diagnostics
     val settings = SettingsStore(context)
-    val outbox = Outbox(context, KeystorePayloadCipher())
+    val outbox = Outbox(context, (context as MessageApplication).payloadCipher)
     val scheduler by lazy { DeliveryScheduler(context) }
     val captureExecutor = Executors.newSingleThreadExecutor()
     private val sources = AppSourceResolver(context.packageManager)

@@ -28,7 +28,7 @@ response of every n8n workflow.
 
 Fastlane handles builds/checks. The UI uses Kotlin/Compose with English and Russian
 resources. Notification/SMS capture, a persistent queue and retries were added later.
-Webhook authentication remains unimplemented. `DevServer/README.md` describes the local
+Webhook authentication requires a Bearer token encrypted on the device. `DevServer/README.md` describes the local
 server and its limitations.
 
 ## Risks found in the old sms487 client
@@ -89,7 +89,7 @@ n8n has test and production URLs; persistent integrations use a published workfl
 1. Physical-device checks for power saving, reboot and permission restrictions.
 2. ACK after workflow execution versus durable server-side queue persistence. HTTP success
    alone does not establish durable storage or downstream delivery.
-3. Webhook authentication and future contract changes. README describes the current contract
+3. Future authentication methods and contract changes. README describes the current contract
    and queue; limits for the unconfirmed queue require a separate decision.
 4. Distribution and required device checks. The initial minimum SDK is configured in Gradle;
    its suitability for future capture behavior still needs verification.

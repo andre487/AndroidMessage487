@@ -2,7 +2,7 @@
 
 [English](../en/n8n-webhook.md) | [Русский](../ru/n8n-webhook.md)
 
-This guide targets Message487 0.0.1. You need the n8n editor and an HTTPS endpoint
+This guide targets the development version with Bearer authentication (not release 0.0.1). You need the n8n editor and an HTTPS endpoint
 reachable from your phone. For a local Android emulator, use the debug build and
 [DevServer](../../DevServer/README.md). Release APKs reject HTTP endpoints.
 
@@ -35,16 +35,14 @@ To configure the same two nodes manually, set **Webhook** as follows:
 | --- | --- |
 | HTTP Method | `POST` |
 | Path | A unique path such as `message487/receive-<random-string>` |
-| Authentication | `None` for the current client version |
+| Authentication | `Header Auth` |
 | Respond | `Using 'Respond to Webhook' Node` |
 
-Generate a random suffix with `openssl rand -hex 16`; replace the entire placeholder,
-including angle brackets. Message487 currently sends no authentication headers,
-Basic Auth or JWT. The n8n editor login does not automatically protect webhooks.
-Keep the full URL private; a random path is not a substitute for authentication.
-For personal messages, restrict endpoint access where possible, for example using
-a private network reachable from the phone. Enabling Header/Basic/JWT authentication
-without client support will reject delivery.
+Create a **Header Auth** credential: **Name** = `Authorization`, **Value** = `Bearer <token>`.
+Generate a private token with `openssl rand -hex 32` and replace `<token>`. Select this
+credential in Webhook, including after importing the fixture; do not use the bundled public
+DevServer credential in production. The editor login is separate from webhook authentication.
+See [official webhook credentials](https://docs.n8n.io/integrations/builtin/credentials/webhook/).
 
 Set **Respond to Webhook → Respond With → JSON**, **Response Code → 200**, and use
 this **Expression** in **Response Body**:
@@ -91,10 +89,11 @@ HTTP redirects or disable TLS verification.
 ## 3. Configure the app
 
 1. Open **Connection** and paste the complete Production URL.
-2. Set a recognizable **Device code**, such as `personal-phone`.
-3. Keep **n8n confirmation** enabled.
-4. Save and send a test event.
-5. Open the event in **Journal** and check its acknowledgement and HTTP 200.
+2. Enter the same token in **Webhook token**, without `Bearer `.
+3. Set a recognizable **Device code**, such as `personal-phone`.
+4. Keep **n8n confirmation** enabled.
+5. Save and send a test event.
+6. Open the event in **Journal** and check its acknowledgement and HTTP 200.
 
 After the test succeeds, enable your desired **Sources**. Notifications require
 Android notification access and selected apps; SMS requires receive-SMS permission.
@@ -109,7 +108,7 @@ itself, and `10.0.2.2` is not your computer's address.
 Open **Executions → execution → Webhook → Output → body** in n8n. Match its
 `event_id` with the app journal. Enable saving successful execution data if needed;
 DevServer already does this. Execution history contains complete messages, so
-configure access and retention accordingly.
+configure access and retention accordingly. Request headers may contain the token too.
 
 Example notification body:
 
@@ -168,10 +167,13 @@ n8n execution and successful client acknowledgement are different outcomes.
 Use your actual Production URL and a new ID for each test. This request contains
 synthetic data only:
 
+Set `WEBHOOK_TOKEN` in your shell to the same private token before running the command.
+
 ```sh
 curl --fail-with-body --max-time 10 \
   -X POST 'https://n8n.example.org/webhook/message487/YOUR-PATH' \
   -H 'Content-Type: application/json' \
+  -H "Authorization: Bearer ${WEBHOOK_TOKEN:?Set WEBHOOK_TOKEN}" \
   --data '{"schema_version":1,"event_id":"manual-check-001","device_id":"manual-test","device_code":"test-phone","message_type":"test","occurred_at":"2026-09-09T09:00:00Z","source":"life.andre.message487","source_name":"Message487","text":"Synthetic connection test"}'
 ```
 
@@ -193,7 +195,9 @@ notification or SMS to exercise actual app delivery.
 
 Network failures, timeouts, HTTP 408/425/429 and 5xx retry automatically. Invalid ACKs
 and other HTTP errors require intervention and manual retry from the journal.
-Changing the URL only affects new events; queued events retain their old destination.
+Changing the URL or token only affects new events; queued events retain both original values.
+Old queued events created without authentication are blocked and cannot be sent anonymously.
+After upgrading from 0.0.1, enter the token and send a new test; delete obsolete blocked events.
 Send a new test after fixing configuration and delete old records separately if needed.
 The top-bar bug icon opens [diagnostics](diagnostics.md), which records delivery
 outcomes without message text.

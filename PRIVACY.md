@@ -1,6 +1,6 @@
 # Privacy Policy
 
-Last updated: September 8, 2026.
+Last updated: September 9, 2026.
 
 Message487 forwards selected notifications and new incoming SMS to a webhook you configure.
 Both capture sources are off by default. Notifications require Android notification access and
@@ -14,9 +14,12 @@ selected package names, pause state and a random installation ID in private pref
 preferences do not have additional application-level encryption. A webhook URL may itself contain
 a secret, so treat it as sensitive. Android cloud backup and device transfer are disabled for app data.
 
+The webhook Bearer token is encrypted with AES-GCM and an Android Keystore key before
+being saved in preferences. It is sent in the Authorization header to your configured endpoint.
+
 Captured event bodies, including message text, notification titles and SMS senders, are stored in
 a private SQLite outbox encrypted with AES-GCM and a key held in Android Keystore. Each queued
-request includes its original destination and confirmation mode. Delivery metadata (event ID,
+request includes its original destination, encrypted authentication token and confirmation mode. Delivery metadata (event ID,
 source display name, type, timestamps, state, attempt count and HTTP result) is stored without
 additional application-level encryption. Notification duplicate detection stores hashes of keys
 and contents; these hashes are not a substitute for encryption against guesses of known content.
@@ -31,7 +34,7 @@ Message bodies and server response bodies are not written to diagnostic logs by 
 
 The app records local diagnostic events: startup, listener connectivity, capture and delivery
 outcomes, HTTP status codes, queue counts and failures. Logs exclude message and response bodies,
-notification titles, SMS senders, source packages, webhook URLs, device codes and installation IDs.
+notification titles, SMS senders, source packages, webhook URLs, authentication tokens, device codes and installation IDs.
 Exception messages are omitted; limited stack traces contain exception classes and code locations.
 Unhandled Java/Kotlin exceptions are saved synchronously and a report prompt appears on next launch.
 
@@ -58,7 +61,8 @@ The endpoint operator can also see connection metadata such as your IP address. 
 any downstream services process data under their own policies. An n8n instance may retain complete
 event bodies in its execution history; the bundled development server does so. Retries can produce
 more than one server-side copy of an event. Changing the webhook affects new events; existing
-queued events keep their previous destination.
+queued events keep their previous destination and token. Server execution history may also
+include request headers; restrict access and retention.
 
 The app lists visible launcher apps locally to let you select sources and resolve display names.
 It does not upload an installed-app inventory or request visibility of all installed packages.
