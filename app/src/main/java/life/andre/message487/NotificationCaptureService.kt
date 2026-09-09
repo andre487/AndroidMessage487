@@ -59,10 +59,4 @@ class NotificationCaptureService : NotificationListenerService() {
         } catch (error: Exception) { graph.captureFailed(error) }
     }
 
-    override fun onNotificationRemoved(sbn: StatusBarNotification) {
-        val graph = MessageGraph.get(this)
-        graph.captureExecutor.execute {
-            try { graph.outbox.forgetNotification(digest(sbn.key)) } catch (error: Exception) { graph.captureFailed(error) }
-        }
-    }
 }

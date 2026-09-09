@@ -123,4 +123,6 @@
     <string name="app_version">Версия %1$s · %2$s</string>
     <string name="privacy_policy">Политика конфиденциальности</string>
     <string name="no_browser">Не удалось открыть политику конфиденциальности: браузер недоступен.</string>
+    <string name="deduplication_enabled">Не отправлять дубли</string>
+    <string name="deduplication_hint">Пропускать сообщения с одинаковыми приложением, исходным временем и текстом. Отключите, чтобы пересылать и повторные сообщения.</string>
 </resources>

@@ -1,0 +1,1 @@
+Duplicate filtering is enabled by default for SMS and notifications, using app, exact timestamp and text. Disable it in Sources to forward repeated messages. Duplicate history survives restarts and journal cleanup.

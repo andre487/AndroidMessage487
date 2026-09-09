@@ -10,7 +10,7 @@ The app does not read existing SMS history, send SMS, or reply to notifications.
 ## On your device
 
 The app stores your webhook URL, editable device code, confirmation preference, enabled sources,
-selected package names, pause state and a random installation ID in private preferences. These
+selected package names, duplicate-filter preference, pause state and a random installation ID in private preferences. These
 preferences do not have additional application-level encryption. A webhook URL may itself contain
 a secret, so treat it as sensitive. Android cloud backup and device transfer are disabled for app data.
 
@@ -21,8 +21,10 @@ Captured event bodies, including message text, notification titles and SMS sende
 a private SQLite outbox encrypted with AES-GCM and a key held in Android Keystore. Each queued
 request includes its original destination, encrypted authentication token and confirmation mode. Delivery metadata (event ID,
 source display name, type, timestamps, state, attempt count and HTTP result) is stored without
-additional application-level encryption. Notification duplicate detection stores hashes of keys
-and contents; these hashes are not a substitute for encryption against guesses of known content.
+additional application-level encryption. Message duplicate detection stores SHA-256 hashes of source package, original timestamp and text,
+including when filtering is disabled. These hashes remain after delivery or journal deletion until
+app data is cleared or the app is uninstalled. They are not a substitute for encryption against
+guesses of known content.
 
 The journal shows delivery metadata and does not display message contents. Confirmed events have
 their encrypted payload removed from the active database record; only recent delivery metadata is

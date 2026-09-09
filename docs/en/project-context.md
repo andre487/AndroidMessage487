@@ -45,8 +45,9 @@ Compatibility with that protocol was not agreed as a requirement for the new app
 ## Capture and delivery
 
 NotificationListenerService uses a package selection; SMS_RECEIVED uses RECEIVE_SMS and
-goAsync. Both sources default to off. Existing SMS history is not read. Unchanged notification
-updates are suppressed; changed content creates an event. Group summaries, ongoing notifications
+goAsync. Both sources default to off. Existing SMS history is not read. Duplicate SMS and notifications
+are suppressed by source package, exact original timestamp and text. The Sources switch is on
+by default and allows opting out. Group summaries, ongoing notifications
 and Message487's own notifications are excluded.
 
 Events are persisted in SQLite before delivery; request bodies use AES-GCM with Android
@@ -59,8 +60,9 @@ attempts; a running request may complete. Backup and device transfer exclude app
 
 Limitations: capture depends on Android, and the process may die before local persistence.
 WorkManager does not promise immediate delivery. Sensitive-notification restrictions are not
-bypassed. Physical erasure of SQLite pages is not guaranteed. SMS deduplication uses sender,
-time, text and installation; it does not replace server-side deduplication.
+bypassed. Physical erasure of SQLite pages is not guaranteed. Deduplication hashes persist until app data is cleared, independently of journal cleanup.
+The history starts with new captures after upgrading to database version 2. This does not replace
+server-side deduplication by event ID.
 
 ## Product direction
 

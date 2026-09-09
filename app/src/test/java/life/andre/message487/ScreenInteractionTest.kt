@@ -58,6 +58,17 @@ class ScreenInteractionTest {
         application.diagnostics.close()
     }
 
+    @Test fun `duplicate filter can be disabled and reenabled from sources`() {
+        compose.onNode(hasText(compose.activity.getString(R.string.sources_tab)) and hasClickAction()).performClick()
+        icon(R.string.deduplication_enabled).performScrollTo().assertIsOn().performClick()
+        compose.waitUntil(10_000) { compose.waitForIdle(); !model.state.value.busy }
+        assertFalse(SettingsStore(application).state.value.deduplication)
+        icon(R.string.deduplication_enabled).assertIsOff().performClick()
+        compose.waitUntil(10_000) { compose.waitForIdle(); !model.state.value.busy }
+        assertTrue(SettingsStore(application).state.value.deduplication)
+        icon(R.string.deduplication_enabled).assertIsOn()
+    }
+
     @Test fun `tabs navigate and diagnostics back returns to previous screen`() {
         for (destination in listOf(R.string.sources_tab, R.string.journal, R.string.connection_nav)) {
             compose.onNode(hasText(compose.activity.getString(destination)) and hasClickAction()).performClick()
