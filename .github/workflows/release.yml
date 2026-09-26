@@ -80,13 +80,20 @@ jobs:
           retention-days: 14
 
   publish:
-    name: Publish GitHub Release
+    name: Publish GitHub Release and Google Play draft
     needs: release
     if: startsWith(github.ref, 'refs/tags/v') && github.event_name == 'push'
     runs-on: ubuntu-latest
     permissions:
       contents: write
     steps:
+      - uses: actions/checkout@v6
+        with:
+          persist-credentials: false
+      - uses: ruby/setup-ruby@v1
+        with:
+          ruby-version: "3.4.10"
+          bundler-cache: true
       - uses: actions/download-artifact@v8
         with:
           name: message487-signed-release
@@ -100,3 +107,7 @@ jobs:
           gh release create "$GITHUB_REF_NAME" ./*.apk ./*.aab mapping.txt SHA256SUMS \
             --repo "$GITHUB_REPOSITORY" --verify-tag --generate-notes \
             --title "Message487 $GITHUB_REF_NAME"
+      - name: Upload Google Play internal draft
+        env:
+          SUPPLY_JSON_KEY_DATA: ${{ secrets.SUPPLY_JSON_KEY_DATA }}
+        run: bundle exec fastlane android play_release track:internal release_status:draft

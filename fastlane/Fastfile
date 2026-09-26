@@ -66,4 +66,77 @@ platform :android do
   lane :install do
     gradle(task: "installDebug", project_dir: project_root)
   end
+
+  desc "Upload a signed release AAB and R8 mapping to Google Play (internal draft by default)"
+  lane :play_release do |options|
+    allowed_options = %i[aab mapping track release_status validate_only dry_run]
+    unknown_options = options.keys - allowed_options
+    UI.user_error!("Unknown play_release options: #{unknown_options.join(', ')}") unless unknown_options.empty?
+
+    track = options.fetch(:track, "internal").to_s
+    UI.user_error!("track must not be empty") if track.strip.empty?
+    release_status = options.fetch(:release_status, "draft").to_s
+    unless %w[draft completed].include?(release_status)
+      UI.user_error!("release_status must be draft or completed")
+    end
+    validate_only = options.fetch(:validate_only, false).to_s
+    unless %w[true false].include?(validate_only)
+      UI.user_error!("validate_only must be true or false")
+    end
+
+    release_dir = File.expand_path(ENV.fetch("MESSAGE487_RELEASE_DIR", "dist/release"), project_root)
+    files = {
+      aab: File.expand_path(options.fetch(:aab, File.join(release_dir, "message487.aab")), project_root),
+      mapping: File.expand_path(options.fetch(:mapping, File.join(release_dir, "mapping.txt")), project_root)
+    }
+    files.each do |name, path|
+      unless File.file?(path) && File.readable?(path) && File.size?(path)
+        UI.user_error!("#{name} must be a readable, non-empty file: #{path}")
+      end
+    end
+    UI.user_error!("aab must have the .aab extension") unless File.extname(files[:aab]) == ".aab"
+    UI.user_error!("mapping must have the .txt extension") unless File.extname(files[:mapping]) == ".txt"
+
+    app_version = File.read(File.join(project_root, "app/build.gradle.kts"))[/^\s*versionName = "([^"]+)"/, 1]
+    UI.user_error!("Could not read versionName from app/build.gradle.kts") unless app_version
+
+    dry_run = options.fetch(:dry_run, false).to_s
+    UI.user_error!("dry_run must be true or false") unless %w[true false].include?(dry_run)
+    if dry_run == "true"
+      UI.success("Dry run: #{files[:aab]} + #{files[:mapping]} -> life.andre.message487, #{track}, #{release_status}, Version #{app_version}")
+      UI.message("Local file/option checks only; no Google API calls, upload or signature/version validation")
+      next
+    end
+
+    json_key_data = ENV["SUPPLY_JSON_KEY_DATA"]
+    if json_key_data.to_s.strip.empty?
+      UI.user_error!("Set SUPPLY_JSON_KEY_DATA to the service-account JSON contents")
+    end
+    begin
+      credentials = JSON.parse(json_key_data)
+    rescue JSON::ParserError
+      UI.user_error!("SUPPLY_JSON_KEY_DATA must contain valid JSON")
+    end
+    unless credentials.is_a?(Hash) && credentials["type"] == "service_account" &&
+           %w[client_email private_key token_uri].all? { |key| credentials[key].is_a?(String) && !credentials[key].strip.empty? }
+      UI.user_error!("SUPPLY_JSON_KEY_DATA must contain a service-account key with client_email, private_key and token_uri")
+    end
+
+    upload_to_play_store(
+      **files,
+      json_key_data: json_key_data,
+      package_name: "life.andre.message487",
+      version_name: "Version #{app_version}",
+      metadata_path: File.join(project_root, "fastlane/metadata/android"),
+      track: track,
+      release_status: release_status,
+      validate_only: validate_only == "true",
+      skip_upload_apk: true,
+      skip_upload_aab: false,
+      skip_upload_metadata: true,
+      skip_upload_changelogs: false,
+      skip_upload_images: true,
+      skip_upload_screenshots: true
+    )
+  end
 end
