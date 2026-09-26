@@ -23,6 +23,17 @@ no localized text or third-party service marks. It is promotional artwork, not a
 Current store assets and localized descriptions have one canonical location under
 [`fastlane/metadata/android`](../../fastlane/metadata/android), shared by F-Droid and Google Play.
 
+## Google Play store settings
+
+These settings are maintained manually in Google Play Console:
+
+| Setting | Value |
+| --- | --- |
+| App or game | App (Приложение) |
+| Category | Tools (Инструменты) |
+| Tags | Home automation (Автоматизация дома), Tools (Инструменты) |
+| Phone screenshot order, both locales | `1.png`, `2.png`, `3.png` |
+
 For a Play listing, upload [`icon.png`](../../fastlane/metadata/android/en-US/images/icon.png) as the app icon and [`featureGraphic.png`](../../fastlane/metadata/android/en-US/images/featureGraphic.png)
 as the feature graphic. The screenshots were captured from the debug app on the API 35 emulator with synthetic
 local data, using Android app locales and a 1080×1920 display. Refresh them from the release
