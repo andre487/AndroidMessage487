@@ -38,6 +38,7 @@ jobs:
             exit 1
           fi
           "$sdkmanager" "platforms;android-36" "build-tools;36.0.0"
+      - run: ruby scripts/test-play-release.rb
       - run: bundle exec fastlane android checks
       - name: Publish test and lint reports
         if: always()

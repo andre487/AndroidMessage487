@@ -63,6 +63,14 @@ Build a debug APK
 
 Install the debug APK on the connected emulator or device
 
+### android play_release
+
+```sh
+[bundle exec] fastlane android play_release
+```
+
+Upload a signed release AAB and R8 mapping to Google Play (internal draft by default)
+
 ----
 
 This README.md is auto-generated and will be re-generated every time [_fastlane_](https://fastlane.tools) is run.

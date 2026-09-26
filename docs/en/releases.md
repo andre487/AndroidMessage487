@@ -13,7 +13,7 @@ flag, and verifies the certificate and signature of every AAB payload entry.
 | --- | --- |
 | `message487-<version>.apk` | Versioned signed APK |
 | `message487.apk` | Byte-identical APK with a stable download filename |
-| `message487.aab` | Signed Android App Bundle for manual Play Console upload |
+| `message487.aab` | Signed Android App Bundle for Google Play |
 | `mapping.txt` | R8 mapping for this exact build |
 | `SHA256SUMS` | Checksums for both APK names, AAB and mapping |
 
@@ -77,8 +77,52 @@ The first configured version is `0.0.1` with `versionCode = 1`. Later releases m
    for `RECEIVE_SMS`; a successful AAB build does not establish store eligibility.
 5. Review the internal release in Play Console before rolling it out.
 
-CI builds and verifies the artifacts; it does not upload to Google Play or require a Play service
-account. Native symbol packaging from MegaProxy is unnecessary here: this app has no native core.
+### Fastlane upload
+
+Like MegaProxy, `play_release` uploads existing signed artifacts and changelogs as an **internal
+draft** by default. Message487 uploads `mapping.txt` (R8), rather than native symbols.
+Build both files together with `release_artifacts`; the upload lane does not build them or verify
+their signatures or embedded versions. Use an unused, increasing `versionCode` for each upload.
+
+```shell
+bundle exec fastlane android release_artifacts
+bundle exec fastlane android play_release dry_run:true
+```
+
+`dry_run:true` checks options and readable, non-empty AAB/mapping files locally and prints the
+destination. It never calls Google, even when combined with `validate_only:true`. It does not
+check Google permissions, version-code availability, signatures or store eligibility.
+
+For API access, enable the Google Play Developer API and grant a dedicated service account access
+to `life.andre.message487` and the intended tracks in Play Console. Keep its JSON key outside the
+repository. Supply the complete JSON via `SUPPLY_JSON_KEY_DATA`, not as a lane argument or Base64.
+For example, export it in a private `~/.config/message487/release.env` file with mode `0600`:
+
+```shell
+source "$HOME/.config/message487/release.env"
+bundle exec fastlane android play_release validate_only:true
+# Create the internal draft only when ready:
+bundle exec fastlane android play_release
+```
+
+`validate_only:true` uploads into a temporary Google Play edit and validates it without committing
+the release. It requires credentials and network access; it is not an offline dry run.
+See [Fastlane supply](https://docs.fastlane.tools/actions/upload_to_play_store/).
+
+Options: `aab:`, `mapping:`, `track:`, `release_status:draft|completed`, `validate_only:true|false`
+and `dry_run:true|false`. Default files are `dist/release/message487.aab` and
+`dist/release/mapping.txt`; `MESSAGE487_RELEASE_DIR` overrides that directory. Relative paths
+resolve from the repository root. `track:production release_status:completed` requests a production
+release; review and managed publishing may still delay availability. The release label uses
+`versionName` from the current checkout, so use artifacts built from that checkout.
+
+Changelogs come from `fastlane/metadata/android/<locale>/changelogs/<versionCode>.txt`.
+Descriptions, images and screenshots are not uploaded by this lane; category and tags remain
+manual settings documented in [Branding](../../assets/branding/README.md).
+Run `ruby scripts/test-play-release.rb` for offline regression checks (also run in PR CI).
+
+CI still builds and publishes GitHub artifacts only; it does not upload to Google Play or require
+a Play service account. Native symbol packaging from MegaProxy is unnecessary here: this app has no native core.
 The bundle signature verifier also rejects unsigned added entries, modified entries, missing
 required bundle entries and unexpected certificates; its regression fixtures run in Android CI.
 

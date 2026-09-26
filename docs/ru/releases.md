@@ -13,7 +13,7 @@ APK, а также сертификат и подпись каждого сод�
 | --- | --- |
 | `message487-<version>.apk` | Подписанный APK с версией в имени |
 | `message487.apk` | Побайтовая копия APK с постоянным именем для скачивания |
-| `message487.aab` | Подписанный Android App Bundle для ручной загрузки в Play Console |
+| `message487.aab` | Подписанный Android App Bundle для Google Play |
 | `mapping.txt` | R8 mapping именно этой сборки |
 | `SHA256SUMS` | Контрольные суммы обоих APK, AAB и mapping |
 
@@ -78,8 +78,55 @@ Workflow восстанавливает ключ и пароль с приват
    Успешная сборка AAB сама по себе не означает соответствие правилам магазина.
 5. Проверьте внутренний релиз в Play Console перед распространением.
 
-CI собирает и проверяет файлы; автоматическая загрузка в Google Play и сервисный аккаунт
-Play не настроены. Архив нативных символов из MegaProxy здесь не нужен: у приложения нет
+### Загрузка через Fastlane
+
+Как в MegaProxy, `play_release` загружает готовые подписанные артефакты и списки изменений,
+по умолчанию создавая **черновик внутреннего тестирования**. Вместо нативных символов
+Message487 передаёт `mapping.txt` для R8. Собирайте оба файла вместе через `release_artifacts`:
+lane загрузки не собирает их и не проверяет подписи или встроенные версии.
+Для каждой загрузки нужен новый, возрастающий `versionCode`.
+
+```shell
+bundle exec fastlane android release_artifacts
+bundle exec fastlane android play_release dry_run:true
+```
+
+`dry_run:true` локально проверяет параметры и наличие доступных непустых AAB/mapping, затем
+выводит назначение загрузки. Обращений к Google нет, даже вместе с `validate_only:true`.
+Доступ к Play, доступность versionCode, подписи и соответствие правилам магазина он не проверяет.
+
+Для API включите Google Play Developer API и предоставьте отдельному сервисному аккаунту
+доступ к `life.andre.message487` и нужным трекам в Play Console. JSON-ключ храните вне
+репозитория. Передавайте его целиком через `SUPPLY_JSON_KEY_DATA`, не аргументом lane и не
+в Base64. Например, экспортируйте переменную в приватном файле
+`~/.config/message487/release.env` с правами `0600`:
+
+```shell
+source "$HOME/.config/message487/release.env"
+bundle exec fastlane android play_release validate_only:true
+# Создать внутренний черновик, когда всё готово:
+bundle exec fastlane android play_release
+```
+
+`validate_only:true` загружает данные во временную транзакцию Google Play и проверяет их,
+не сохраняя релиз. Нужны ключ и сеть; это не локальный dry run.
+См. [Fastlane supply](https://docs.fastlane.tools/actions/upload_to_play_store/).
+
+Параметры: `aab:`, `mapping:`, `track:`, `release_status:draft|completed`,
+`validate_only:true|false`, `dry_run:true|false`. Файлы по умолчанию —
+`dist/release/message487.aab` и `dist/release/mapping.txt`; каталог переопределяет
+`MESSAGE487_RELEASE_DIR`. Относительные пути считаются от корня репозитория.
+`track:production release_status:completed` запрашивает production-релиз; проверка Google и
+управляемая публикация могут задержать доступность. Название релиза использует `versionName`
+текущего checkout, поэтому берите артефакты, собранные из него.
+
+Списки изменений берутся из `fastlane/metadata/android/<locale>/changelogs/<versionCode>.txt`.
+Описания, изображения и скриншоты этот lane не загружает; категория и теги задаются вручную
+по [Branding](../../assets/branding/README.md). Локальная регрессионная проверка:
+`ruby scripts/test-play-release.rb` (также запускается в PR CI).
+
+CI по-прежнему собирает файлы и публикует их только на GitHub; он не загружает их в Google Play
+и не требует ключа Play. Архив нативных символов из MegaProxy здесь не нужен: у приложения нет
 нативного ядра. Проверка подписи бандла отвергает добавленные неподписанные файлы,
 изменённые файлы, отсутствие обязательных частей и чужой сертификат; регрессионные
 тесты этой проверки входят в Android CI.
