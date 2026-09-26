@@ -121,8 +121,11 @@ Descriptions, images and screenshots are not uploaded by this lane; category and
 manual settings documented in [Branding](../../assets/branding/README.md).
 Run `ruby scripts/test-play-release.rb` for offline regression checks (also run in PR CI).
 
-CI still builds and publishes GitHub artifacts only; it does not upload to Google Play or require
-a Play service account. Native symbol packaging from MegaProxy is unnecessary here: this app has no native core.
+On a `v*` tag push, CI builds and verifies artifacts, publishes the GitHub Release, then uploads
+an internal Google Play draft using the repository Actions secret `SUPPLY_JSON_KEY_DATA`.
+The secret is passed only to the upload step. `release-check/*` and manual workflow dispatch
+build artifacts only. Creating a GitHub Release manually does not trigger this workflow.
+A failed Play upload fails the job but leaves the published GitHub Release available. Native symbol packaging from MegaProxy is unnecessary here: this app has no native core.
 The bundle signature verifier also rejects unsigned added entries, modified entries, missing
 required bundle entries and unexpected certificates; its regression fixtures run in Android CI.
 
