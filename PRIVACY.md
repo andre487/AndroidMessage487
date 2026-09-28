@@ -1,8 +1,10 @@
 # Privacy Policy
 
-Last updated: September 9, 2026.
+Last updated: September 28, 2026.
 
 Message487 forwards selected notifications and new incoming SMS to a webhook you configure.
+Its core SMS feature transfers new incoming SMS from Android to your n8n workflow so you can
+view them on a computer.
 Both capture sources are off by default. Notifications require Android notification access and
 an explicit selection of source apps. SMS forwarding requires the receive-SMS permission.
 The app does not read existing SMS history, send SMS, or reply to notifications.
@@ -50,7 +52,10 @@ archives are retained in private cache. Clearing logs also removes the last cras
 Nothing is sent automatically. Your selected email/sharing app receives temporary read access to
 the attachment; review it before sending. Sent copies and your email address are processed by your
 email provider and the recipient and are not erased by clearing local logs. Reports are used to
-investigate the problem you report. You may request deletion of a received report at the address above.
+investigate the problem you report. We retain received diagnostic emails and attachments until
+the reported problem is fixed or you request their deletion, whichever happens first. Send deletion
+requests to **der-morgenstern@yandex.ru**. We delete our copies when either condition is met;
+copies held by your email provider remain subject to that provider's retention policy.
 
 ## Network requests
 
@@ -75,6 +80,14 @@ localhost for development. The app contains no advertising, analytics SDKs or au
 reporting, and does not automatically send data to the developer.
 
 ## Controls and deletion
+
+To request deletion of a diagnostic report you sent to the Message487 developer:
+1. Email **der-morgenstern@yandex.ru** from the address used to send the report.
+2. Ask to delete your report and identify the original email by its date or subject.
+
+We delete the received email, its attachments and associated sender address from our copies.
+These are otherwise retained only until the reported problem is fixed. This request does not
+delete data held by your webhook, n8n, downstream services or your email provider.
 
 Disable a source to stop capturing its new events. Pause forwarding to also pause queued delivery;
 a request already running may finish. Neither action erases previously queued events. Delete
