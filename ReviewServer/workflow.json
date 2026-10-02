@@ -1,0 +1,131 @@
+{
+  "id": "message487-review",
+  "name": "Message487 — Read SMS on computer",
+  "active": false,
+  "nodes": [
+    {
+      "parameters": {
+        "httpMethod": "POST",
+        "path": "message487/receive",
+        "responseMode": "responseNode",
+        "options": {},
+        "authentication": "headerAuth"
+      },
+      "id": "webhook",
+      "name": "Webhook",
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 2.1,
+      "position": [
+        0,
+        0
+      ],
+      "webhookId": "message487-review",
+      "credentials": {
+        "httpHeaderAuth": {
+          "id": "message487-header-auth",
+          "name": "Message487 review webhook"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "respondWith": "json",
+        "responseBody": "={{ { status: (typeof $json.body.event_id === 'string' && $json.body.event_id.length > 0 && $json.body.schema_version === 1 && ['test', 'notification', 'sms'].includes($json.body.message_type) && typeof $json.body.text === 'string') ? 'accepted' : 'rejected', event_id: $json.body.event_id ?? null } }}",
+        "options": {
+          "responseCode": "={{ (typeof $json.body.event_id === 'string' && $json.body.event_id.length > 0 && $json.body.schema_version === 1 && ['test', 'notification', 'sms'].includes($json.body.message_type) && typeof $json.body.text === 'string') ? 200 : 400 }}"
+        }
+      },
+      "id": "response",
+      "name": "Respond",
+      "type": "n8n-nodes-base.respondToWebhook",
+      "typeVersion": 1.4,
+      "position": [
+        440,
+        0
+      ]
+    },
+    {
+      "parameters": {
+        "assignments": {
+          "assignments": [
+            {
+              "id": "sender",
+              "name": "Sender",
+              "value": "={{ $json.body.sender }}",
+              "type": "string"
+            },
+            {
+              "id": "text",
+              "name": "Message",
+              "value": "={{ $json.body.text }}",
+              "type": "string"
+            },
+            {
+              "id": "occurred_at",
+              "name": "Received at",
+              "value": "={{ $json.body.occurred_at }}",
+              "type": "string"
+            },
+            {
+              "id": "device_code",
+              "name": "Phone",
+              "value": "={{ $json.body.device_code }}",
+              "type": "string"
+            },
+            {
+              "id": "event_id",
+              "name": "Event ID",
+              "value": "={{ $json.body.event_id }}",
+              "type": "string"
+            },
+            {
+              "id": "message_type",
+              "name": "Type",
+              "value": "={{ $json.body.message_type }}",
+              "type": "string"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "id": "read-sms",
+      "name": "Read SMS on computer",
+      "type": "n8n-nodes-base.set",
+      "typeVersion": 3.4,
+      "position": [
+        660,
+        0
+      ]
+    }
+  ],
+  "connections": {
+    "Webhook": {
+      "main": [
+        [
+          {
+            "node": "Respond",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Respond": {
+      "main": [
+        [
+          {
+            "node": "Read SMS on computer",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "settings": {
+    "executionOrder": "v1",
+    "saveDataErrorExecution": "all",
+    "saveDataSuccessExecution": "all",
+    "saveManualExecutions": true
+  }
+}

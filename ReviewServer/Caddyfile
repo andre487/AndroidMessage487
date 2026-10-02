@@ -1,0 +1,7 @@
+message487.158.160.132.57.nip.io {
+    encode gzip
+    request_body {
+        max_size 1MB
+    }
+    reverse_proxy 172.30.48.2:5678
+}

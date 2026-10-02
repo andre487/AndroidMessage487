@@ -1,0 +1,67 @@
+name: message487-review
+
+services:
+  n8n:
+    image: docker.n8n.io/n8nio/n8n:2.38.1
+    restart: unless-stopped
+    networks:
+      default:
+        ipv4_address: 172.30.48.2
+    mem_limit: 640m
+    memswap_limit: 1g
+    cap_drop: [ALL]
+    security_opt: [no-new-privileges:true]
+    environment:
+      NODE_OPTIONS: --max-old-space-size=384
+      N8N_HOST: ${REVIEW_HOST:?Set REVIEW_HOST}
+      N8N_PROTOCOL: https
+      N8N_EDITOR_BASE_URL: https://${REVIEW_HOST}
+      WEBHOOK_URL: https://${REVIEW_HOST}/
+      N8N_PROXY_HOPS: "1"
+      N8N_SECURE_COOKIE: "true"
+      N8N_DIAGNOSTICS_ENABLED: "false"
+      N8N_VERSION_NOTIFICATIONS_ENABLED: "false"
+      N8N_TEMPLATES_ENABLED: "false"
+      N8N_PERSONALIZATION_ENABLED: "false"
+      N8N_ENFORCE_SETTINGS_FILE_PERMISSIONS: "true"
+      N8N_BLOCK_ENV_ACCESS_IN_NODE: "true"
+      N8N_COMMUNITY_PACKAGES_ENABLED: "false"
+      NODES_EXCLUDE: '["n8n-nodes-base.executeCommand","n8n-nodes-base.readWriteFile","n8n-nodes-base.ssh"]'
+      N8N_INSTANCE_OWNER_MANAGED_BY_ENV: "true"
+      N8N_INSTANCE_OWNER_EMAIL: ${REVIEW_EMAIL:?Set REVIEW_EMAIL}
+      N8N_INSTANCE_OWNER_FIRST_NAME: Google Play
+      N8N_INSTANCE_OWNER_LAST_NAME: Reviewer
+      N8N_INSTANCE_OWNER_PASSWORD_HASH: ${REVIEW_PASSWORD_HASH:?Set REVIEW_PASSWORD_HASH}
+      EXECUTIONS_DATA_SAVE_ON_ERROR: all
+      EXECUTIONS_DATA_SAVE_ON_SUCCESS: all
+      EXECUTIONS_DATA_SAVE_MANUAL_EXECUTIONS: "true"
+      EXECUTIONS_DATA_PRUNE: "true"
+      EXECUTIONS_DATA_MAX_AGE: "168"
+      EXECUTIONS_DATA_PRUNE_MAX_COUNT: "1000"
+      GENERIC_TIMEZONE: UTC
+      TZ: UTC
+    volumes:
+      - n8n-data:/home/node/.n8n
+      - ./workflow.json:/bootstrap/workflow.json:ro
+      - ./credentials.json:/bootstrap/credentials.json:ro
+    healthcheck:
+      test: ["CMD", "node", "-e", "fetch('http://127.0.0.1:5678/healthz/readiness').then(r=>process.exit(r.ok?0:1)).catch(()=>process.exit(1))"]
+      interval: 10s
+      timeout: 5s
+      retries: 30
+      start_period: 60s
+    logging:
+      driver: json-file
+      options:
+        max-size: 5m
+        max-file: "2"
+
+volumes:
+  n8n-data:
+
+networks:
+  default:
+    internal: true
+    ipam:
+      config:
+        - subnet: 172.30.48.0/24

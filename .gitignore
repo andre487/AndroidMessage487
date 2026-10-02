@@ -37,6 +37,8 @@ google-services.json
 .DS_Store
 fastlane/report.xml
 DevServer/.env
+ReviewServer/.env
+ReviewServer/credentials.json
 
 .venv/
 __pycache__/
