@@ -1,4 +1,4 @@
-Message487 forwards selected Android notifications and new incoming SMS to an HTTPS webhook you configure. Connect your phone to n8n workflows or another webhook service; no n8n account is required when using a different server.
+Read new incoming SMS from your Android phone on your computer through your own n8n workflow. Message487 transfers the message text, sender and timestamp to the HTTPS webhook you configure. It also forwards notifications from apps you select. You need an HTTPS receiver and token; SMS viewing on the computer uses your configured n8n service. You can also use another HTTPS service; an n8n account is not required in that case.
 
 • Choose which applications can forward notifications, or select all visible launcher apps.
 • Enable SMS forwarding separately. Existing SMS history is not read.
