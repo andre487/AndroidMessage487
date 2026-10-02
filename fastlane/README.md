@@ -63,6 +63,14 @@ Build a debug APK
 
 Install the debug APK on the connected emulator or device
 
+### android play_metadata
+
+```sh
+[bundle exec] fastlane android play_metadata metadata_commit:<full-commit-sha>
+```
+
+Upload store descriptions from a committed revision without submitting for review.
+
 ### android play_release
 
 ```sh

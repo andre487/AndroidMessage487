@@ -1,1 +1,1 @@
-Forward notifications and SMS to n8n or your own webhook
+Read phone SMS on your computer via n8n; forward selected notifications

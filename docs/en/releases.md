@@ -129,6 +129,27 @@ A failed Play upload fails the job but leaves the published GitHub Release avail
 The bundle signature verifier also rejects unsigned added entries, modified entries, missing
 required bundle entries and unexpected certificates; its regression fixtures run in Android CI.
 
+### Store descriptions without a new binary
+
+Run the manual **Upload Google Play descriptions** workflow from `main` and supply the full
+SHA of the reviewed commit containing the descriptions. Use a commit whose text matches the
+version being reviewed in Play; it may include editorial fixes made after that version's tag.
+The workflow runs current tooling and reads only EN/RU title, short description and full
+description from that commit. It does not execute code from the selected commit.
+
+Locally, with the service-account environment loaded:
+
+```shell
+bundle exec fastlane android play_metadata metadata_commit:<full-commit-sha>
+```
+
+Omitting the SHA uses committed `HEAD`, never uncommitted text. Screenshots, artwork, binaries
+and release notes stay untouched. Upload leaves changes unsubmitted and disables Fastlane's
+automatic submission fallback. Check both languages and the matching release in Publishing
+overview before sending for review. Upload, review approval and publication are separate steps.
+The general store listing is shared across tracks. Neither an internal draft nor this workflow
+binds the descriptions to a version. See [Google's publishing controls](https://support.google.com/googleplay/android-developer/answer/9859654?hl=en).
+
 ## F-Droid
 
 Store descriptions, changelogs and artwork live in
