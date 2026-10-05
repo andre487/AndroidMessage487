@@ -7,7 +7,7 @@
 | Набор | Команда | Что проверяется |
 | --- | --- | --- |
 | Android | `bundle exec fastlane android checks` | JVM-логика, HTTP через MockWebServer, БД/настройки/provider через Robolectric, Compose UI, локализация, манифест, контраст обеих тем, debug/release lint и сборки, отсутствие release-подписи |
-| Python | `PYTHON=.venv/bin/python bundle exec fastlane android python_checks` | HTTP-клиент тестового сервера на локальном HTTP-стенде, форматирование закреплёнными Black/isort |
+| Python | `PYTHON=.venv/bin/python bundle exec fastlane android python_checks` | HTTP-клиент тестового сервера на локальном HTTP-стенде, релизная автоматизация с mock API и локальным Git, форматирование закреплёнными Black/isort |
 | n8n | `bundle exec fastlane android server_tests` | Приём test/notification/SMS, валидация, HTTP-ошибка, неверный ACK и таймаут на живом сервере |
 
 Для Python создайте `.venv` командой `python3 -m venv .venv` и установите
@@ -15,7 +15,9 @@
 `docker compose -f DevServer/compose.yaml up -d --wait --wait-timeout 300`.
 Серверные проверки используют синтетические данные и сохраняют их в истории execution.
 
-`.github/workflows/ci.yml` запускает все три job на PR, push в main и вручную.
+`.github/workflows/ci.yml` запускает три основных job на PR, push в main и вручную.
+При ручном запуске с `release_dry_run_version` выполняется только dry-run релиза;
+основные наборы в этом режиме пропускаются.
 XML/HTML-отчёты Android-тестов и lint загружаются и при ошибках. Успешный Android-job
 также публикует debug APK и неподписанные release APK. Подпись release в этих проверках
 не используется. Локальный успех не подтверждает результат GitHub для неотправленных изменений.
@@ -25,8 +27,8 @@ XML/HTML-отчёты Android-тестов и lint загружаются и п�
 Совпадают применимые категории: JVM-логика, Android-интеграция, Compose через Robolectric,
 контракты ресурсов/безопасности/UI, Python и форматирование, lint и сборки. Message487
 дополнительно проверяет живой Docker/n8n. Go race-тесты и необязательный fuzz-lane
-MegaProxy относятся к его Go/JNI-коду; здесь такого кода нет. Его Python-тесты истории
-CI относятся к скриптам, которых в Message487 нет.
+MegaProxy относятся к его Go/JNI-коду; здесь такого кода нет. У Message487 есть отдельные Python-тесты релизной автоматизации;
+классификатора изменений и поиска прошлых успешных проверок MegaProxy здесь нет.
 
 Compose-тесты используют настоящую навигацию, экраны, ViewModel и настройки с тестовым
 Application без запуска Worker и установки глобального обработчика крешей. Явная
@@ -41,3 +43,6 @@ Application без запуска Worker и установки глобальн�
 
 Подписанная release-сборка отдельно запускает Android-тесты и lint с signing-переменными.
 PR-проверки отвергают эти переменные и остаются неподписанными. См. [релизы](releases.md).
+
+Полный регламент проверки подписанного кандидата, F-Droid и устройств —
+[Проверка релиза](release-testing.md).

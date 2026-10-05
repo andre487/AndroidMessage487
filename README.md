@@ -14,7 +14,7 @@ A custom webhook is also supported. Telegram forwarding is one possible workflow
 app does not depend on Telegram.
 
 **Status:** development preview with notification/SMS capture, a persistent encrypted outbox,
-background delivery, automatic retries and a delivery journal. Webhook requests require a Bearer token, stored encrypted on the device. Signed APK release automation is configured; see [Releases](docs/en/releases.md) and [release automation](docs/en/release-automation.md).
+background delivery, automatic retries and a delivery journal. Webhook requests require a Bearer token, stored encrypted on the device. Signed APK release automation is configured; see [Releases](docs/en/releases.md) and [release automation](docs/en/release-automation.md), and [release testing](docs/en/release-testing.md).
 
 ## Getting started
 
@@ -127,7 +127,7 @@ Fastlane's `debug_artifact` lane builds only the debug APK. `checks` runs JVM/Ro
 debug/release lint, and builds debug and unsigned release APKs under `app/build/outputs/apk/`.
 
 PR CI has no release signing credentials and does not require an emulator.
-For signed APK releases, see [Releases](docs/en/releases.md) and [release automation](docs/en/release-automation.md).
+For signed APK releases, see [Releases](docs/en/releases.md) and [release automation](docs/en/release-automation.md), and [release testing](docs/en/release-testing.md).
 Store graphics and their provenance are documented in [Branding](assets/branding/README.md).
 
 See the [project context](docs/en/project-context.md) for remaining product decisions.

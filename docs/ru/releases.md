@@ -7,6 +7,8 @@
 Подготовку версии и EN/RU changelog выполняет [автоматизация релиза](release-automation.md).
 Там же описаны ручная настройка секретов и запуск выпуска.
 
+Перед публикацией пройдите [проверку релиза](release-testing.md) на подписанном кандидате.
+
 Запустите `bundle exec fastlane android release_artifacts` с JDK 21 и Android SDK 36.
 Lane выполняет JVM/Compose-тесты и debug/release lint, затем собирает подписанный release APK. Проверяются сертификат, пакет, версия и отсутствие debug-флага
 APK.

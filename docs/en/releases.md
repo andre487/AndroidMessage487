@@ -7,6 +7,8 @@ Installing on a phone? See [APK installation and Android restrictions](apk-insta
 Use [release automation](release-automation.md) to prepare the version and EN/RU changelog.
 The guide covers manual secret setup and release dispatch.
 
+Before publication, complete [release testing](release-testing.md) on the signed candidate.
+
 Run `bundle exec fastlane android release_artifacts` with JDK 21 and Android SDK 36.
 The lane runs Android JVM/Compose tests and debug/release lint, then builds a signed release APK. It checks the APK certificate, package/version and non-debuggable
 flag.

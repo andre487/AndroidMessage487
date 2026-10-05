@@ -7,6 +7,8 @@
 делает squash merge и ставит тег на слитый коммит. **Release Android artifacts** собирает,
 подписывает и публикует APK. Само слияние реализации не выпускает новую версию.
 
+Этот флоу не заменяет [приёмку релиза на устройствах](release-testing.md).
+
 ## Что настроить вручную один раз
 
 1. В [Settings → Secrets and variables → Actions](https://github.com/andre487/AndroidMessage487/settings/secrets/actions)
