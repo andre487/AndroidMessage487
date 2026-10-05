@@ -95,8 +95,29 @@ internal fun SourcesScreen(settings: ForwardingSettings, permissions: Permission
         }
         item {
             Panel {
-                SourceSwitch(Icons.Outlined.FilterList, R.string.deduplication_enabled, R.string.deduplication_hint,
-                    settings.deduplication, !busy, model::deduplication)
+                SourceSwitch(Icons.Outlined.Sms, R.string.sms_deduplication, R.string.deduplication_hint,
+                    settings.smsDeduplication, !busy, model::smsDeduplication)
+                SourceSwitch(Icons.Outlined.Notifications, R.string.notification_deduplication, R.string.deduplication_hint,
+                    settings.notificationDeduplication, !busy, model::notificationDeduplication)
+                var window by remember(settings.deduplicationWindowSeconds) {
+                    mutableStateOf(settings.deduplicationWindowSeconds.toString())
+                }
+                val seconds = window.toIntOrNull()?.takeIf { it >= 0 }
+                OutlinedTextField(
+                    value = window,
+                    onValueChange = { value ->
+                        window = value
+                        value.toIntOrNull()?.takeIf { it >= 0 }?.let(model::deduplicationWindow)
+                    },
+                    label = { Text(stringResource(R.string.deduplication_window)) },
+                    supportingText = { Text(stringResource(R.string.deduplication_window_hint)) },
+                    isError = seconds == null,
+                    enabled = !busy && (settings.smsDeduplication || settings.notificationDeduplication),
+                    singleLine = true,
+                    keyboardOptions = androidx.compose.foundation.text.KeyboardOptions(
+                        keyboardType = androidx.compose.ui.text.input.KeyboardType.Number),
+                    modifier = Modifier.fillMaxWidth(),
+                )
             }
         }
         item {

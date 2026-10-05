@@ -89,27 +89,63 @@ class OutboxTest {
         val duplicate = original.copy(eventId = "duplicate", title = "Different title", sender = "Different sender")
         assertFalse(outbox.enqueue(duplicate, settings))
         assertFalse(outbox.enqueue(duplicate.copy(occurredAt = "2026-09-09T10:00:00.000Z"), settings))
+        assertFalse(outbox.enqueue(duplicate.copy(occurredAt = "2026-09-09T09:59:59Z"), settings))
         assertTrue(outbox.enqueue(duplicate.copy(eventId = "app", source = AppSource("other.app", "Chat")), settings))
-        assertTrue(outbox.enqueue(duplicate.copy(eventId = "time", occurredAt = "2026-09-09T10:00:00.001Z"), settings))
+        assertTrue(outbox.enqueue(duplicate.copy(eventId = "time", occurredAt = "2026-09-09T10:00:01.001Z"), settings))
         assertTrue(outbox.enqueue(duplicate.copy(eventId = "text", text = original.text + " "), settings))
         assertEquals(3, outbox.pendingCount())
     }
 
+    @Test fun `window is inclusive symmetric configurable and does not slide on rejected captures`() {
+        for (type in listOf("sms", "notification")) {
+            for (window in listOf(0, 1, 3)) {
+                val boundary = window * 1000L
+                for (offset in listOf(-boundary - 1, -boundary, 0L, boundary, boundary + 1).distinct()) {
+                    val options = settings.copy(deduplicationWindowSeconds = window)
+                    val original = event().copy(messageType = type, text = "$type-$window-$offset",
+                        occurredAt = "2026-09-09T10:00:00Z")
+                    assertTrue(outbox.enqueue(original, options))
+                    val duplicate = original.copy(eventId = java.util.UUID.randomUUID().toString(),
+                        occurredAt = java.time.Instant.parse(original.occurredAt).plusMillis(offset).toString())
+                    assertEquals(kotlin.math.abs(offset) > window * 1000L, outbox.enqueue(duplicate, options))
+                }
+            }
+        }
+        val original = event().copy(text = "non-sliding", occurredAt = "2026-09-09T10:00:00Z")
+        assertTrue(outbox.enqueue(original, settings))
+        assertFalse(outbox.enqueue(original.copy(eventId = "suppressed", occurredAt = "2026-09-09T10:00:00.900Z"), settings))
+        assertTrue(outbox.enqueue(original.copy(eventId = "new", occurredAt = "2026-09-09T10:00:01.800Z"), settings))
+    }
+
     @Test fun `opt out allows sms and notification duplicates but preserves event id idempotency`() {
         for (type in listOf("sms", "notification")) {
-            val original = event().copy(messageType = type)
+            val original = event().copy(messageType = type, text = type)
             assertTrue(outbox.enqueue(original, settings))
             val duplicate = original.copy(eventId = "duplicate-$type")
             assertFalse(outbox.enqueue(duplicate, settings))
-            assertTrue(outbox.enqueue(duplicate, settings.copy(deduplication = false)))
-            assertFalse(outbox.enqueue(duplicate, settings.copy(deduplication = false)))
+            assertTrue(outbox.enqueue(duplicate, settings.copy(smsDeduplication = false, notificationDeduplication = false)))
+            assertFalse(outbox.enqueue(duplicate, settings.copy(smsDeduplication = false, notificationDeduplication = false)))
             assertFalse(outbox.enqueue(original.copy(eventId = "reenabled-$type"), settings))
+        }
+    }
+
+    @Test fun `sms and notification switches only control their own source type`() {
+        for (smsEnabled in listOf(false, true)) {
+            for (notificationsEnabled in listOf(false, true)) {
+                val options = settings.copy(smsDeduplication = smsEnabled, notificationDeduplication = notificationsEnabled)
+                for (type in listOf("sms", "notification")) {
+                    val original = event().copy(messageType = type, text = "$type-$smsEnabled-$notificationsEnabled")
+                    assertTrue(outbox.enqueue(original, options))
+                    val enabled = if (type == "sms") smsEnabled else notificationsEnabled
+                    assertEquals(!enabled, outbox.enqueue(original.copy(eventId = java.util.UUID.randomUUID().toString()), options))
+                }
+            }
         }
     }
 
     @Test fun `events captured while opted out are remembered when reenabled and tests are exempt`() {
         val original = event()
-        assertTrue(outbox.enqueue(original, settings.copy(deduplication = false)))
+        assertTrue(outbox.enqueue(original, settings.copy(smsDeduplication = false, notificationDeduplication = false)))
         assertFalse(outbox.enqueue(original.copy(eventId = "reenabled"), settings))
         val test = original.copy(eventId = "test-1", messageType = "test")
         assertTrue(outbox.enqueue(test, settings))
@@ -121,6 +157,7 @@ class OutboxTest {
         outbox.enqueue(original, settings)
         outbox.writableDatabase.apply {
             execSQL("DROP TABLE message_fingerprints")
+            execSQL("DROP TABLE message_windows")
             execSQL("CREATE TABLE notifications (notification_key TEXT PRIMARY KEY, fingerprint TEXT NOT NULL)")
             version = 1
         }
@@ -128,7 +165,27 @@ class OutboxTest {
         outbox = Outbox(context, codec)
         assertEquals(original.text, JSONObject(outbox.beginAttempt(original.eventId)!!.request.json).getString("text"))
         assertTrue(outbox.enqueue(event(), settings))
-        assertEquals(2, outbox.readableDatabase.version)
+        assertEquals(3, outbox.readableDatabase.version)
+    }
+
+    @Test fun `version two migration preserves queued payloads and old exact history`() {
+        val original = event().copy(occurredAt = "2026-09-09T10:00:00Z")
+        assertTrue(outbox.enqueue(original, settings))
+        val legacy = digest(org.json.JSONArray().put(original.source.packageName)
+            .put(original.occurredAt).put(original.text).toString())
+        outbox.writableDatabase.apply {
+            execSQL("DROP TABLE message_windows")
+            execSQL("INSERT INTO message_fingerprints (fingerprint) VALUES (?)", arrayOf(legacy))
+            version = 2
+        }
+        outbox.close()
+        outbox = Outbox(context, codec)
+        assertEquals(original.text, JSONObject(outbox.beginAttempt(original.eventId)!!.request.json).getString("text"))
+        assertFalse(outbox.enqueue(original.copy(eventId = "legacy-duplicate"), settings))
+        val fresh = original.copy(eventId = "fresh", occurredAt = "2026-09-09T10:01:00Z")
+        assertTrue(outbox.enqueue(fresh, settings))
+        assertFalse(outbox.enqueue(fresh.copy(eventId = "fresh-duplicate", occurredAt = "2026-09-09T10:01:00.500Z"), settings))
+        assertEquals(3, outbox.readableDatabase.version)
     }
 
     @Test fun `invalid acknowledgement blocks automatic delivery until manual retry`() {
@@ -147,7 +204,7 @@ class OutboxTest {
         val waiting = event("waiting")
         outbox.enqueue(waiting, settings)
         repeat(105) {
-            val event = event()
+            val event = event().copy(text = "Message $it")
             outbox.enqueue(event, settings)
             val attempt = outbox.beginAttempt(event.eventId)!!
             outbox.finish(event.eventId, attempt.token, DeliveryResult(event.eventId, DeliveryStatus.HTTP_SUCCESS, 204))

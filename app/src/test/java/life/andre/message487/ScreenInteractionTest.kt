@@ -60,13 +60,22 @@ class ScreenInteractionTest {
 
     @Test fun `duplicate filter can be disabled and reenabled from sources`() {
         compose.onNode(hasText(compose.activity.getString(R.string.sources_tab)) and hasClickAction()).performClick()
-        icon(R.string.deduplication_enabled).performScrollTo().assertIsOn().performClick()
+        icon(R.string.sms_deduplication).performScrollTo().assertIsOn().performClick()
         compose.waitUntil(10_000) { compose.waitForIdle(); !model.state.value.busy }
-        assertFalse(SettingsStore(application).state.value.deduplication)
-        icon(R.string.deduplication_enabled).assertIsOff().performClick()
+        assertFalse(SettingsStore(application).state.value.smsDeduplication)
+        icon(R.string.sms_deduplication).assertIsOff().performClick()
         compose.waitUntil(10_000) { compose.waitForIdle(); !model.state.value.busy }
-        assertTrue(SettingsStore(application).state.value.deduplication)
-        icon(R.string.deduplication_enabled).assertIsOn()
+        assertTrue(SettingsStore(application).state.value.smsDeduplication)
+        icon(R.string.sms_deduplication).assertIsOn()
+        icon(R.string.notification_deduplication).performScrollTo().assertIsOn().performClick()
+        compose.waitUntil(10_000) { compose.waitForIdle(); !model.state.value.busy }
+        assertFalse(SettingsStore(application).state.value.notificationDeduplication)
+        assertTrue(SettingsStore(application).state.value.smsDeduplication)
+        node(R.string.deduplication_window).performScrollTo().performTextReplacement("3")
+        compose.waitUntil(10_000) {
+            compose.waitForIdle()
+            SettingsStore(application).state.value.deduplicationWindowSeconds == 3
+        }
     }
 
     @Test fun `tabs navigate and diagnostics back returns to previous screen`() {
@@ -158,7 +167,9 @@ class ScreenInteractionTest {
         compose.waitUntil(10_000) { compose.waitForIdle(); !model.state.value.busy }
         assertEquals(setOf("manual.hidden"), SettingsStore(application).state.value.packages)
         compose.onNode(hasText(compose.activity.getString(R.string.sources_tab)) and hasClickAction()).performClick()
-        node(R.string.select_all_apps).performScrollTo().performClick()
+        compose.onNode(hasScrollToNodeAction()).performScrollToNode(
+            hasText(compose.activity.getString(R.string.select_all_apps)))
+        node(R.string.select_all_apps).performClick()
         compose.waitUntil(10_000) { compose.waitForIdle(); !model.state.value.busy }
         assertEquals(setOf("manual.hidden", "example.alpha", "example.beta"), SettingsStore(application).state.value.packages)
         node(R.string.clear_app_selection).performScrollTo().performClick()

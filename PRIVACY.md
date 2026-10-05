@@ -23,7 +23,8 @@ Captured event bodies, including message text, notification titles and SMS sende
 a private SQLite outbox encrypted with AES-GCM and a key held in Android Keystore. Each queued
 request includes its original destination, encrypted authentication token and confirmation mode. Delivery metadata (event ID,
 source display name, type, timestamps, state, attempt count and HTTP result) is stored without
-additional application-level encryption. Message duplicate detection stores SHA-256 hashes of source package, original timestamp and text,
+additional application-level encryption. Message duplicate detection stores SHA-256 hashes of source package and text together with original event timestamps
+(and retains hashes from the older exact-timestamp filter),
 including when filtering is disabled. These hashes remain after delivery or journal deletion until
 app data is cleared or the app is uninstalled. They are not a substitute for encryption against
 guesses of known content.

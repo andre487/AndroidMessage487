@@ -17,8 +17,12 @@ data class ForwardingSettings(
     val packages: Set<String> = emptySet(),
     val captureFailed: Boolean = false,
     val authToken: String = "",
-    val deduplication: Boolean = true,
+    val smsDeduplication: Boolean = true,
+    val notificationDeduplication: Boolean = true,
+    val deduplicationWindowSeconds: Int = 1,
 ) {
+    init { require(deduplicationWindowSeconds >= 0) }
+
     override fun toString(): String = "ForwardingSettings(redacted)"
 
     fun ready(): Boolean = deviceCode.isNotBlank() && validWebhookUrl(url, BuildConfig.DEBUG) && validAuthToken(authToken)
@@ -41,7 +45,9 @@ class SettingsStore(
                 cipher.decrypt(android.util.Base64.decode(it, android.util.Base64.NO_WRAP))
             }.orEmpty()
         }.getOrDefault(""),
-        deduplication = preferences.getBoolean("deduplication", true),
+        smsDeduplication = preferences.getBoolean("sms_deduplication", preferences.getBoolean("deduplication", true)),
+        notificationDeduplication = preferences.getBoolean("notification_deduplication", preferences.getBoolean("deduplication", true)),
+        deduplicationWindowSeconds = preferences.getInt("deduplication_window_seconds", 1),
         url = preferences.getString("url", BuildConfig.DEFAULT_WEBHOOK_URL).orEmpty(),
         deviceId = preferences.getString("device_id", "").orEmpty(),
         deviceCode = preferences.getString("device_code", "android-device").orEmpty(),
@@ -68,7 +74,10 @@ class SettingsStore(
                 .putString("url", next.url).putString("device_id", next.deviceId)
                 .putString("device_code", next.deviceCode).putBoolean("require_ack", next.requireAck)
                 .putBoolean("notifications", next.notifications).putBoolean("sms", next.sms)
-                .putBoolean("deduplication", next.deduplication)
+                .putBoolean("sms_deduplication", next.smsDeduplication)
+                .putBoolean("notification_deduplication", next.notificationDeduplication)
+                .remove("deduplication")
+                .putInt("deduplication_window_seconds", next.deduplicationWindowSeconds)
                 .putBoolean("paused", next.paused).putStringSet("packages", next.packages)
                 .putBoolean("capture_failed", next.captureFailed).commit()
         ) throw IOException("Could not save settings")

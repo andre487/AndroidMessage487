@@ -123,8 +123,9 @@
     <string name="app_version">Версия %1$s · %2$s</string>
     <string name="privacy_policy">Политика конфиденциальности</string>
     <string name="no_browser">Не удалось открыть политику конфиденциальности: браузер недоступен.</string>
-    <string name="deduplication_enabled">Не отправлять дубли</string>
-    <string name="deduplication_hint">Пропускать сообщения с одинаковыми приложением, исходным временем и текстом. Отключите, чтобы пересылать и повторные сообщения.</string>
+    <string name="sms_deduplication">Не отправлять дубли SMS</string>
+    <string name="notification_deduplication">Не отправлять дубли уведомлений</string>
+    <string name="deduplication_hint">Пропускать сообщения с одинаковыми источником и текстом в выбранном окне времени.</string>
 
     <string name="updates">Обновления приложения</string>
     <string name="update_installed">Установленная версия: %1$s</string>
@@ -154,4 +155,6 @@
     <string name="update_notification_open">Обновить</string>
     <string name="update_skip">Пропустить версию</string>
     <string name="update_disable">Отключить автопроверку</string>
+    <string name="deduplication_window">Окно времени (± секунд)</string>
+    <string name="deduplication_window_hint">0 — точное совпадение времени. Одинаковые новые сообщения внутри окна тоже пропускаются.</string>
 </resources>

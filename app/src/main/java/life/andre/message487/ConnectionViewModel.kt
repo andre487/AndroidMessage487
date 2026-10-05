@@ -106,7 +106,11 @@ class ConnectionViewModel(application: Application) : AndroidViewModel(applicati
 
     fun sendTest() = action(R.string.test_queued) { graph.enqueueTest() }
     fun notifications(enabled: Boolean) = action { graph.settings.update { it.copy(notifications = enabled) } }
-    fun deduplication(enabled: Boolean) = action { graph.settings.update { it.copy(deduplication = enabled) } }
+    fun deduplicationWindow(seconds: Int) = action {
+        graph.settings.update { it.copy(deduplicationWindowSeconds = seconds) }
+    }
+    fun smsDeduplication(enabled: Boolean) = action { graph.settings.update { it.copy(smsDeduplication = enabled) } }
+    fun notificationDeduplication(enabled: Boolean) = action { graph.settings.update { it.copy(notificationDeduplication = enabled) } }
     fun sms(enabled: Boolean) = action { graph.settings.update { it.copy(sms = enabled) } }
     fun selectAllPackages() = action {
         val packages = apps.value.map { it.packageName }.toSet() - getApplication<Application>().packageName

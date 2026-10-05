@@ -40,7 +40,7 @@ fun deliveryQueueState(result: DeliveryResult): QueueState = when (result.status
     } else QueueState.BLOCKED
 }
 
-class Outbox(context: Context, private val cipher: PayloadCipher) : SQLiteOpenHelper(context, "outbox.db", null, 2) {
+class Outbox(context: Context, private val cipher: PayloadCipher) : SQLiteOpenHelper(context, "outbox.db", null, 3) {
     private val mutableRevision = MutableStateFlow(0L)
     val revision = mutableRevision.asStateFlow()
 
@@ -52,6 +52,7 @@ class Outbox(context: Context, private val cipher: PayloadCipher) : SQLiteOpenHe
         )""")
         db.execSQL("CREATE INDEX events_state ON events(state)")
         createDeduplicationTable(db)
+        createWindowTable(db)
     }
 
     override fun onUpgrade(db: SQLiteDatabase, oldVersion: Int, newVersion: Int) {
@@ -59,6 +60,14 @@ class Outbox(context: Context, private val cipher: PayloadCipher) : SQLiteOpenHe
             createDeduplicationTable(db)
             db.execSQL("DROP TABLE IF EXISTS notifications")
         }
+        if (oldVersion < 3) createWindowTable(db)
+    }
+
+    private fun createWindowTable(db: SQLiteDatabase) {
+        db.execSQL("""CREATE TABLE message_windows (
+            fingerprint TEXT NOT NULL, occurred_at INTEGER NOT NULL,
+            PRIMARY KEY (fingerprint, occurred_at)
+        )""")
     }
 
     private fun createDeduplicationTable(db: SQLiteDatabase) {
@@ -70,14 +79,27 @@ class Outbox(context: Context, private val cipher: PayloadCipher) : SQLiteOpenHe
         val db = writableDatabase
         db.beginTransaction()
         try {
-            // JSON preserves field boundaries; normalize equivalent timestamp representations.
             // Test requests are deliberate user actions and are never content-deduplicated.
-            val fingerprint = if (event.messageType in setOf("sms", "notification")) digest(
-                org.json.JSONArray().put(event.source.packageName)
-                    .put(java.time.Instant.parse(event.occurredAt).toString()).put(event.text).toString()
+            val captured = event.messageType in setOf("sms", "notification")
+            val occurredAt = if (captured) java.time.Instant.parse(event.occurredAt).toEpochMilli() else 0L
+            val fingerprint = if (captured) digest(
+                org.json.JSONArray().put(event.source.packageName).put(event.text).toString()
             ) else null
-            if (settings.deduplication && fingerprint != null) {
-                db.rawQuery("SELECT 1 FROM message_fingerprints WHERE fingerprint = ?", arrayOf(fingerprint)).use {
+            val deduplication = when (event.messageType) {
+                "sms" -> settings.smsDeduplication
+                "notification" -> settings.notificationDeduplication
+                else -> false
+            }
+            if (deduplication && fingerprint != null) {
+                val window = settings.deduplicationWindowSeconds.toLong() * 1000
+                db.rawQuery(
+                    "SELECT 1 FROM message_windows WHERE fingerprint = ? AND occurred_at BETWEEN ? AND ?",
+                    arrayOf(fingerprint, (occurredAt - window).toString(), (occurredAt + window).toString())
+                ).use { if (it.moveToFirst()) return false }
+                // Old hashes cannot reveal their content; retain exact matching for pre-upgrade history.
+                val legacy = digest(org.json.JSONArray().put(event.source.packageName)
+                    .put(java.time.Instant.parse(event.occurredAt).toString()).put(event.text).toString())
+                db.rawQuery("SELECT 1 FROM message_fingerprints WHERE fingerprint = ?", arrayOf(legacy)).use {
                     if (it.moveToFirst()) return false
                 }
             }
@@ -95,7 +117,7 @@ class Outbox(context: Context, private val cipher: PayloadCipher) : SQLiteOpenHe
                 put("payload", cipher.encrypt(envelope))
             })
             if (fingerprint != null) {
-                db.execSQL("INSERT OR IGNORE INTO message_fingerprints (fingerprint) VALUES (?)", arrayOf(fingerprint))
+                db.execSQL("INSERT OR IGNORE INTO message_windows (fingerprint, occurred_at) VALUES (?, ?)", arrayOf(fingerprint, occurredAt))
             }
             db.setTransactionSuccessful()
         } finally {
