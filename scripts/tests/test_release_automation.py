@@ -22,6 +22,53 @@ NOTES = {"en-US": "- Improved connections.", "ru-RU": "- Улучшено под
 
 
 class ReleaseTests(unittest.TestCase):
+    def test_generator_retries_only_length_errors_and_stops_after_three_attempts(self):
+        def response(notes, status='completed'):
+            return io.BytesIO(
+                json.dumps(
+                    {
+                        'status': status,
+                        'output': [
+                            {
+                                'type': 'message',
+                                'content': [
+                                    {'type': 'output_text', 'text': json.dumps(notes)}
+                                ],
+                            }
+                        ],
+                    }
+                ).encode()
+            )
+
+        oversized = dict(NOTES, **{'ru-RU': 'я' * 501})
+        for replies, calls, error in [
+            ([response(oversized), response(NOTES)], 2, None),
+            ([response(oversized) for _ in range(3)], 3, m.ChangelogLengthError),
+            ([response(NOTES, 'incomplete')], 1, RuntimeError),
+        ]:
+            with (
+                self.subTest(calls=calls),
+                patch.dict(
+                    os.environ,
+                    {
+                        'OPENAI_API_KEY': 'fixture-key',
+                        'OPENAI_RELEASE_MODEL': 'fixture-model',
+                    },
+                ),
+                patch.object(m, 'command', side_effect=['History', 'Statistics']),
+                patch.object(m.urllib.request, 'urlopen') as request,
+            ):
+                request.return_value.__enter__.side_effect = replies
+                if error:
+                    with self.assertRaises(error):
+                        m.generate_notes('1.0.0', 'v0.0.5')
+                else:
+                    self.assertEqual(NOTES, m.generate_notes('1.0.0', 'v0.0.5'))
+                    payload = json.loads(request.call_args.args[0].data)
+                    self.assertIn('501', payload['instructions'])
+                    self.assertIn('fewer bullets', payload['instructions'])
+                self.assertEqual(calls, request.call_count)
+
     def test_generator_sends_only_history_and_stats_with_strict_locale_schema(self):
         response = {
             'status': 'completed',
