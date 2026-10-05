@@ -7,6 +7,8 @@ Run workflow**, choose `main` and enter a new version without `v`. This authoriz
 squash merge after full CI, and a tag on the verified merged commit. **Release Android artifacts**
 then signs and publishes the APK. Merging the implementation does not itself release a version.
 
+This flow does not replace [device release acceptance](release-testing.md).
+
 ## One-time manual setup
 
 In [Settings → Secrets and variables → Actions](https://github.com/andre487/AndroidMessage487/settings/secrets/actions), add:
