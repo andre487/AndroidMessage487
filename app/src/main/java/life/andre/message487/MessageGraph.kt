@@ -21,6 +21,7 @@ open class MessageApplication : Application() {
         crashHandler.install()
         diagnostics.record(DiagnosticEvent.APP_STARTED)
         graph.start()
+        UpdateNotifications.schedule(this)
     }
 }
 

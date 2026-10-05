@@ -2,6 +2,23 @@
 
 [English](../en/apk-installation.md) | [Русский](../ru/apk-installation.md)
 
+## App updates
+
+Open **App updates** from the update icon in the top bar. F-Droid installers, including
+alternative clients that handle F-Droid repository links, use the F-Droid package API.
+Other identified installers use GitHub Releases. If Android cannot identify the source,
+choose it manually. Your saved choice takes priority; errors never switch the source.
+
+Automatic checks run about once a day when online. Allow notifications to receive reminders;
+ignored versions repeat after a week. You can skip a version or disable automatic checks.
+**Check for updates** also works manually. F-Droid updates open the app page in its client
+(or browser). GitHub updates require confirmation to download, then a separate **Install update**
+action. The app checks SHA-256, package, increasing version code and the installed signing
+certificate before opening Android's installer. Allow installation from Message487 when asked,
+return to the update screen and press **Install update** again. Different signing keys cannot
+update one another; keep the existing app data and use the matching distribution.
+
+
 ## Download and install
 
 1. Open the project's [GitHub Releases](https://github.com/andre487/AndroidMessage487/releases)

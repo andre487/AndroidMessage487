@@ -1,6 +1,8 @@
 package life.andre.message487
 
 import android.os.Bundle
+import android.content.Intent
+import androidx.activity.compose.LocalActivity
 import androidx.compose.ui.platform.LocalContext
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.BackHandler
@@ -25,10 +27,19 @@ import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.lifecycle.viewmodel.compose.viewModel
 
 class MainActivity : ComponentActivity() {
+    private var updateCheckRequest by mutableIntStateOf(0)
+
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         enableEdgeToEdge()
-        setContent { MessageTheme { MessageScreen() } }
+        if (intent.action == OPEN_UPDATES_ACTION) updateCheckRequest++
+        setContent { MessageTheme { MessageScreen(checkRequest = updateCheckRequest) } }
+    }
+
+    override fun onNewIntent(intent: Intent) {
+        super.onNewIntent(intent)
+        setIntent(intent)
+        if (intent.action == OPEN_UPDATES_ACTION) updateCheckRequest++
     }
 }
 
@@ -41,7 +52,7 @@ private enum class Destination(val label: Int, val icon: ImageVector) {
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
-internal fun MessageScreen(model: ConnectionViewModel = viewModel()) {
+internal fun MessageScreen(model: ConnectionViewModel = viewModel(), checkRequest: Int = 0) {
     val state by model.state.collectAsStateWithLifecycle()
     val settings by model.settings.collectAsStateWithLifecycle()
     val permissions by model.permissions.collectAsStateWithLifecycle()
@@ -51,13 +62,15 @@ internal fun MessageScreen(model: ConnectionViewModel = viewModel()) {
     var destination by rememberSaveable { mutableStateOf(Destination.OVERVIEW) }
     val application = LocalContext.current.applicationContext as MessageApplication
     var diagnostics by rememberSaveable { mutableStateOf(false) }
+    var updates by rememberSaveable { mutableStateOf(false) }
+    LaunchedEffect(checkRequest) { if (checkRequest > 0) { updates = true; diagnostics = false } }
     var crash by remember { mutableStateOf(application.crashHandler.pending) }
-    fun back() { if (diagnostics) diagnostics = false else destination = Destination.OVERVIEW }
+    fun back() { if (updates) updates = false else if (diagnostics) diagnostics = false else destination = Destination.OVERVIEW }
     var help by rememberSaveable { mutableStateOf(false) }
     val snackbar = remember { SnackbarHostState() }
     val noticeText = state.notice?.let { stringResource(it) }
     LaunchedEffect(noticeText) { noticeText?.let { snackbar.showSnackbar(it) } }
-    BackHandler(diagnostics || destination != Destination.OVERVIEW) { back() }
+    BackHandler(updates || diagnostics || destination != Destination.OVERVIEW) { back() }
     val lifecycle = LocalLifecycleOwner.current.lifecycle
     DisposableEffect(lifecycle) {
         val observer = LifecycleEventObserver { _, event -> if (event == Lifecycle.Event.ON_RESUME) model.refreshPermissions() }
@@ -67,7 +80,7 @@ internal fun MessageScreen(model: ConnectionViewModel = viewModel()) {
     BoxWithConstraints {
         val wide = maxWidth >= 600.dp
         Row(Modifier.fillMaxSize()) {
-            if (wide && !diagnostics) {
+            if (wide && !diagnostics && !updates) {
                 NavigationRail(Modifier.fillMaxHeight(), containerColor = MaterialTheme.colorScheme.surfaceContainerLow) {
                     Spacer(Modifier.height(24.dp))
                     Destination.entries.forEach { item ->
@@ -80,24 +93,27 @@ internal fun MessageScreen(model: ConnectionViewModel = viewModel()) {
                 modifier = Modifier.weight(1f).imePadding(),
                 topBar = {
                     TopAppBar(title = {
-                        Text(stringResource(if (diagnostics) R.string.diagnostics else if (destination == Destination.OVERVIEW) R.string.app_name
+                        Text(stringResource(if (updates) R.string.updates else if (diagnostics) R.string.diagnostics else if (destination == Destination.OVERVIEW) R.string.app_name
                             else if (destination == Destination.CONNECTION) R.string.connection else destination.label),
                             style = MaterialTheme.typography.titleLarge)
                     }, navigationIcon = {
-                        if (diagnostics || destination != Destination.OVERVIEW) {
+                        if (updates || diagnostics || destination != Destination.OVERVIEW) {
                             IconButton(onClick = { back() }) {
                                 Icon(Icons.AutoMirrored.Outlined.ArrowBack, stringResource(R.string.back))
                             }
                         }
                     }, actions = {
-                        if (!diagnostics) IconButton(onClick = { diagnostics = true }) {
+                        if (!updates) IconButton(onClick = { updates = true; diagnostics = false }) {
+                            Icon(Icons.Outlined.SystemUpdate, stringResource(R.string.updates))
+                        }
+                        if (!diagnostics && !updates) IconButton(onClick = { diagnostics = true }) {
                             Icon(Icons.Outlined.BugReport, stringResource(R.string.diagnostics))
                         }
                         IconButton(onClick = { help = true }) { Icon(Icons.Outlined.HelpOutline, stringResource(R.string.help)) }
                     })
                 },
                 bottomBar = {
-                    if (!wide && !diagnostics) NavigationBar(containerColor = MaterialTheme.colorScheme.surfaceContainerLow) {
+                    if (!wide && !diagnostics && !updates) NavigationBar(containerColor = MaterialTheme.colorScheme.surfaceContainerLow) {
                         Destination.entries.forEach { item ->
                             NavigationBarItem(selected = destination == item, onClick = { destination = item },
                                 icon = { Icon(item.icon, null) }, label = { Text(stringResource(item.label)) })
@@ -110,7 +126,8 @@ internal fun MessageScreen(model: ConnectionViewModel = viewModel()) {
                     if (state.busy) LinearProgressIndicator(Modifier.fillMaxWidth())
                     key(destination) {
                         Box(Modifier.widthIn(max = 720.dp).fillMaxSize()) {
-                            if (diagnostics) DiagnosticsScreen(application, settings) else when (destination) {
+                            if (updates) UpdatesScreen(requireNotNull(LocalActivity.current), checkRequest = checkRequest)
+                            else if (diagnostics) DiagnosticsScreen(application, settings) else when (destination) {
                                 Destination.OVERVIEW -> OverviewScreen(settings, permissions, connected, queue, state.busy, model,
                                     onConnection = { destination = Destination.CONNECTION },
                                     onSources = { destination = Destination.SOURCES }, onJournal = { destination = Destination.JOURNAL })
