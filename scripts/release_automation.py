@@ -54,7 +54,7 @@ def command(*args, input_text=None):
 def api(path, payload=None, method=None):
     repo = os.environ["GITHUB_REPOSITORY"]
     require(re.fullmatch(r"[\w.-]+/[\w.-]+", repo), "Invalid repository")
-    args = ["gh", "api", f"repos/{repo}/{path}"]
+    args = ["gh", "api", f"repos/{repo}" + (f"/{path}" if path else "")]
     args += ["--method", method or ("POST" if payload is not None else "GET")]
     if payload is not None:
         args += ["--input", "-"]

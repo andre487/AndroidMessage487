@@ -81,6 +81,18 @@ class ReleaseTests(unittest.TestCase):
             m.generate_notes('0.0.6', 'v0.0.5')
         request.assert_not_called()
 
+    def test_repository_metadata_uses_canonical_url_without_trailing_slash(self):
+        with (
+            patch.dict(os.environ, {"GITHUB_REPOSITORY": "owner/repo"}),
+            patch.object(
+                m, "command", return_value='{"allow_squash_merge": true}'
+            ) as run,
+        ):
+            self.assertTrue(m.api("")["allow_squash_merge"])
+            run.assert_called_once_with(
+                "gh", "api", "repos/owner/repo", "--method", "GET", input_text=None
+            )
+
     def test_api_mutations_use_explicit_http_method_and_structured_stdin(self):
         with (
             patch.dict(os.environ, {"GITHUB_REPOSITORY": "owner/repo"}),
