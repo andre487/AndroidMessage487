@@ -6,12 +6,6 @@ Test an identified signed release candidate, followed by the published artifact.
 a successful dry run and a connection test do not replace Android capture testing.
 This is a procedure, not a record of completed tests.
 
-Adapted from [MegaProxy's release procedure](https://github.com/andre487/AndroidMegaProxy/blob/main/docs/en/release-testing.md)
-and [f-droid-testing](https://github.com/andre487/f-droid-testing): artifact identity,
-unmodified F-Droid recipes, independent positive/negative controls, upgrade, background
-recovery and explicit limits. Results from other apps do not establish Message487 behavior.
-The inspected source revisions and examples are recorded in the [Russian guide](../ru/release-testing.md#методические-источники).
-
 ## Results and evidence
 
 Each scenario on each device receives **PASS**, **FAIL**, **BLOCKED**, **NOT TESTED** or **N/A**.
@@ -45,6 +39,60 @@ uploading to VirusTotal, publishing issues/releases or modifying an external F-D
 | A05 | Describe two phones and two dedicated emulators: model, OS/API/OEM build/patch, ABI/page size, display/font/language, package/version/signer/installer, permissions, battery, network, VPN/Private DNS. Emulators cover minimum supported API and a modern API. Without Samsung hardware, its OEM check remains NOT TESTED. |
 | A06 | Preserve phone settings and data; use only synthetic SMS and selected probe apps, never personal apps/OTP. Do not uninstall or clear existing data. Reboots, network/PIN changes and destructive checks need applicable authorization; start on dedicated emulators. |
 | A07 | Prepare a private HTTPS fixture with a trusted certificate, separate tokens and controlled responses; prove it works directly. [DevServer](../../DevServer/README.md) is an HTTP/debug fixture, so release testing needs HTTPS ingress. Do not expose its public development credentials. Inventory created resources for cleanup. |
+
+## Execution order
+
+1. Select the candidate commit and previous signed release for migration. Record
+   `git status`, `git rev-parse HEAD` and the diff; use a separate clean checkout when
+   existing work is present. Before publication, test the signed candidate rather than
+   the latest published APK at the stable URL.
+2. Prepare JDK 21, Ruby/Bundler, the Android SDK declared in Gradle, Platform Tools,
+   Python and Docker. Configure the SDK through `ANDROID_HOME` or `local.properties`.
+   Run `python3 -m venv .venv`,
+   `.venv/bin/python -m pip install -r requirements-dev.txt` and `bundle install`.
+3. Start fixtures with
+   `docker compose -f DevServer/compose.yaml up -d --wait --wait-timeout 300` and run A02.
+   For signed release testing, add private HTTPS ingress with a certificate trusted by
+   the device and separate authentication; the HTTP fixture alone is insufficient.
+4. Build via A03 with the existing key and signing configuration:
+   `MESSAGE487_KEYSTORE_PATH`, `MESSAGE487_KEY_PASSWORD_FILE`, `MESSAGE487_KEY_ALIAS`.
+   Never print passwords. Verify `dist/release/SHA256SUMS` and associate every result
+   with the installed artifact hash. For the F-Droid channel, run the separate official
+   build below and identify its artifact.
+5. Record each device serial/settings. Use `adb -s SERIAL install -r /path/to/candidate.apk`;
+   fresh installs belong only on empty test devices/profiles. Record
+   `adb -s SERIAL shell pm path life.andre.message487`, pull the returned path with
+   `adb -s SERIAL pull` and verify SHA-256. For migration, first install the old signed
+   APK and create its synthetic pending queue.
+6. In **Connection**, enter the full published webhook URL, token without the `Bearer `
+   prefix and synthetic device code. Enable n8n confirmation only for the ACK contract
+   below. Save/send test and correlate Journal/server execution IDs. Then separately
+   grant SMS/notification access and select only probe apps; run I/C/Q/L/D/U and record
+   the per-device matrix.
+7. After each negative test, restore the working fixture and prove delivery with a fresh
+   marker. Finally restore devices and complete the report/decision. R01/R02 do not
+   publish; R03 requires separately authorized publication.
+
+### Test-server contract
+
+Accept POST with `Content-Type: application/json` and
+`Authorization: Bearer <test token>`. JSON includes `schema_version`, `event_id`,
+`device_id`, `device_code`, `message_type`, `occurred_at`, `source`, `source_name`, `text`;
+notifications add `title`, SMS adds `sender`. Retain these fields and receipt time in
+private fixture logs. Use a fresh synthetic marker for each probe.
+
+With n8n confirmation enabled, return HTTP 2xx and
+`{"status":"accepted","event_id":"ID_FROM_REQUEST"}`. The workflow must implement this ACK;
+n8n does not supply it automatically. Without confirmation, 2xx is sufficient. Prepare
+controlled modes for correct ACK, 500, 401/403, wrong event ID, malformed JSON, a delay
+exceeding client timeout and request acceptance with a lost response. A successful
+execution without checking the HTTP response does not prove client acceptance.
+
+Use endpoints A/B with separate tokens to test destination preservation. Positive
+controls must use the app, not only curl. Emulator SMS broadcast can be probed with
+`adb -s SERIAL emu sms send +15551234567 'Message487 synthetic RUN-ID'`.
+The primary notification probe is a normal app with known fields and its own UID;
+shell/root is supplemental. Both paths need actual server-request evidence.
 
 ## F-Droid and artifact provenance
 
