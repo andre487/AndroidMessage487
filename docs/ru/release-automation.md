@@ -33,8 +33,8 @@
    чтобы установленное приложение могло обновиться.
 3. В **Settings → General → Pull Requests** разрешите **Squash merging**.
    В **Settings → Rules / Branches** защитите `main`, сделайте обязательными проверки
-   **Release CI identity**, **Android tests and checks**, **Python tests and style**,
-   **Development server tests** и не давайте боту обходить правила.
+   **Release CI identity**, **android**, **Python tests and style**,
+   **dev-server** и не давайте боту обходить правила.
    Если хотите проверить changelog до автоматического merge, сделайте человеческое ревью
    обязательным и одобрите релизный PR после чтения текстов. Бот не одобряет себя.
    Этот флоу использует прямой squash merge и не поддерживает обязательную merge queue.

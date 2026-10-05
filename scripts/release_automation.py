@@ -15,9 +15,9 @@ from urllib.parse import urlencode
 
 BASE_STEP = "Comparison base: "
 CHECKS = {
-    "android": "Android tests and checks",
+    "android": "android",
     "python": "Python tests and style",
-    "dev-server": "Development server tests",
+    "dev-server": "dev-server",
 }
 
 VERSION = r"(0|[1-9][0-9]*)\.(0|[1-9][0-9]*)\.(0|[1-9][0-9]*)"

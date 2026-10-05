@@ -52,7 +52,6 @@ jobs:
 
   android:
     if: github.event_name != 'workflow_dispatch' || inputs.release_dry_run_version == ''
-    name: Android tests and checks
     runs-on: ubuntu-latest
     timeout-minutes: 30
     steps:
@@ -124,7 +123,6 @@ jobs:
 
   dev-server:
     if: github.event_name != 'workflow_dispatch' || inputs.release_dry_run_version == ''
-    name: Development server tests
     runs-on: ubuntu-latest
     timeout-minutes: 15
     steps:
