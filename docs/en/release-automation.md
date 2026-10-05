@@ -31,8 +31,8 @@ Keep the existing `ANDROID_SIGNING_KEY_BASE64`, `ANDROID_KEYSTORE_PASSWORD`,
 The tag build keeps the same signing key so existing installations can upgrade.
 
 Enable squash merging in **Settings → General → Pull Requests**. Protect `main` with required
-**Release CI identity**, **android**, **Python tests and style** and
-**dev-server**; do not grant the bot a bypass. Require human review if you want to
+**Release CI identity**, **Android tests and checks**, **Python tests and style** and
+**Development server tests**; do not grant the bot a bypass. Require human review if you want to
 review notes before merge. The workflow cannot approve itself. After a rejected merge, approve
 and rerun the failed finalize job. Required merge queues are unsupported. Tag rules must allow
 the bot to create `v*` tags.

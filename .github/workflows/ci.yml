@@ -1,4 +1,5 @@
 name: CI
+run-name: CI · ${{ github.event.pull_request.title || github.ref_name }}
 
 on:
   workflow_dispatch:
@@ -51,6 +52,7 @@ jobs:
         run: 'true'
 
   android:
+    name: Android tests and checks
     if: github.event_name != 'workflow_dispatch' || inputs.release_dry_run_version == ''
     runs-on: ubuntu-latest
     timeout-minutes: 30
@@ -122,6 +124,7 @@ jobs:
       - run: bundle exec fastlane android python_checks
 
   dev-server:
+    name: Development server tests
     if: github.event_name != 'workflow_dispatch' || inputs.release_dry_run_version == ''
     runs-on: ubuntu-latest
     timeout-minutes: 15
