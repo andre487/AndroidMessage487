@@ -1,0 +1,2 @@
+• Check for app updates in the new Updates screen and get update notifications.
+• Set the duplicate-message detection window and toggle forwarding sources independently.
