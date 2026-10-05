@@ -47,6 +47,22 @@ Exercise the running development n8n server
 
 Build, sign and verify release APK and checksums
 
+### android release_prepare
+
+```sh
+[bundle exec] fastlane android release_prepare
+```
+
+Generate EN/RU changelogs, bump the version, and create a release PR
+
+### android release_finish
+
+```sh
+[bundle exec] fastlane android release_finish
+```
+
+Require full release PR CI, squash merge, and tag its verified merged commit
+
 ### android debug_artifact
 
 ```sh
