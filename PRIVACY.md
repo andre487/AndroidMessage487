@@ -1,6 +1,6 @@
 # Privacy Policy
 
-Last updated: September 28, 2026.
+Last updated: October 5, 2026.
 
 Message487 forwards selected notifications and new incoming SMS to a webhook you configure.
 Its core SMS feature transfers new incoming SMS from Android to your n8n workflow so you can
@@ -78,6 +78,27 @@ If a source name is unavailable, its package identifier is used instead.
 Release builds require HTTPS. Debug builds also permit HTTP to the Android emulator host and
 localhost for development. The app contains no advertising, analytics SDKs or automatic crash
 reporting, and does not automatically send data to the developer.
+
+## App updates
+
+The app determines an update source from Android's installer information and whether that
+installer handles F-Droid repository links. An unknown installer requires a source choice.
+A saved manual choice takes priority. This does not upload an installed-app inventory.
+
+Update checks are enabled by default and run about once a day when a source is known and the
+network is available. GitHub installs check the project's latest release through api.github.com;
+F-Droid installs check f-droid.org. You can change the source or disable automatic checks in
+App updates. These services receive the IP address and a Message487 update User-Agent; the app
+does not include message contents, webhook credentials, device codes or installation IDs.
+
+GitHub APK downloads require explicit consent and are stored in the app's update cache. The app
+checks the release digest, package, increasing version code and matching installed signing
+certificate before offering the system installer. Installation requires a separate user action
+and Android's install permission. F-Droid updates open its app page and are handled by its client.
+Notification permission is used only for update reminders. The source, automatic-check setting,
+skipped versions and notification times are stored in private preferences without additional
+encryption. Cached APKs can be removed by clearing the app cache; clearing app data removes
+update preferences as well.
 
 ## Controls and deletion
 

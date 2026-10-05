@@ -38,7 +38,6 @@ jobs:
             exit 1
           fi
           "$sdkmanager" "platforms;android-36" "build-tools;36.0.0"
-      - run: ruby scripts/test-play-release.rb
       - run: bundle exec fastlane android checks
       - name: Publish test and lint reports
         if: always()
@@ -57,13 +56,12 @@ jobs:
           name: message487-builds
           path: |
             app/build/outputs/apk/**/*.apk
-            app/build/outputs/bundle/**/*.aab
           if-no-files-found: error
           retention-days: 14
       - name: Link build artifacts
         env:
           ARTIFACT_URL: ${{ steps.apk.outputs.artifact-url }}
-        run: echo "[Download debug APK and unsigned release APK/AAB]($ARTIFACT_URL)" >> "$GITHUB_STEP_SUMMARY"
+        run: echo "[Download debug APK and unsigned release APK]($ARTIFACT_URL)" >> "$GITHUB_STEP_SUMMARY"
 
   python:
     name: Python tests and style

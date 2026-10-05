@@ -21,7 +21,7 @@ For _fastlane_ installation instructions, see [Installing _fastlane_](https://do
 [bundle exec] fastlane android checks
 ```
 
-Run JVM tests, Android lint, and build debug APK and unsigned release APK/AAB
+Run JVM tests, Android lint, and build debug APK and unsigned release APK
 
 ### android python_checks
 
@@ -45,7 +45,7 @@ Exercise the running development n8n server
 [bundle exec] fastlane android release_artifacts
 ```
 
-Build, sign and verify release APK, App Bundle and checksums
+Build, sign and verify release APK and checksums
 
 ### android debug_artifact
 
@@ -62,22 +62,6 @@ Build a debug APK
 ```
 
 Install the debug APK on the connected emulator or device
-
-### android play_metadata
-
-```sh
-[bundle exec] fastlane android play_metadata metadata_commit:<full-commit-sha>
-```
-
-Upload store descriptions from a committed revision without submitting for review.
-
-### android play_release
-
-```sh
-[bundle exec] fastlane android play_release
-```
-
-Upload a signed release AAB and R8 mapping to Google Play (internal draft by default)
 
 ----
 

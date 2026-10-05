@@ -1,21 +1,19 @@
-# Signed APK and App Bundle releases
+# Signed APK releases
 
 [English](../en/releases.md) | [Русский](../ru/releases.md)
 
 Installing on a phone? See [APK installation and Android restrictions](apk-installation.md).
 
 Run `bundle exec fastlane android release_artifacts` with JDK 21 and Android SDK 36.
-The lane runs Android JVM/Compose tests and debug/release lint, then builds signed APK and AAB
-from the same release variant. It checks the APK certificate, package/version and non-debuggable
-flag, and verifies the certificate and signature of every AAB payload entry.
+The lane runs Android JVM/Compose tests and debug/release lint, then builds a signed release APK. It checks the APK certificate, package/version and non-debuggable
+flag.
 
 | Output in `dist/release/` | Purpose |
 | --- | --- |
 | `message487-<version>.apk` | Versioned signed APK |
 | `message487.apk` | Byte-identical APK with a stable download filename |
-| `message487.aab` | Signed Android App Bundle for Google Play |
 | `mapping.txt` | R8 mapping for this exact build |
-| `SHA256SUMS` | Checksums for both APK names, AAB and mapping |
+| `SHA256SUMS` | Checksums for both APK names and mapping |
 
 The [permanent APK link](https://github.com/andre487/AndroidMessage487/releases/latest/download/message487.apk)
 follows GitHub's latest published release, not the current branch. Existing versioned URLs keep
@@ -36,7 +34,7 @@ Signing follows MegaProxy's environment contract with the `MESSAGE487_` prefix:
 
 Gradle reads only the four signing environment variables (path, store password, alias and key
 password). Partial signing configuration fails closed. The PR `checks` lane rejects signing inputs
-and verifies unsigned release APK and AAB files. Passwords are not command-line arguments and must never be
+and verifies unsigned release APK files. Passwords are not command-line arguments and must never be
 printed, committed or passed through Gradle `-P` properties.
 
 GitHub Secrets use the same names as MegaProxy: `ANDROID_SIGNING_KEY_BASE64`,
@@ -47,108 +45,17 @@ GitHub Release. PR workflows do not consume signing secrets.
 
 ## Verification and publication
 
-- Push a `release-check/*` tag to build and verify signed APK/AAB files in GitHub Actions without publishing
-  a Release. The signed APK/AAB files, checksums, mapping and test reports are available as Actions artifacts.
+- Push a `release-check/*` tag to build and verify signed APK files in GitHub Actions without publishing
+  a Release. The signed APK files, checksums, mapping and test reports are available as Actions artifacts.
 - After the workflow is merged into the default branch, manual dispatch also builds artifacts only.
 - For publication, increment `versionCode`, set the intended `versionName` in `app/build.gradle.kts`,
   and merge the reviewed change after all required PR checks pass. Push the matching `v<versionName>`
   tag. The workflow requires the tag commit to be contained in `main` and rejects a version mismatch.
-  It publishes the verified APKs, AAB, mapping and checksums to GitHub Releases. An existing Release is
+  It publishes the verified APKs, mapping and checksums to GitHub Releases. An existing Release is
   not overwritten by a rerun.
 
 The first configured version is `0.0.1` with `versionCode = 1`. Later releases must increase
 `versionCode` to support Android upgrades. Keep using the same signing key for installed users.
-
-## Upload to Google Play
-
-1. Build release artifacts as above or download them from a verified release workflow run.
-   Use a new `versionCode` for each Play upload; increase it in `app/build.gradle.kts` before building.
-2. Create/select the Play Console app for `life.andre.message487` and configure Play App Signing.
-   The AAB uses the same configured key as the GitHub APK. Confirm that Play accepts it as the
-   upload key. To allow updates between GitHub and Play installs, plan the **app signing key**
-   consistently; an upload key and a Play-generated app signing key are different roles.
-   See [Android signing guidance](https://developer.android.com/studio/publish/app-signing).
-3. Create an internal-testing release and upload `message487.aab`. An AAB is a publishing
-   artifact; install the APK on phones, not the AAB. Keep `mapping.txt` with the build
-   (AGP also embeds the R8 mapping in the bundle).
-4. Add the icon and feature graphic from [Branding](../../assets/branding/README.md), real app
-   screenshots, descriptions, privacy policy and Data safety answers. Complete Play's
-   [SMS permissions declaration/review](https://support.google.com/googleplay/android-developer/answer/10208820?hl=en)
-   for `RECEIVE_SMS`; a successful AAB build does not establish store eligibility.
-5. Review the internal release in Play Console before rolling it out.
-
-### Fastlane upload
-
-Like MegaProxy, `play_release` uploads existing signed artifacts and changelogs as an **internal
-draft** by default. Message487 uploads `mapping.txt` (R8), rather than native symbols.
-Build both files together with `release_artifacts`; the upload lane does not build them or verify
-their signatures or embedded versions. Use an unused, increasing `versionCode` for each upload.
-
-```shell
-bundle exec fastlane android release_artifacts
-bundle exec fastlane android play_release dry_run:true
-```
-
-`dry_run:true` checks options and readable, non-empty AAB/mapping files locally and prints the
-destination. It never calls Google, even when combined with `validate_only:true`. It does not
-check Google permissions, version-code availability, signatures or store eligibility.
-
-For API access, enable the Google Play Developer API and grant a dedicated service account access
-to `life.andre.message487` and the intended tracks in Play Console. Keep its JSON key outside the
-repository. Supply the complete JSON via `SUPPLY_JSON_KEY_DATA`, not as a lane argument or Base64.
-For example, export it in a private `~/.config/message487/release.env` file with mode `0600`:
-
-```shell
-source "$HOME/.config/message487/release.env"
-bundle exec fastlane android play_release validate_only:true
-# Create the internal draft only when ready:
-bundle exec fastlane android play_release
-```
-
-`validate_only:true` uploads into a temporary Google Play edit and validates it without committing
-the release. It requires credentials and network access; it is not an offline dry run.
-See [Fastlane supply](https://docs.fastlane.tools/actions/upload_to_play_store/).
-
-Options: `aab:`, `mapping:`, `track:`, `release_status:draft|completed`, `validate_only:true|false`
-and `dry_run:true|false`. Default files are `dist/release/message487.aab` and
-`dist/release/mapping.txt`; `MESSAGE487_RELEASE_DIR` overrides that directory. Relative paths
-resolve from the repository root. `track:production release_status:completed` requests a production
-release; review and managed publishing may still delay availability. The release label uses
-`versionName` from the current checkout, so use artifacts built from that checkout.
-
-Changelogs come from `fastlane/metadata/android/<locale>/changelogs/<versionCode>.txt`.
-Descriptions, images and screenshots are not uploaded by this lane; category and tags remain
-manual settings documented in [Branding](../../assets/branding/README.md).
-Run `ruby scripts/test-play-release.rb` for offline regression checks (also run in PR CI).
-
-On a `v*` tag push, CI builds and verifies artifacts, publishes the GitHub Release, then uploads
-an internal Google Play draft using the repository Actions secret `SUPPLY_JSON_KEY_DATA`.
-The secret is passed only to the upload step. `release-check/*` and manual workflow dispatch
-build artifacts only. Creating a GitHub Release manually does not trigger this workflow.
-A failed Play upload fails the job but leaves the published GitHub Release available. Native symbol packaging from MegaProxy is unnecessary here: this app has no native core.
-The bundle signature verifier also rejects unsigned added entries, modified entries, missing
-required bundle entries and unexpected certificates; its regression fixtures run in Android CI.
-
-### Store descriptions without a new binary
-
-Run the manual **Upload Google Play descriptions** workflow from `main` and supply the full
-SHA of the reviewed commit containing the descriptions. Use a commit whose text matches the
-version being reviewed in Play; it may include editorial fixes made after that version's tag.
-The workflow runs current tooling and reads only EN/RU title, short description and full
-description from that commit. It does not execute code from the selected commit.
-
-Locally, with the service-account environment loaded:
-
-```shell
-bundle exec fastlane android play_metadata metadata_commit:<full-commit-sha>
-```
-
-Omitting the SHA uses committed `HEAD`, never uncommitted text. Screenshots, artwork, binaries
-and release notes stay untouched. Upload leaves changes unsubmitted and disables Fastlane's
-automatic submission fallback. Check both languages and the matching release in Publishing
-overview before sending for review. Upload, review approval and publication are separate steps.
-The general store listing is shared across tracks. Neither an internal draft nor this workflow
-binds the descriptions to a version. See [Google's publishing controls](https://support.google.com/googleplay/android-developer/answer/9859654?hl=en).
 
 ## F-Droid
 
@@ -157,7 +64,7 @@ Store descriptions, changelogs and artwork live in
 before tagging a release. The submission recipe is maintained in `fdroid/fdroiddata`,
 not duplicated in this repository. Pin each build to the full release commit SHA,
 use JDK 21, and compare against the versioned GitHub release APK with the expected
-signing certificate. Keep dependency metadata disabled for both APKs and bundles.
+signing certificate. Keep dependency metadata disabled for APKs.
 A successful GitHub build alone does not establish reproducibility: the F-Droid
 build and binary comparison must pass before marking that verification complete.
 

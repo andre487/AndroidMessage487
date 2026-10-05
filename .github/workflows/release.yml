@@ -16,7 +16,7 @@ concurrency:
 
 jobs:
   release:
-    name: Build and verify signed APK and AAB
+    name: Build and verify signed APK
     runs-on: ubuntu-latest
     timeout-minutes: 40
     steps:
@@ -80,7 +80,7 @@ jobs:
           retention-days: 14
 
   publish:
-    name: Publish GitHub Release and Google Play draft
+    name: Publish GitHub Release
     needs: release
     if: startsWith(github.ref, 'refs/tags/v') && github.event_name == 'push'
     runs-on: ubuntu-latest
@@ -104,10 +104,6 @@ jobs:
         run: |
           cd dist/release
           sha256sum -c SHA256SUMS
-          gh release create "$GITHUB_REF_NAME" ./*.apk ./*.aab mapping.txt SHA256SUMS \
+          gh release create "$GITHUB_REF_NAME" ./*.apk mapping.txt SHA256SUMS \
             --repo "$GITHUB_REPOSITORY" --verify-tag --generate-notes \
             --title "Message487 $GITHUB_REF_NAME"
-      - name: Upload Google Play internal draft
-        env:
-          SUPPLY_JSON_KEY_DATA: ${{ secrets.SUPPLY_JSON_KEY_DATA }}
-        run: bundle exec fastlane android play_release track:internal release_status:draft

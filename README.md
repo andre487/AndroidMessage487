@@ -14,11 +14,16 @@ A custom webhook is also supported. Telegram forwarding is one possible workflow
 app does not depend on Telegram.
 
 **Status:** development preview with notification/SMS capture, a persistent encrypted outbox,
-background delivery, automatic retries and a delivery journal. Webhook requests require a Bearer token, stored encrypted on the device. Signed APK/AAB release automation is configured; see [Releases](docs/en/releases.md).
+background delivery, automatic retries and a delivery journal. Webhook requests require a Bearer token, stored encrypted on the device. Signed APK release automation is configured; see [Releases](docs/en/releases.md).
 
 ## Getting started
 
 **[Download the latest signed APK](https://github.com/andre487/AndroidMessage487/releases/latest/download/message487.apk)**
+
+Message487 is also available from [F-Droid](https://f-droid.org/packages/life.andre.message487/).
+Open **App updates** using the update icon in the top bar. The source follows the installer:
+F-Droid clients use F-Droid, other named installers use GitHub. Unknown installers require a
+manual choice. Daily checks can be disabled; downloads and installation require separate actions.
 
 The stable link follows the latest published release; it does not point to development builds.
 Read the [release notes](https://github.com/andre487/AndroidMessage487/releases/latest) for supported features.
@@ -119,10 +124,10 @@ bottom navigation on phones and rail navigation on wider windows. See the [desig
 for the visual conventions and references.
 
 Fastlane's `debug_artifact` lane builds only the debug APK. `checks` runs JVM/Robolectric tests,
-debug/release lint, and builds debug and unsigned release APKs under `app/build/outputs/apk/`, plus an unsigned AAB under
-`app/build/outputs/bundle/`.
+debug/release lint, and builds debug and unsigned release APKs under `app/build/outputs/apk/`.
+
 PR CI has no release signing credentials and does not require an emulator.
-For signed APK/AAB artifacts and manual Play Console upload, see [Releases](docs/en/releases.md).
+For signed APK releases, see [Releases](docs/en/releases.md).
 Store graphics and their provenance are documented in [Branding](assets/branding/README.md).
 
 See the [project context](docs/en/project-context.md) for remaining product decisions.

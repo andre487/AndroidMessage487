@@ -39,8 +39,8 @@ class ResourceContractTest {
         assertEquals(listOf(".MainActivity"), elements("activity")
             .filter { it.getAttributeNS(namespace, "exported") == "true" }.map { it.getAttributeNS(namespace, "name") })
         assertEquals("android.permission.BIND_NOTIFICATION_LISTENER_SERVICE",
-            elements("service").single().getAttributeNS(namespace, "permission"))
-        assertEquals("android.permission.BROADCAST_SMS", elements("receiver").single().getAttributeNS(namespace, "permission"))
+            elements("service").single { it.getAttributeNS(namespace, "name") == ".NotificationCaptureService" }.getAttributeNS(namespace, "permission"))
+        assertEquals("android.permission.BROADCAST_SMS", elements("receiver").single { it.getAttributeNS(namespace, "name") == ".SmsCaptureReceiver" }.getAttributeNS(namespace, "permission"))
         val provider = elements("provider").single()
         assertEquals("false", provider.getAttributeNS(namespace, "exported"))
         assertEquals("true", provider.getAttributeNS(namespace, "grantUriPermissions"))
@@ -48,8 +48,10 @@ class ResourceContractTest {
         assertFalse(elements("uses-permission").any { it.getAttributeNS(namespace, "name") == "android.permission.QUERY_ALL_PACKAGES" })
         val paths = document("res/xml/file_paths.xml").documentElement.childNodes
         val roots = (0 until paths.length).mapNotNull { paths.item(it) as? Element }
-        assertEquals(1, roots.size)
-        assertEquals("cache-path", roots.single().tagName)
-        assertEquals("feedback/", roots.single().getAttribute("path"))
+        assertEquals(setOf("feedback/", "updates/"), roots.map { it.getAttribute("path") }.toSet())
+        assertTrue(roots.all { it.tagName == "cache-path" })
+        assertEquals("android.permission.BIND_JOB_SERVICE",
+            elements("service").single { it.getAttributeNS(namespace, "name") == ".UpdateCheckService" }.getAttributeNS(namespace, "permission"))
+        assertEquals("false", elements("receiver").single { it.getAttributeNS(namespace, "name") == ".UpdateActionReceiver" }.getAttributeNS(namespace, "exported"))
     }
 }
