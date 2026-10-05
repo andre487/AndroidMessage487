@@ -18,6 +18,7 @@ certificate before opening Android's installer. Allow installation from Message4
 return to the update screen and press **Install update** again. Different signing keys cannot
 update one another; keep the existing app data and use the matching distribution.
 
+If installation is blocked on Samsung Galaxy, see **Samsung Galaxy: Auto Blocker** below.
 
 ## Download and install
 
@@ -34,10 +35,23 @@ The app requires Android 8.0 or newer. Use the APK attached to the project relea
 not a repackaged copy. Release assets include `SHA256SUMS` for checking file integrity.
 Menu names vary by Android version and manufacturer.
 
+## Samsung Galaxy: Auto Blocker
+
+If **Auto Blocker** blocks installation, open **Settings → Security and privacy →
+Auto Blocker**, temporarily turn it off and retry installing the APK from the official
+release. You still need to allow installation from the browser or file manager;
+for an update downloaded inside the app, allow installation from **Message487**.
+
+Turn Auto Blocker back on after installation. When enabled, it must be turned off again
+before the next APK update, including one downloaded inside Message487. Menu names depend
+on the model and One UI version.
+[Samsung instructions](https://www.samsung.com/us/support/answer/ANS10003636/).
+
 ## Identify the blocking screen
 
 | What you see | Next step |
 | --- | --- |
+| Samsung reports an Auto Blocker restriction | Follow the Samsung Galaxy section above |
 | Installation from this source is not allowed | Grant the browser/file manager permission as above |
 | Play Protect suggests scanning an unknown app | Run the offered scan and follow its result |
 | Play Protect blocks installation because the app requests sensitive data | Read the Play Protect section below |

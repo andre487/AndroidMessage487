@@ -4,6 +4,9 @@
 
 Для установки на телефон см. [инструкцию по APK и ограничениям Android](apk-installation.md).
 
+Подготовку версии и EN/RU changelog выполняет [автоматизация релиза](release-automation.md).
+Там же описаны ручная настройка секретов и запуск выпуска.
+
 Запустите `bundle exec fastlane android release_artifacts` с JDK 21 и Android SDK 36.
 Lane выполняет JVM/Compose-тесты и debug/release lint, затем собирает подписанный release APK. Проверяются сертификат, пакет, версия и отсутствие debug-флага
 APK.
@@ -50,7 +53,8 @@ Workflow восстанавливает ключ и пароль с приват
 - После слияния workflow в основную ветку ручной запуск также только собирает артефакты.
 - Для публикации увеличьте `versionCode`, задайте нужный `versionName` в `app/build.gradle.kts`
   и слейте проверенный PR после обязательных проверок. Отправьте тег `v<versionName>`.
-  Workflow требует наличия коммита в `main` и совпадения версии с тегом. Проверенные APK,
+  Workflow требует наличия коммита в `main`, совпадения версии с тегом и EN/RU changelog
+  для текущего `versionCode`. Эти тексты используются в GitHub Release. Проверенные APK,
   mapping и контрольные суммы публикуются в GitHub Releases. Повторный запуск не перезаписывает
   существующий Release.
 

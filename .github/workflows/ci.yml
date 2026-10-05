@@ -2,6 +2,11 @@ name: CI
 
 on:
   workflow_dispatch:
+    inputs:
+      release_dry_run_version:
+        description: "Optional release version X.Y.Z for a read-only check with live changelog generation"
+        required: false
+        type: string
   pull_request:
   push:
     branches: [main]
@@ -14,7 +19,40 @@ concurrency:
   cancel-in-progress: true
 
 jobs:
+  release-dry-run:
+    name: Release dry run
+    if: github.event_name == 'workflow_dispatch' && inputs.release_dry_run_version != ''
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v6
+        with:
+          fetch-depth: 0
+          persist-credentials: false
+      - name: Check release configuration and generate changelogs
+        env:
+          GH_TOKEN: ${{ secrets.RELEASE_BOT_TOKEN }}
+          OPENAI_API_KEY: ${{ secrets.OPENAI_API_KEY }}
+          OPENAI_RELEASE_MODEL: ${{ vars.OPENAI_RELEASE_MODEL || secrets.OPENAI_RELEASE_MODEL }}
+          RELEASE_VERSION: ${{ inputs.release_dry_run_version }}
+        run: |
+          test -n "$GH_TOKEN" && test -n "$OPENAI_API_KEY" && test -n "$OPENAI_RELEASE_MODEL"
+          gh auth setup-git
+          python3 scripts/release_automation.py prepare --version "$RELEASE_VERSION" --dry-run
+
+  release-identity:
+    name: Release CI identity
+    if: github.event_name == 'pull_request'
+    runs-on: ubuntu-latest
+    steps:
+      - name: 'Comparison base: ${{ github.event.pull_request.base.sha }}'
+        run: 'true'
+      - name: 'Pull request: ${{ github.event.pull_request.number }}'
+        run: 'true'
+
   android:
+    if: github.event_name != 'workflow_dispatch' || inputs.release_dry_run_version == ''
+    name: Android tests and checks
     runs-on: ubuntu-latest
     timeout-minutes: 30
     steps:
@@ -64,6 +102,7 @@ jobs:
         run: echo "[Download debug APK and unsigned release APK]($ARTIFACT_URL)" >> "$GITHUB_STEP_SUMMARY"
 
   python:
+    if: github.event_name != 'workflow_dispatch' || inputs.release_dry_run_version == ''
     name: Python tests and style
     runs-on: ubuntu-latest
     timeout-minutes: 10
@@ -84,6 +123,8 @@ jobs:
       - run: bundle exec fastlane android python_checks
 
   dev-server:
+    if: github.event_name != 'workflow_dispatch' || inputs.release_dry_run_version == ''
+    name: Development server tests
     runs-on: ubuntu-latest
     timeout-minutes: 15
     steps:

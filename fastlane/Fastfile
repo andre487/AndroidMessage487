@@ -34,9 +34,10 @@ platform :android do
   lane :python_checks do
     python = ENV.fetch("PYTHON", "python3")
     Dir.chdir(project_root) do
-      sh(python, "-m", "isort", "--check-only", "DevServer/tests")
-      sh(python, "-m", "black", "--check", "DevServer/tests")
+      sh(python, "-m", "isort", "--check-only", "DevServer/tests", "scripts/release_automation.py", "scripts/tests")
+      sh(python, "-m", "black", "--check", "DevServer/tests", "scripts/release_automation.py", "scripts/tests")
       sh(python, "-m", "unittest", "discover", "-s", "DevServer/tests", "-v")
+      sh(python, "-m", "unittest", "discover", "-s", "scripts/tests", "-v")
     end
   end
 
@@ -52,6 +53,27 @@ platform :android do
   desc "Build, sign and verify release APK and checksums"
   lane :release_artifacts do
     sh(File.join(project_root, "scripts/build-release-apk.sh"))
+  end
+
+  desc "Generate EN/RU changelogs, bump the version, and create a release PR"
+  lane :release_prepare do |options|
+    version = options[:version] || ENV.fetch("RELEASE_VERSION")
+    arguments = ["prepare", "--version", version.to_s]
+    arguments << "--dry-run" if options[:dry_run].to_s == "true"
+    Dir.chdir(project_root) do
+      sh(ENV.fetch("PYTHON", "python3"), "scripts/release_automation.py", *arguments)
+    end
+  end
+
+  desc "Require full release PR CI, squash merge, and tag its verified merged commit"
+  lane :release_finish do |options|
+    version = options[:version] || ENV.fetch("RELEASE_VERSION")
+    pr = options[:pr] || ENV.fetch("RELEASE_PR")
+    head = options[:head] || ENV.fetch("RELEASE_HEAD")
+    Dir.chdir(project_root) do
+      sh(ENV.fetch("PYTHON", "python3"), "scripts/release_automation.py", "finish",
+         "--version", version.to_s, "--pr", pr.to_s, "--head", head.to_s)
+    end
   end
 
   desc "Build a debug APK"

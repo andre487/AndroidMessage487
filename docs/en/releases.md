@@ -4,6 +4,9 @@
 
 Installing on a phone? See [APK installation and Android restrictions](apk-installation.md).
 
+Use [release automation](release-automation.md) to prepare the version and EN/RU changelog.
+The guide covers manual secret setup and release dispatch.
+
 Run `bundle exec fastlane android release_artifacts` with JDK 21 and Android SDK 36.
 The lane runs Android JVM/Compose tests and debug/release lint, then builds a signed release APK. It checks the APK certificate, package/version and non-debuggable
 flag.
@@ -50,7 +53,8 @@ GitHub Release. PR workflows do not consume signing secrets.
 - After the workflow is merged into the default branch, manual dispatch also builds artifacts only.
 - For publication, increment `versionCode`, set the intended `versionName` in `app/build.gradle.kts`,
   and merge the reviewed change after all required PR checks pass. Push the matching `v<versionName>`
-  tag. The workflow requires the tag commit to be contained in `main` and rejects a version mismatch.
+  tag. The workflow requires the tag commit to be contained in `main`, the version to match the tag,
+  and EN/RU changelogs for the current `versionCode`. GitHub Release uses these texts.
   It publishes the verified APKs, mapping and checksums to GitHub Releases. An existing Release is
   not overwritten by a rerun.
 

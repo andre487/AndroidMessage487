@@ -30,6 +30,9 @@ jobs:
           version_name="$(sed -nE 's/^[[:space:]]*versionName = "([^"]+)"/\1/p' app/build.gradle.kts)"
           test "$GITHUB_REF_NAME" = "v$version_name"
           git merge-base --is-ancestor HEAD origin/main
+          version_code="$(sed -nE 's/^[[:space:]]*versionCode = ([0-9]+)/\1/p' app/build.gradle.kts)"
+          test -s "fastlane/metadata/android/en-US/changelogs/$version_code.txt"
+          test -s "fastlane/metadata/android/ru-RU/changelogs/$version_code.txt"
       - uses: actions/setup-java@v5
         with:
           distribution: temurin
@@ -102,8 +105,14 @@ jobs:
         env:
           GH_TOKEN: ${{ github.token }}
         run: |
+          version_code="$(sed -nE 's/^[[:space:]]*versionCode = ([0-9]+)/\1/p' app/build.gradle.kts)"
+          notes="$RUNNER_TEMP/release-notes.md"
+          en="fastlane/metadata/android/en-US/changelogs/$version_code.txt"
+          ru="fastlane/metadata/android/ru-RU/changelogs/$version_code.txt"
+          test -s "$en" && test -s "$ru"
+          { printf '## English\n\n'; cat "$en"; printf '\n## Русский\n\n'; cat "$ru"; } > "$notes"
           cd dist/release
           sha256sum -c SHA256SUMS
           gh release create "$GITHUB_REF_NAME" ./*.apk mapping.txt SHA256SUMS \
-            --repo "$GITHUB_REPOSITORY" --verify-tag --generate-notes \
+            --repo "$GITHUB_REPOSITORY" --verify-tag --notes-file "$notes" \
             --title "Message487 $GITHUB_REF_NAME"
