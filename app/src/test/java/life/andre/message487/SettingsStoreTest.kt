@@ -21,12 +21,32 @@ class SettingsStoreTest {
     @Test fun `deduplication defaults on and opt out survives restart`() {
         context.getSharedPreferences("connection", Context.MODE_PRIVATE).edit().clear().commit()
         val store = SettingsStore(context, cipher)
-        assertTrue(store.state.value.deduplication)
-        store.update { it.copy(deduplication = false) }
+        assertTrue(store.state.value.smsDeduplication)
+        assertTrue(store.state.value.notificationDeduplication)
+        assertEquals(1, store.state.value.deduplicationWindowSeconds)
+        store.update { it.copy(smsDeduplication = false, deduplicationWindowSeconds = 3) }
         val reopened = SettingsStore(context, cipher)
-        assertFalse(reopened.state.value.deduplication)
-        reopened.update { it.copy(deduplication = true) }
-        assertTrue(SettingsStore(context, cipher).state.value.deduplication)
+        assertFalse(reopened.state.value.smsDeduplication)
+        assertTrue(reopened.state.value.notificationDeduplication)
+        assertEquals(3, reopened.state.value.deduplicationWindowSeconds)
+        assertThrows(IllegalArgumentException::class.java) { reopened.update { it.copy(deduplicationWindowSeconds = -1) } }
+        reopened.update { it.copy(smsDeduplication = true) }
+        assertTrue(SettingsStore(context, cipher).state.value.smsDeduplication)
+    }
+
+    @Test fun `old shared switch migrates without overriding separate switches`() {
+        val prefs = context.getSharedPreferences("connection", Context.MODE_PRIVATE)
+        for (enabled in listOf(false, true)) {
+            prefs.edit().clear().putBoolean("deduplication", enabled).commit()
+            val store = SettingsStore(context, cipher)
+            assertEquals(enabled, store.state.value.smsDeduplication)
+            assertEquals(enabled, store.state.value.notificationDeduplication)
+            store.update { it.copy(notificationDeduplication = !enabled) }
+            val reopened = SettingsStore(context, cipher)
+            assertEquals(enabled, reopened.state.value.smsDeduplication)
+            assertEquals(!enabled, reopened.state.value.notificationDeduplication)
+            assertFalse(prefs.contains("deduplication"))
+        }
     }
 
     @Test fun `token survives restart through injected encryption and is redacted`() {

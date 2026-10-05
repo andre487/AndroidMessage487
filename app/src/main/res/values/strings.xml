@@ -123,8 +123,9 @@
     <string name="app_version">Version %1$s · %2$s</string>
     <string name="privacy_policy">Privacy policy</string>
     <string name="no_browser">No browser is available to open the privacy policy.</string>
-    <string name="deduplication_enabled">Skip duplicate messages</string>
-    <string name="deduplication_hint">Skip messages with exactly the same app, original timestamp and text. Turn off to forward repeated messages too.</string>
+    <string name="sms_deduplication">Skip duplicate SMS</string>
+    <string name="notification_deduplication">Skip duplicate notifications</string>
+    <string name="deduplication_hint">Skip messages with the same source and exact text within the selected time window.</string>
 
     <string name="updates">App updates</string>
     <string name="update_installed">Installed version: %1$s</string>
@@ -154,4 +155,6 @@
     <string name="update_notification_open">Update</string>
     <string name="update_skip">Skip this version</string>
     <string name="update_disable">Disable auto-checks</string>
+    <string name="deduplication_window">Time window (± seconds)</string>
+    <string name="deduplication_window_hint">0 compares exact timestamps. Identical new messages inside the window are also skipped.</string>
 </resources>

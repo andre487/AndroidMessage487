@@ -56,14 +56,17 @@ forwards only the content the system exposes.
 
 ## Delivery and data
 
-**Skip duplicate messages** in **Sources** is on by default. SMS and notifications are
-compared by source package, exact original timestamp and exact text (including whitespace).
+**Skip duplicate SMS** and **Skip duplicate notifications** in **Sources** are independently
+enabled by default and share the time window. SMS and notifications are
+compared by source package and exact text (including whitespace), with original timestamps
+inside the configured ± time window. Set the window in seconds in Sources; 0 requires exact timestamps.
 Titles and SMS senders are not part of this key. SMS uses the system source `android`.
-A different timestamp counts as a new message, even with identical text. Turn the switch off
+Messages outside the inclusive window count as new. Identical genuine messages inside it are also skipped. Turn the corresponding switch off
 to forward repeated captures. Manual connection tests are exempt; network retries keep their event ID.
-Deduplication hashes survive restarts, delivery and journal deletion until app data is cleared.
-They are recorded even while the switch is off so re-enabling it covers those captures too.
-On upgrade, this history starts with newly captured events; existing queued events are preserved.
+Deduplication hashes and original timestamps survive restarts, delivery and journal deletion until app data is cleared.
+They are recorded even while the corresponding switch is off so re-enabling it covers those captures too.
+Existing queued events are preserved on upgrade. Older exact-timestamp hashes still suppress exact matches;
+time-window matching applies to captures recorded by the new filter.
 
 The n8n confirmation mode requires JSON with `status: "accepted"` and the matching `event_id`.
 This is our fixture contract, not a built-in n8n response. Turn off **n8n confirmation** for a
