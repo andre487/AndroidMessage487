@@ -93,4 +93,15 @@ class AppUpdatesTest {
         assertArrayEquals(byteArrayOf(1, 2), readUpdateMetadata(ByteArrayInputStream(byteArrayOf(1, 2))))
         assertThrows(IllegalArgumentException::class.java) { readUpdateMetadata(ByteArrayInputStream(ByteArray(1024 * 1024 + 1))) }
     }
+    @Test fun metadataRetriesOnlyNetworkAndTemporaryServerFailures() {
+        requireUpdateMetadataStatus(200)
+        for (status in listOf(429, 500, 502, 503, 599)) {
+            assertThrows(java.io.IOException::class.java) { requireUpdateMetadataStatus(status) }
+        }
+        val missing = assertThrows(UpdateException::class.java) { requireUpdateMetadataStatus(404) }
+        assertEquals(R.string.update_not_published, missing.textId)
+        for (status in listOf(201, 302, 400, 401, 403)) {
+            assertThrows(IllegalArgumentException::class.java) { requireUpdateMetadataStatus(status) }
+        }
+    }
 }

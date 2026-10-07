@@ -81,3 +81,8 @@ without checking out or executing PR code. A test/build failure without XML rema
 CI job, never a passing test report. Signed-release JVM results are published separately.
 
 For signed candidates, F-Droid and device checks, follow [Release testing](release-testing.md).
+
+Update regression tests cover the entry dialog, weekly snooze/skip, F-Droid routing,
+GitHub navigation without automatic download, persisted background results, transient-error
+retry policy, cancellation and stale-source handling. HTTP 429/5xx are retryable; 404 and
+invalid responses are not. These JVM/Compose checks do not establish real JobScheduler timing.

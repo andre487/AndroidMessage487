@@ -20,6 +20,28 @@ update one another; keep the existing app data and use the matching distribution
 
 If installation is blocked on Samsung Galaxy, see **Samsung Galaxy: Auto Blocker** below.
 
+## Update reminders and background checks
+
+A detected newer version is saved even when system notifications are blocked. On app entry
+or return to the foreground, Message487 offers a dialog for that version. **Update** opens
+the GitHub update screen for a fresh metadata check; downloading still requires explicit
+consent and installation is a separate action. **Update through F-Droid** opens the package
+page in a compatible client or browser.
+
+**Remind me in a week**, including dismissing the dialog, postpones both the dialog and
+notification for that version by a week. **Skip this version** suppresses both for that
+version and source; manual checks can still show it. A successful check with no update,
+a version already installed, or a different selected source prevents a stale dialog.
+Opening the app only reads the saved detection; it does not start a network check by itself.
+
+The update screen shows the time, source and result of the latest background attempt,
+including never-started, unfinished and interrupted attempts. Manual checks do not overwrite
+this diagnostic. Network failures and HTTP 429/5xx request a retry after 30 minutes with
+exponential backoff; Android may defer it. Other errors wait for the next daily check.
+Disabling automatic checks or changing source suppresses retries from an in-flight request.
+Only the attempt time, source and result category are stored here, without exception text,
+URLs or credentials. A failed check does not discard the last detected version or change source.
+
 ## Download and install
 
 1. Open the project's [GitHub Releases](https://github.com/andre487/AndroidMessage487/releases)

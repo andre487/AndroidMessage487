@@ -157,4 +157,12 @@
     <string name="update_disable">Disable auto-checks</string>
     <string name="deduplication_window">Time window (± seconds)</string>
     <string name="deduplication_window_hint">0 compares exact timestamps. Identical new messages inside the window are also skipped.</string>
+    <string name="update_remind_later">Remind me in a week</string>
+    <string name="update_background_never">No background check has run yet. Android chooses when to run checks.</string>
+    <string name="update_background_time">Last background attempt: %1$s</string>
+    <string name="update_background_running">The last attempt started but has not recorded a result yet.</string>
+    <string name="update_background_available">A newer version was found. Notification delivery depends on system permissions and reminder settings.</string>
+    <string name="update_background_retry">A network or temporary server error occurred. A retry is requested after 30 minutes, with increasing delays; Android may defer it.</string>
+    <string name="update_background_interrupted">Android interrupted the check. A retry was requested.</string>
+    <string name="update_background_error">The check failed. Retry manually; the selected source has not changed.</string>
 </resources>

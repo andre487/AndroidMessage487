@@ -64,4 +64,96 @@ class UpdatesUiTest {
         node(R.string.update_download).assertDoesNotExist()
         assertEquals(UpdateSource.FDROID, model.source)
     }
+
+    @Test fun launchDialogOffersGithubNavigationAndSnoozesWithoutDownloading() {
+        AppUpdates(compose.activity).select(UpdateSource.GITHUB)
+        val prefs = UpdatePreferences(compose.activity)
+        prefs.detected(UpdateSource.GITHUB, AppUpdate(UpdateSource.GITHUB, "99.0.0"))
+        var opened = 0
+        compose.setContent { MessageTheme { UpdateAvailableDialog(compose.activity, 0) { opened++ } } }
+        node(R.string.update_skip).assertIsDisplayed()
+        node(R.string.update_remind_later).assertIsDisplayed()
+        node(R.string.update_notification_open).performClick()
+        compose.runOnIdle {
+            assertEquals(1, opened)
+            assertNull(prefs.pending())
+        }
+        compose.onNode(isDialog()).assertDoesNotExist()
+    }
+
+    @Test fun launchDialogFdroidOpensPackagePage() {
+        AppUpdates(compose.activity).select(UpdateSource.FDROID)
+        val prefs = UpdatePreferences(compose.activity)
+        val update = AppUpdate(UpdateSource.FDROID, "99.0.0")
+        prefs.detected(update.source, update)
+        compose.setContent { MessageTheme { UpdateAvailableDialog(compose.activity, 0) { error("F-Droid must not download") } } }
+        node(R.string.update_in_fdroid).performClick()
+        compose.runOnIdle {
+            assertEquals(FDROID_APP_URL, shadowOf(compose.activity).nextStartedActivity.data.toString())
+            assertNull(prefs.pending())
+        }
+    }
+
+    @Test fun launchDialogSkipSuppressesVersionAcrossRecreation() {
+        AppUpdates(compose.activity).select(UpdateSource.GITHUB)
+        val prefs = UpdatePreferences(compose.activity)
+        prefs.detected(UpdateSource.GITHUB, AppUpdate(UpdateSource.GITHUB, "99.0.0"))
+        compose.setContent { MessageTheme { UpdateAvailableDialog(compose.activity, 0) {} } }
+        node(R.string.update_skip).performClick()
+        compose.runOnIdle { assertNull(UpdatePreferences(compose.activity).pending(Long.MAX_VALUE)) }
+        compose.onNode(isDialog()).assertDoesNotExist()
+    }
+
+    @Test fun backgroundDiagnosticIsVisibleAndManualCheckDoesNotOverwriteIt() {
+        AppUpdates(compose.activity).select(UpdateSource.GITHUB)
+        val prefs = UpdatePreferences(compose.activity)
+        prefs.detected(UpdateSource.GITHUB, AppUpdate(UpdateSource.GITHUB, "99.0.0"))
+        prefs.backgroundStarted(UpdateSource.GITHUB, 1000)
+        prefs.backgroundFinished("network_error")
+        val model = UpdatesViewModel(compose.activity.application, checkUpdate = { null })
+        compose.setContent { MessageTheme { UpdatesScreen(compose.activity, model) } }
+        node(R.string.update_background_retry).performScrollTo().assertIsDisplayed()
+        node(R.string.update_check).performScrollTo().performClick()
+        node(R.string.update_current).assertExists()
+        compose.runOnIdle {
+            assertEquals(1000, prefs.lastBackgroundTime)
+            assertEquals("network_error", prefs.lastBackgroundResult)
+            assertNull(prefs.pending())
+        }
+    }
+
+    @Test fun notificationEntrySuppressesDuplicateDialog() {
+        AppUpdates(compose.activity).select(UpdateSource.GITHUB)
+        val prefs = UpdatePreferences(compose.activity)
+        prefs.detected(UpdateSource.GITHUB, AppUpdate(UpdateSource.GITHUB, "99.0.0"))
+        compose.setContent { MessageTheme { UpdateAvailableDialog(compose.activity, 1) {} } }
+        compose.onNode(isDialog()).assertDoesNotExist()
+        assertNotNull(prefs.pending())
+        compose.activityRule.scenario.moveToState(androidx.lifecycle.Lifecycle.State.CREATED)
+        compose.activityRule.scenario.moveToState(androidx.lifecycle.Lifecycle.State.RESUMED)
+        compose.onNode(isDialog()).assertExists()
+    }
+
+    @Test fun remindLaterSuppressesBothDialogAndNotification() {
+        AppUpdates(compose.activity).select(UpdateSource.GITHUB)
+        val prefs = UpdatePreferences(compose.activity)
+        val update = AppUpdate(UpdateSource.GITHUB, "99.0.0")
+        prefs.detected(update.source, update)
+        compose.setContent { MessageTheme { UpdateAvailableDialog(compose.activity, 0) {} } }
+        node(R.string.update_remind_later).performClick()
+        compose.onNode(isDialog()).assertDoesNotExist()
+        assertNull(UpdatePreferences(compose.activity).pending())
+        assertFalse(prefs.shouldNotify(update, System.currentTimeMillis()))
+    }
+
+    @Test fun manualCheckStillShowsSkippedVersion() {
+        AppUpdates(compose.activity).select(UpdateSource.GITHUB)
+        val update = AppUpdate(UpdateSource.GITHUB, "99.0.0")
+        UpdatePreferences(compose.activity).skip(UpdatePreferences.key(update))
+        val model = UpdatesViewModel(compose.activity.application, checkUpdate = { update })
+        compose.setContent { MessageTheme { UpdatesScreen(compose.activity, model) } }
+        node(R.string.update_check).performScrollTo().performClick()
+        compose.onNodeWithText(compose.activity.getString(R.string.update_available, update.version)).assertExists()
+        compose.runOnIdle { assertNull(UpdatePreferences(compose.activity).pending()) }
+    }
 }
