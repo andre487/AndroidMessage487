@@ -33,7 +33,10 @@ class MainActivity : ComponentActivity() {
         super.onCreate(savedInstanceState)
         enableEdgeToEdge()
         if (intent.action == OPEN_UPDATES_ACTION) updateCheckRequest++
-        setContent { MessageTheme { MessageScreen(checkRequest = updateCheckRequest) } }
+        setContent { MessageTheme {
+            MessageScreen(checkRequest = updateCheckRequest)
+            UpdateAvailableDialog(this, updateCheckRequest) { updateCheckRequest++ }
+        } }
     }
 
     override fun onNewIntent(intent: Intent) {

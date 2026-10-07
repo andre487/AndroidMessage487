@@ -97,6 +97,13 @@ internal fun validateUpdateIdentity(
     require(signers.isNotEmpty() && signers == installedSigners)
 }
 
+internal fun requireUpdateMetadataStatus(status: Int) {
+    if (status == 404) throw UpdateException(R.string.update_not_published)
+    if (status == 429 || status in 500..599)
+        throw java.io.IOException("Update service temporarily unavailable")
+    require(status == 200)
+}
+
 internal class AppUpdates(private val context: Context) {
     private val preferences = context.getSharedPreferences("updates", Context.MODE_PRIVATE)
     private val manager = context.packageManager
@@ -129,8 +136,7 @@ internal class AppUpdates(private val context: Context) {
     suspend fun check(source: UpdateSource): AppUpdate? = withContext(Dispatchers.IO) {
         val url = if (source == UpdateSource.FDROID) FDROID_UPDATE_API else GITHUB_RELEASES_API
         val json = request(url) { connection ->
-            if (connection.responseCode == 404) throw UpdateException(R.string.update_not_published)
-            require(connection.responseCode == 200)
+            requireUpdateMetadataStatus(connection.responseCode)
             connection.inputStream.use { stream ->
                 String(readUpdateMetadata(stream), Charsets.UTF_8)
             }
