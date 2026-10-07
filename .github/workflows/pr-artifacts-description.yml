@@ -1,0 +1,107 @@
+name: PR artifact links
+
+on:
+  workflow_run:
+    workflows:
+      - CI
+    types:
+      - completed
+
+permissions:
+  actions: read
+  contents: read
+  pull-requests: write
+
+jobs:
+  description:
+    name: Add APK links to the pull request
+    if: >-
+      github.event.workflow_run.conclusion == 'success' &&
+      github.event.workflow_run.event == 'pull_request'
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    concurrency:
+      group: pr-apk-links-${{ github.event.workflow_run.pull_requests[0].number || github.event.workflow_run.id }}
+      cancel-in-progress: false
+    steps:
+      - name: Create or update the APK artifact description block
+        uses: actions/github-script@v9
+        with:
+          script: |
+            const run = context.payload.workflow_run;
+            const pullRequests = run.pull_requests || [];
+
+            if (pullRequests.length !== 1) {
+              core.notice(`Expected one pull request for workflow run ${run.id}, found ${pullRequests.length}`);
+              return;
+            }
+
+            const pullNumber = pullRequests[0].number;
+            const expectedArtifacts = {
+              debug: `message487-pr-${pullNumber}-debug-apk`,
+              release: `message487-pr-${pullNumber}-unsigned-release-apk`,
+            };
+            const artifacts = await github.paginate(
+              github.rest.actions.listWorkflowRunArtifacts,
+              {
+                owner: context.repo.owner,
+                repo: context.repo.repo,
+                run_id: run.id,
+                per_page: 100,
+              }
+            );
+
+            const findArtifact = (name) => artifacts.find(
+              (artifact) => artifact.name === name && !artifact.expired
+            );
+            const debugArtifact = findArtifact(expectedArtifacts.debug);
+            const releaseArtifact = findArtifact(expectedArtifacts.release);
+
+            if (!debugArtifact || !releaseArtifact) {
+              core.setFailed(`Expected APK artifacts were not found for workflow run ${run.id}`);
+              return;
+            }
+
+            const artifactUrl = (artifact) =>
+              `${context.serverUrl}/${context.repo.owner}/${context.repo.repo}` +
+              `/actions/runs/${run.id}/artifacts/${artifact.id}`;
+            const marker = '<!-- message487-pr-apks -->';
+            const body = [
+              marker,
+              `<!-- message487-pr-apks-run: ${run.run_number}:${run.run_attempt || 1} -->`,
+              '## APK artifacts',
+              '',
+              `- [Download debug APK](${artifactUrl(debugArtifact)}) — signed with the disposable Android debug key`,
+              `- [Download unsigned release APK](${artifactUrl(releaseArtifact)}) — verified unsigned`,
+              '',
+              `Built from commit \`${run.head_sha.slice(0, 8)}\` by [CI run #${run.run_number}](${run.html_url}).`,
+              'Artifacts expire after 14 days. Neither APK uses the Message487 release key.',
+              '<!-- /message487-pr-apks -->',
+            ].join('\n');
+
+            const { data: pull } = await github.rest.pulls.get({
+              ...context.repo, pull_number: pullNumber,
+            });
+            if (pull.state !== 'open' || pull.head.sha !== run.head_sha) {
+              core.notice('PR is closed or its head changed; keeping the existing description');
+              return;
+            }
+            const description = pull.body || '';
+            const previousRun = description.match(/<!-- message487-pr-apks-run: (\d+):(\d+) -->/);
+            if (previousRun && (
+              Number(previousRun[1]) > run.run_number ||
+              (Number(previousRun[1]) === run.run_number && Number(previousRun[2]) > (run.run_attempt || 1))
+            )) {
+              core.notice('A newer CI run already published its artifacts');
+              return;
+            }
+            const block = /<!-- message487-pr-apks -->[\s\S]*?<!-- \/message487-pr-apks -->/g;
+            const authorBody = description.replace(block, '').trimEnd();
+            if (authorBody.includes(marker) || authorBody.includes('<!-- /message487-pr-apks -->')) {
+              core.setFailed('Malformed APK block markers; refusing to overwrite the PR description');
+              return;
+            }
+            await github.rest.pulls.update({
+              ...context.repo, pull_number: pullNumber,
+              body: authorBody ? `${authorBody}\n\n${body}` : body,
+            });

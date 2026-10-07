@@ -47,6 +47,11 @@ before the next APK update, including one downloaded inside Message487. Menu nam
 on the model and One UI version.
 [Samsung instructions](https://www.samsung.com/us/support/answer/ANS10003636/).
 
+Auto Blocker can also block USB commands, including ADB installation. If USB debugging
+or `adb install` is blocked, check this setting too. Restore it after the installation
+attempt, including a failed attempt. Work-device policies may prevent changing it; contact
+the administrator. Auto Blocker is separate from Play Protect and restricted settings.
+
 ## Identify the blocking screen
 
 | What you see | Next step |

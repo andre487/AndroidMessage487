@@ -18,6 +18,8 @@ CHECKS = {
     "android": "Android tests and checks",
     "python": "Python tests and style",
     "dev-server": "Development server tests",
+    "emulator26": "Android emulator API 26 / Device tests",
+    "emulator35": "Android emulator API 35 / Device tests",
 }
 
 VERSION = r"(0|[1-9][0-9]*)\.(0|[1-9][0-9]*)\.(0|[1-9][0-9]*)"

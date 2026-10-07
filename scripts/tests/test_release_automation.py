@@ -251,6 +251,10 @@ class ReleaseTests(unittest.TestCase):
                     m.finish("0.1.2", 7, "a" * 40)
 
     def test_ci_requires_each_success_on_exact_pr_head_and_recorded_base(self):
+        for api in (26, 35):
+            self.assertIn(
+                f"Android emulator API {api} / Device tests", m.CHECKS.values()
+            )
         run = {
             "event": "pull_request",
             "head_sha": "a" * 40,
@@ -293,7 +297,10 @@ class ReleaseTests(unittest.TestCase):
         ]:
             with self.assertRaises(RuntimeError):
                 m.full_ci(dict(run, **kwargs), jobs, "a" * 40, "b" * 40, 7)
-        for changed in [jobs[:-1], jobs + [jobs[0]]]:
+        for changed in [
+            *[jobs[:i] + jobs[i + 1 :] for i in range(len(jobs))],
+            jobs + [jobs[0]],
+        ]:
             with self.assertRaises(RuntimeError):
                 m.full_ci(run, changed, "a" * 40, "b" * 40, 7)
         with self.assertRaises(RuntimeError):

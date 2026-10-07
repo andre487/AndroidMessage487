@@ -82,6 +82,26 @@ jobs:
             app/build/reports/lint-results-*
           retention-days: 14
 
+      - name: Upload release JUnit reports
+        if: ${{ !cancelled() }}
+        uses: actions/upload-artifact@v7
+        with:
+          name: junit-Release Android JVM
+          path: app/build/test-results/testDebugUnitTest/*.xml
+          retention-days: 14
+
+  report-tests:
+    name: Publish release Android JVM results
+    needs: release
+    if: ${{ !cancelled() && needs.release.result != 'skipped' }}
+    permissions:
+      contents: read
+      actions: read
+      checks: write
+    uses: ./.github/workflows/test-reports.yml
+    with:
+      artifact: '/^junit-(Release Android JVM)$/'
+
   publish:
     name: Publish GitHub Release
     needs: release

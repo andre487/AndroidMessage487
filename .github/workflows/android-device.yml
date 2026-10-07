@@ -1,0 +1,72 @@
+name: Android device tests
+
+on:
+  workflow_call:
+    inputs:
+      api:
+        required: true
+        type: number
+
+permissions:
+  contents: read
+
+jobs:
+  device:
+    name: Device tests
+    runs-on: ubuntu-24.04
+    timeout-minutes: 45
+    env:
+      ANDROID_SERIAL: emulator-5554
+    steps:
+      - uses: actions/checkout@v6
+        with:
+          persist-credentials: false
+      - uses: actions/setup-java@v5
+        with:
+          distribution: temurin
+          java-version: "21"
+      - uses: gradle/actions/setup-gradle@v4
+      - uses: ruby/setup-ruby@v1
+        with:
+          ruby-version: "3.4.10"
+          bundler-cache: true
+      - name: Enable hardware acceleration
+        run: |
+          test -e /dev/kvm
+          echo 'KERNEL=="kvm", GROUP="kvm", MODE="0666", OPTIONS+="static_node=kvm"' | sudo tee /etc/udev/rules.d/99-kvm4all.rules
+          sudo udevadm control --reload-rules
+          sudo udevadm trigger --name-match=kvm
+      - name: Install build tools
+        run: '"$ANDROID_HOME/cmdline-tools/latest/bin/sdkmanager" "platforms;android-36" "build-tools;36.0.0"'
+      - name: Build test APKs
+        run: ./gradlew assembleDebug assembleDebugAndroidTest --no-daemon
+      - name: Run on disposable Android emulator
+        uses: reactivecircus/android-emulator-runner@v2.38.0
+        with:
+          api-level: ${{ inputs.api }}
+          target: google_apis
+          arch: x86_64
+          profile: pixel_5
+          avd-name: message487-tests
+          disable-animations: true
+          emulator-options: -accel on -no-window -no-snapshot -gpu swiftshader_indirect -noaudio -no-boot-anim -camera-back none -camera-front none
+          script: |
+            mkdir -p test-results/android-api${{ inputs.api }}
+            adb logcat -v threadtime > test-results/android-api${{ inputs.api }}/logcat.txt &
+            bundle exec fastlane android device_tests
+      - name: Upload Android evidence
+        if: always()
+        uses: actions/upload-artifact@v7
+        with:
+          name: android-api${{ inputs.api }}-results
+          path: |
+            test-results/android-api${{ inputs.api }}/
+            app/build/reports/androidTests/connected/
+          retention-days: 14
+      - name: Upload emulator JUnit reports
+        if: ${{ !cancelled() }}
+        uses: actions/upload-artifact@v7
+        with:
+          name: junit-Android API ${{ inputs.api }}
+          path: app/build/outputs/androidTest-results/connected/**/*.xml
+          retention-days: 14

@@ -45,3 +45,4 @@ ReviewServer/credentials.json
 __pycache__/
 dist/
 .playwright-cli/
+test-results/

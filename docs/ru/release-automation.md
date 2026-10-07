@@ -36,7 +36,8 @@
 3. В **Settings → General → Pull Requests** разрешите **Squash merging**.
    В **Settings → Rules / Branches** защитите `main`, сделайте обязательными проверки
    **Release CI identity**, **Android tests and checks**, **Python tests and style**,
-   **Development server tests** и не давайте боту обходить правила.
+   **Development server tests**, **Android emulator API 26 / Device tests** и
+   **Android emulator API 35 / Device tests**; не давайте боту обходить правила.
    Если хотите проверить changelog до автоматического merge, сделайте человеческое ревью
    обязательным и одобрите релизный PR после чтения текстов. Бот не одобряет себя.
    Этот флоу использует прямой squash merge и не поддерживает обязательную merge queue.
@@ -78,6 +79,8 @@
 эти же тексты. Номер версии задаёте вы; prerelease не поддерживается.
 
 Finalize ждёт до 60 минут успешного CI именно этого PR, head SHA и базы сравнения.
+Оба эмуляторных job API 26/35 обязательны и для release PR, меняющего только версию.
+Отсутствующие проверки тоже блокируют слияние и тег.
 Skipped, neutral, failure и cancelled не считаются успехом. Если `main` или PR изменились,
 merge останавливается. После merge проверяется точное совпадение дерева с проверенным head;
 тег создаётся на фактическом слитом коммите. Код из релизного PR не исполняется в finalize.

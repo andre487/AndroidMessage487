@@ -226,3 +226,10 @@ Raw material stays local. Test the signed release-PR candidate before publicatio
 human review in [release automation](release-automation.md) to inspect notes before merge.
 R03 is additional post-publication verification, not permission to release untested APKs.
 No device tests were performed while writing this procedure.
+
+## CI evidence for a candidate
+
+Record the exact PR head/base and CI URL, individual API 26/35 verdicts, JUnit Checks,
+APK artifact link and SHA-256. Download links are updated in the PR description; unsigned
+PR APKs and debug-emulator tests do not establish acceptance of the signed release candidate.
+A new commit requires a new CI run; skipped or missing emulator results block finalization.

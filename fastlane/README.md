@@ -39,6 +39,14 @@ Run Python tests and formatting checks for the development server
 
 Exercise the running development n8n server
 
+### android device_tests
+
+```sh
+[bundle exec] fastlane android device_tests
+```
+
+Run instrumentation tests on a disposable emulator (never a personal device)
+
 ### android release_artifacts
 
 ```sh
