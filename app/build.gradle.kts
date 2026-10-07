@@ -31,6 +31,7 @@ android {
         applicationId = "life.andre.message487"
         minSdk = 26
         targetSdk = 36
+        testInstrumentationRunner = "life.andre.message487.DeviceTestRunner"
         versionCode = 6
         versionName = "1.0.0"
         buildConfigField("String", "GIT_COMMIT_HASH", "\"$gitCommitHash\"")
@@ -99,6 +100,10 @@ dependencies {
     testImplementation("org.robolectric:robolectric:4.16")
     testImplementation("androidx.compose.ui:ui-test-junit4")
     debugImplementation("androidx.compose.ui:ui-test-manifest")
+    androidTestImplementation("androidx.test:runner:1.6.2")
+    androidTestImplementation("androidx.test.ext:junit:1.2.1")
+    androidTestImplementation("androidx.test:core:1.6.1")
+    androidTestImplementation("com.squareup.okhttp3:mockwebserver:4.12.0")
     testImplementation("junit:junit:4.13.2")
     testImplementation("org.json:json:20250107")
     testImplementation("com.squareup.okhttp3:mockwebserver:4.12.0")

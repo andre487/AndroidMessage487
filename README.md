@@ -129,7 +129,9 @@ for the visual conventions and references.
 Fastlane's `debug_artifact` lane builds only the debug APK. `checks` runs JVM/Robolectric tests,
 debug/release lint, and builds debug and unsigned release APKs under `app/build/outputs/apk/`.
 
-PR CI has no release signing credentials and does not require an emulator.
+PR CI has no release signing credentials. It runs JVM/lint checks and instrumentation tests
+on disposable API 26 and API 35 emulators. JUnit results appear in GitHub Checks; debug and
+unsigned release APK links are kept in the PR description. See [testing](docs/en/testing.md).
 For signed APK releases, see [Releases](docs/en/releases.md) and [release automation](docs/en/release-automation.md), and [release testing](docs/en/release-testing.md).
 Store graphics and their provenance are documented in [Branding](assets/branding/README.md).
 

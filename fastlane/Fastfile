@@ -36,18 +36,32 @@ platform :android do
     Dir.chdir(project_root) do
       sh(python, "-m", "isort", "--check-only", "DevServer/tests", "scripts/release_automation.py", "scripts/tests")
       sh(python, "-m", "black", "--check", "DevServer/tests", "scripts/release_automation.py", "scripts/tests")
-      sh(python, "-m", "unittest", "discover", "-s", "DevServer/tests", "-v")
-      sh(python, "-m", "unittest", "discover", "-s", "scripts/tests", "-v")
+      FileUtils.rm_rf("test-results/python")
+      sh(python, "-m", "xmlrunner", "discover", "-s", "DevServer/tests", "-o", "test-results/python/dev-server")
+      sh(python, "-m", "xmlrunner", "discover", "-s", "scripts/tests", "-o", "test-results/python/scripts")
     end
   end
 
   desc "Exercise the running development n8n server"
   lane :server_tests do
     Dir.chdir(project_root) do
-      sh("docker", "compose", "-f", "DevServer/compose.yaml", "exec", "-T", "n8n",
-         "node", "--test", "/bootstrap/tests/telegram-format.test.cjs")
+      FileUtils.rm_rf("test-results/server")
+      FileUtils.mkdir_p("test-results/server")
+      sh("docker compose -f DevServer/compose.yaml exec -T n8n node --test --test-reporter=junit /bootstrap/tests/telegram-format.test.cjs > test-results/server/telegram.xml")
+      sh(ENV.fetch("PYTHON", "python3"), "-m", "xmlrunner", "discover", "-s", "DevServer/tests", "-p", "smoke.py", "-o", "test-results/server")
     end
-    sh(ENV.fetch("PYTHON", "python3"), File.join(project_root, "DevServer/tests/smoke.py"))
+  end
+
+  desc "Run instrumentation tests on a disposable emulator (never a personal device)"
+  lane :device_tests do
+    serial = ENV.fetch("ANDROID_SERIAL")
+    UI.user_error!("Select one disposable emulator with ANDROID_SERIAL") unless serial.match?(/\Aemulator-\d+\z/)
+    adb = File.join(ENV.fetch("ANDROID_HOME"), "platform-tools/adb")
+    devices = IO.popen([adb, "devices"], &:read).lines.filter_map { |line| line.split.first if line.match?(/\tdevice$/) }
+    UI.user_error!("Connect only the selected disposable emulator") unless devices == [serial]
+    avd = IO.popen([adb, "-s", serial, "emu", "avd", "name"], &:read).lines.first.to_s.strip
+    UI.user_error!("Use an AVD named message487-tests (or message487-tests-API)") unless avd.match?(/\Amessage487-tests(?:-\d+)?\z/)
+    gradle(task: "connectedDebugAndroidTest", flags: "--no-daemon", project_dir: project_root)
   end
 
   desc "Build, sign and verify release APK and checksums"

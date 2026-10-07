@@ -34,7 +34,8 @@ The tag build keeps the same signing key so existing installations can upgrade.
 
 Enable squash merging in **Settings → General → Pull Requests**. Protect `main` with required
 **Release CI identity**, **Android tests and checks**, **Python tests and style** and
-**Development server tests**; do not grant the bot a bypass. Require human review if you want to
+**Development server tests**, **Android emulator API 26 / Device tests** and
+**Android emulator API 35 / Device tests**; do not grant the bot a bypass. Require human review if you want to
 review notes before merge. The workflow cannot approve itself. After a rejected merge, approve
 and rerun the failed finalize job. Required merge queues are unsupported. Tag rules must allow
 the bot to create `v*` tags.
@@ -81,7 +82,8 @@ Historical notes remain unchanged. GitHub Release uses the same texts. You choos
 prereleases are unsupported.
 
 Finalize waits up to 60 minutes for successful full CI for that PR, head SHA and comparison base.
-Skipped/neutral jobs are not success. Changed PRs or an advanced `main` stop merge. The merged
+Both API 26/35 emulator jobs must succeed, including on version-only release PRs.
+Skipped/neutral/missing emulator jobs are not success. Changed PRs or an advanced `main` stop merge. The merged
 tree must equal the checked head tree before a tag is created on the actual merged commit.
 Finalize runs trusted workflow code, never code from the release PR. Retries never force-push,
 move tags or overwrite published Releases.

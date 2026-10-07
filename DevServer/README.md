@@ -4,7 +4,9 @@ Run from the repository root with Docker Compose installed and a Docker engine r
 
 ```sh
 docker compose -f DevServer/compose.yaml up -d --wait
-bundle exec fastlane android server_tests
+python3 -m venv .venv
+.venv/bin/python -m pip install -r requirements-dev.txt
+PYTHON=.venv/bin/python bundle exec fastlane android server_tests
 ```
 
 Open the editor at <http://localhost:5678>. Local development login:

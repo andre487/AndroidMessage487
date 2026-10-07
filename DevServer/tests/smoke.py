@@ -1,5 +1,6 @@
 import json
 import socket
+import unittest
 import urllib.error
 import urllib.request
 import uuid
@@ -77,6 +78,11 @@ def main():
     print(
         'Passed: mandatory authorization on all endpoints, test/notification/SMS receive, validation, HTTP error, invalid ACK, timeout'
     )
+
+
+class ServerSmokeTest(unittest.TestCase):
+    def test_authenticated_delivery_and_failures(self):
+        main()
 
 
 if __name__ == '__main__':
