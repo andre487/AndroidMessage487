@@ -1,0 +1,2 @@
+• Updates detected when you open the app are now shown right away.
+• Temporary update-check failures are retried.
