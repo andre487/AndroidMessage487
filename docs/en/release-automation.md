@@ -16,7 +16,7 @@ In [Settings → Secrets and variables → Actions](https://github.com/andre487/
 | Type | Name | Value |
 | --- | --- | --- |
 | Secret | `OPENAI_API_KEY` | API-project key for changelog generation; requests are billed to that project. |
-| Variable or Secret | `OPENAI_RELEASE_MODEL` | A model available to that project supporting Responses API Structured Outputs, for example `gpt-4o-mini`. Variables take precedence; no model substitution. |
+| Variable or Secret | `OPENAI_RELEASE_MODEL` | A model available to that project supporting Responses API Structured Outputs, for example `gpt-6.1-sol`. Variables take precedence; no model substitution. |
 | Secret | `RELEASE_BOT_TOKEN` | Expiring fine-grained PAT scoped only to this repository: Contents read/write, Pull requests read/write, Actions read. Renew before expiration. |
 
 A separate token lets PR CI and the tag workflow run automatically; see
