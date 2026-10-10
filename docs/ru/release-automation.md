@@ -17,7 +17,7 @@
    | Тип | Имя | Значение |
    | --- | --- | --- |
    | Secret | `OPENAI_API_KEY` | Ключ API-проекта OpenAI для генерации changelog. Запросы оплачиваются этим проектом. |
-   | Variable или Secret | `OPENAI_RELEASE_MODEL` | Модель, доступная этому API-проекту и поддерживающая Responses API Structured Outputs, например `gpt-4o-mini`. Variable имеет приоритет над Secret; подмены модели нет. |
+   | Variable или Secret | `OPENAI_RELEASE_MODEL` | Модель, доступная этому API-проекту и поддерживающая Responses API Structured Outputs, например `gpt-6.1-sol`. Variable имеет приоритет над Secret; подмены модели нет. |
    | Secret | `RELEASE_BOT_TOKEN` | Fine-grained PAT с доступом только к `andre487/AndroidMessage487`: **Contents: Read and write**, **Pull requests: Read and write**, **Actions: Read-only**. Установите срок действия и обновляйте токен до истечения. |
 
    Отдельный токен нужен для автоматического запуска PR CI и сборки по созданному тегу:
