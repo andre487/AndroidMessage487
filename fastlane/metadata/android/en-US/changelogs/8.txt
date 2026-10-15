@@ -1,0 +1,4 @@
+- Notification forwarding now includes Big Picture and messaging images, including image-only notifications.
+- Graphics settings let you choose JPEG/PNG, quality and image limits, with optional avatars and app icons.
+- An opt-in option selects newly discovered launcher apps when you return to Message487, preserving manual exclusions.
+- Connection tests can include a big picture, gallery, avatar and app icon.
