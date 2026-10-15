@@ -121,8 +121,9 @@
     <string name="token_hint">Введите токен без префикса Bearer. Хранится на устройстве в зашифрованном виде.</string>
     <string name="invalid_token">Введите токен без пробелов и префикса Bearer.</string>
     <string name="app_version">Версия %1$s · %2$s</string>
+    <string name="github">GitHub</string>
     <string name="privacy_policy">Политика конфиденциальности</string>
-    <string name="no_browser">Не удалось открыть политику конфиденциальности: браузер недоступен.</string>
+    <string name="no_browser">Не удалось открыть ссылку: браузер недоступен.</string>
     <string name="sms_deduplication">Не отправлять дубли SMS</string>
     <string name="notification_deduplication">Не отправлять дубли уведомлений</string>
     <string name="deduplication_hint">Пропускать сообщения с одинаковыми источником и текстом в выбранном окне времени.</string>

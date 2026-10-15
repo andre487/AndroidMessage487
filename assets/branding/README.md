@@ -20,8 +20,9 @@ Sizes: square/round icon 512×512, status icon 24×24, feature graphic 1024×500
 The round and status PNGs retain transparency; the white status mark needs a contrasting background.
 
 Android adaptive layers live in `app/src/main/res/drawable/ic_launcher_{background,foreground}.xml`.
-The foreground uses scale `0.73` about the center of its 1254-unit viewport; the SVGs use the
-same paths, transform and gradient, cropped to Android's central 836×836 viewport.
+The adaptive foreground and round SVG use scale `0.65` about the center of their 1254-unit
+viewport for extra circular-mask padding. The square SVG retains scale `0.73`.
+Both SVGs share the Android paths and gradient, cropped to the central 836×836 viewport.
 Keep these sources synchronized when changing the artwork.
 The themed launcher and notification small icon share `ic_notification.xml`, the simplified
 white monitor/phone silhouette without envelopes or gradient. Update notifications use this

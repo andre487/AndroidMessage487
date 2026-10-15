@@ -11,23 +11,32 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.stringResource
 
+@OptIn(ExperimentalLayoutApi::class)
 @Composable
 internal fun AppInfo() {
     val context = LocalContext.current
     var browserError by remember { mutableStateOf(false) }
+    fun openLink(url: String) {
+        browserError = false
+        try {
+            context.startActivity(Intent(Intent.ACTION_VIEW, Uri.parse(url)))
+        } catch (_: ActivityNotFoundException) {
+            browserError = true
+        } catch (_: SecurityException) {
+            browserError = true
+        }
+    }
     Column(Modifier.fillMaxWidth(), horizontalAlignment = Alignment.CenterHorizontally) {
-        SupportingText(stringResource(R.string.app_version, BuildConfig.VERSION_NAME, BuildConfig.GIT_COMMIT_HASH))
-        TextButton(onClick = {
-            browserError = false
-            try {
-                context.startActivity(Intent(Intent.ACTION_VIEW,
-                    Uri.parse("https://github.com/andre487/AndroidMessage487/blob/main/PRIVACY.md")))
-            } catch (_: ActivityNotFoundException) {
-                browserError = true
-            } catch (_: SecurityException) {
-                browserError = true
+        FlowRow(horizontalArrangement = Arrangement.Center) {
+            Text(stringResource(R.string.app_version, BuildConfig.VERSION_NAME, BuildConfig.GIT_COMMIT_HASH),
+                modifier = Modifier.align(Alignment.CenterVertically),
+                style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
+            TextButton(onClick = { openLink("https://github.com/andre487/AndroidMessage487") }) {
+                Text(stringResource(R.string.github), style = MaterialTheme.typography.bodySmall)
             }
-        }, modifier = Modifier.fillMaxWidth()) {
+        }
+        TextButton(onClick = { openLink("https://github.com/andre487/AndroidMessage487/blob/main/PRIVACY.md") },
+            modifier = Modifier.fillMaxWidth()) {
             Text(stringResource(R.string.privacy_policy))
         }
         if (browserError) Text(stringResource(R.string.no_browser), color = MaterialTheme.colorScheme.error)
