@@ -99,8 +99,15 @@ class UiThreadDeviceTest {
         compose.onNode(hasText(app.getString(R.string.sources_tab)) and hasClickAction()).performClick()
         compose.onNode(hasScrollToNodeAction()).performScrollToNode(hasText(app.getString(R.string.image_max_edge)))
         node(R.string.image_max_edge).performScrollTo().performTextReplacement("2")
+        compose.waitUntil(10_000) {
+            compose.waitForIdle()
+            model.settings.value.imageMaxEdge == 2 && !model.state.value.busy
+        }
         node(R.string.image_max_edge).performTextInput("048")
-        compose.waitUntil(10_000) { model.settings.value.imageMaxEdge == 2048 }
+        compose.waitUntil(10_000) {
+            compose.waitForIdle()
+            model.settings.value.imageMaxEdge == 2048 && !model.state.value.busy
+        }
         node(R.string.image_max_edge).assertIsEnabled()
         icon(R.string.back).performClick()
         node(R.string.journal).performClick()
@@ -112,7 +119,12 @@ class UiThreadDeviceTest {
         node(R.string.update_github).performScrollTo().performClick()
         compose.waitUntil(10_000) { AppUpdates(app).source() == UpdateSource.GITHUB }
         node(R.string.update_automatic).performScrollTo()
-        compose.onNodeWithContentDescription(app.getString(R.string.update_automatic)).performClick()
+        // The preference write can finish before the ViewModel clears busy on the main thread.
+        val automatic = hasContentDescription(app.getString(R.string.update_automatic))
+        compose.waitUntil(10_000) {
+            compose.onAllNodes(automatic and isEnabled()).fetchSemanticsNodes().isNotEmpty()
+        }
+        compose.onNode(automatic).assertIsOn().performClick()
         compose.waitUntil(10_000) { !UpdatePreferences(app).automatic }
         UpdatePreferences(app).detected(UpdateSource.GITHUB, AppUpdate(UpdateSource.GITHUB, "99.0.0"))
         // App settings, permission checks and the update dialog refresh on ON_RESUME.
