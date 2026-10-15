@@ -123,6 +123,8 @@ internal fun SourcesScreen(settings: ForwardingSettings, permissions: Permission
         item {
             SectionTitle(stringResource(R.string.selected_apps, settings.packages.size), stringResource(R.string.add_package)) { addPackage = true }
             SupportingText(stringResource(R.string.app_selection_short))
+            SourceSwitch(Icons.Outlined.Apps, R.string.auto_select_new_apps, R.string.auto_select_new_apps_hint,
+                settings.autoSelectNewApps, !busy, model::autoSelectNewApps)
             OutlinedButton(
                 onClick = { if (allSelected) model.clearPackageSelection() else model.selectAllPackages() },
                 enabled = !busy && apps.isNotEmpty(),

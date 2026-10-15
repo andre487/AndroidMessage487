@@ -1,18 +1,21 @@
 # Privacy Policy
 
-Last updated: October 5, 2026.
+Last updated: October 15, 2026.
 
 Message487 forwards selected notifications and new incoming SMS to a webhook you configure.
 Its core SMS feature transfers new incoming SMS from Android to your n8n workflow so you can
 view them on a computer.
 Both capture sources are off by default. Notifications require Android notification access and
-an explicit selection of source apps. SMS forwarding requires the receive-SMS permission.
+selection of source apps. Optional automatic selection of newly detected launcher apps is off by default;
+when enabled, it runs when you open or return to Message487 and preserves manual exclusions.
+SMS forwarding requires the receive-SMS permission.
 The app does not read existing SMS history, send SMS, or reply to notifications.
 
 ## On your device
 
 The app stores your webhook URL, editable device code, confirmation preference, enabled sources,
-selected package names, duplicate-filter preference, pause state and a random installation ID in private preferences. These
+selected and previously detected package names, the automatic-selection preference, duplicate-filter
+preference, pause state and a random installation ID in private preferences. These
 preferences do not have additional application-level encryption. A webhook URL may itself contain
 a secret, so treat it as sensitive. Android cloud backup and device transfer are disabled for app data.
 

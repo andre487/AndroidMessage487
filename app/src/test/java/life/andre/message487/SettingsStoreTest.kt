@@ -18,6 +18,36 @@ class SettingsStoreTest {
         override fun decrypt(value: ByteArray) = String(value).reversed()
     }
 
+    @Test fun `new app selection is opt in persistent and respects manual exclusions`() {
+        context.getSharedPreferences("connection", Context.MODE_PRIVATE).edit().clear().commit()
+        val store = SettingsStore(context, cipher)
+        assertFalse(store.state.value.autoSelectNewApps)
+        store.discoverPackages(setOf("existing.app", "own.app"), "own.app")
+        assertTrue(store.state.value.packages.isEmpty())
+        store.update { it.copy(autoSelectNewApps = true, packages = setOf("manual.hidden")) }
+        store.discoverPackages(setOf("existing.app", "new.app", "own.app"), "own.app")
+        assertEquals(setOf("manual.hidden", "new.app"), store.state.value.packages)
+        assertFalse("own.app" in store.state.value.knownPackages)
+        store.update { it.copy(packages = it.packages - "new.app") }
+        val reopened = SettingsStore(context, cipher)
+        assertTrue(reopened.state.value.autoSelectNewApps)
+        reopened.discoverPackages(setOf("existing.app", "new.app"), "own.app")
+        assertEquals(setOf("manual.hidden"), reopened.state.value.packages)
+        // Clearing selection must not make known apps new again, even after reinstall.
+        reopened.update { it.copy(packages = emptySet()) }
+        reopened.discoverPackages(emptySet(), "own.app")
+        reopened.discoverPackages(setOf("new.app"), "own.app")
+        assertTrue(reopened.state.value.packages.isEmpty())
+        reopened.update { it.copy(autoSelectNewApps = false) }
+        reopened.discoverPackages(setOf("while.off"), "own.app")
+        assertTrue(reopened.state.value.packages.isEmpty())
+        reopened.update { it.copy(autoSelectNewApps = true) }
+        reopened.discoverPackages(setOf("while.off", "later.app"), "own.app")
+        assertEquals(setOf("later.app"), SettingsStore(context, cipher).state.value.packages)
+        assertFalse(reopened.state.value.notifications)
+        assertFalse(reopened.state.value.acceptsPackage("later.app", "own.app"))
+    }
+
     @Test fun `deduplication defaults on and opt out survives restart`() {
         context.getSharedPreferences("connection", Context.MODE_PRIVATE).edit().clear().commit()
         val store = SettingsStore(context, cipher)
