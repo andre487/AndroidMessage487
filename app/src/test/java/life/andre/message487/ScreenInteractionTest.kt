@@ -91,11 +91,18 @@ class ScreenInteractionTest {
         node(R.string.connection_heading).assertIsDisplayed()
     }
 
-    @Test fun `overview and connection show version and open the public privacy policy`() {
+    @Test fun `overview and connection show version and open GitHub and privacy policy`() {
         for (connection in listOf(false, true)) {
             if (connection) compose.onNode(hasText(application.getString(R.string.connection_nav)) and hasClickAction()).performClick()
             compose.onNode(hasScrollToIndexAction()).performScrollToNode(hasText(application.getString(R.string.privacy_policy)))
             compose.onNodeWithText(application.getString(R.string.app_version, BuildConfig.VERSION_NAME, BuildConfig.GIT_COMMIT_HASH)).assertIsDisplayed()
+            node(R.string.github).performClick()
+            compose.runOnIdle {
+                val intent = org.robolectric.Shadows.shadowOf(compose.activity).nextStartedActivity
+                assertNotNull(intent)
+                assertEquals(android.content.Intent.ACTION_VIEW, intent.action)
+                assertEquals("https://github.com/andre487/AndroidMessage487", intent.dataString)
+            }
             node(R.string.privacy_policy).performClick()
             compose.runOnIdle {
                 val intent = org.robolectric.Shadows.shadowOf(compose.activity).nextStartedActivity
