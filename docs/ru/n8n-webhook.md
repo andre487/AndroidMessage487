@@ -2,6 +2,8 @@
 
 [English](../en/n8n-webhook.md) | [Русский](../ru/n8n-webhook.md)
 
+Выберите [готовый workflow по уровню](n8n-examples.md): текстовый webhook, webhook с картинками, Telegram с текстом, картинки на стандартных nodes или расширенный Rich Message.
+
 Выберите инструкцию по тому, где работает ваш n8n:
 
 | Вариант | Инструкция |

@@ -1,7 +1,6 @@
 package life.andre.message487
 
 import org.json.JSONObject
-import java.io.IOException
 import java.io.ByteArrayOutputStream
 import java.net.HttpURLConnection
 import java.net.SocketTimeoutException
@@ -9,6 +8,11 @@ import java.net.URI
 import java.nio.charset.StandardCharsets
 import java.time.Instant
 import java.util.UUID
+import java.io.OutputStream
+import java.io.IOException
+import java.util.Base64
+import java.io.FilterOutputStream
+import java.security.MessageDigest
 
 enum class DeliveryStatus { ACCEPTED, HTTP_SUCCESS, HTTP_ERROR, INVALID_ACK, TIMEOUT, NETWORK_ERROR }
 
@@ -29,7 +33,9 @@ data class MessageEvent(
     val text: String = "Message487 connection test",
     val title: String? = null,
     val sender: String? = null,
+    val images: List<NotificationImage> = emptyList(),
 ) {
+    /** Image bytes are appended separately by QueuedRequest.writeTo to keep the body streaming. */
     fun toJson(): String = JSONObject()
         .put("schema_version", 1)
         .put("event_id", eventId)
@@ -58,9 +64,19 @@ fun validAuthToken(value: String): Boolean = value.length in 1..4096 &&
 
 class WebhookClient(private val timeoutMs: Int = 10_000) {
     fun send(url: String, event: MessageEvent, requireAck: Boolean, authToken: String): DeliveryResult =
-        sendJson(url, event.eventId, event.toJson(), requireAck, authToken)
+        sendRequest(QueuedRequest(url, requireAck, event.toJson(), authToken, event.images), event.eventId)
+
+    fun sendRequest(request: QueuedRequest, eventId: String): DeliveryResult =
+        if (request.images.isEmpty()) sendJson(request.url, eventId, request.json, request.requireAck, request.authToken)
+        else sendBody(request.url, eventId, request.requireAck, request.authToken, null, request::writeTo)
 
     fun sendJson(url: String, eventId: String, json: String, requireAck: Boolean, authToken: String): DeliveryResult {
+        val payload = json.toByteArray(StandardCharsets.UTF_8)
+        return sendBody(url, eventId, requireAck, authToken, payload.size.toLong()) { it.write(payload) }
+    }
+
+    private fun sendBody(url: String, eventId: String, requireAck: Boolean, authToken: String, length: Long?,
+        write: (OutputStream) -> Unit): DeliveryResult {
         require(validAuthToken(authToken)) { "Invalid authentication token" }
         val start = System.nanoTime()
         var connection: HttpURLConnection? = null
@@ -77,9 +93,8 @@ class WebhookClient(private val timeoutMs: Int = 10_000) {
                 setRequestProperty("Accept", "application/json")
                 setRequestProperty("Authorization", "Bearer $authToken")
             }
-            val payload = json.toByteArray(StandardCharsets.UTF_8)
-            connection.setFixedLengthStreamingMode(payload.size)
-            connection.outputStream.use { it.write(payload) }
+            if (length == null) connection.setChunkedStreamingMode(8192) else connection.setFixedLengthStreamingMode(length)
+            connection.outputStream.use(write)
             httpCode = connection.responseCode
             when {
                 httpCode !in 200..299 -> DeliveryStatus.HTTP_ERROR
@@ -99,6 +114,8 @@ class WebhookClient(private val timeoutMs: Int = 10_000) {
                     else validateAck(String(bytes, StandardCharsets.UTF_8), eventId)
                 }
             }
+        } catch (error: UnreadableImageException) {
+            throw error
         } catch (_: SocketTimeoutException) {
             DeliveryStatus.TIMEOUT
         } catch (_: IOException) {
@@ -119,4 +136,37 @@ class WebhookClient(private val timeoutMs: Int = 10_000) {
             } else DeliveryStatus.INVALID_ACK
         }.getOrDefault(DeliveryStatus.INVALID_ACK)
     }
+}
+
+internal class UnreadableImageException(cause: Exception? = null) : IOException("Queued image is unavailable or changed", cause)
+
+internal fun QueuedRequest.writeTo(output: OutputStream) {
+    if (images.isEmpty()) { output.write(json.toByteArray(Charsets.UTF_8)); return }
+    require(json.endsWith("}"))
+    output.write(json.dropLast(1).toByteArray(Charsets.UTF_8))
+    output.write(",\"images\":[".toByteArray())
+    images.forEachIndexed { index, image ->
+        if (index != 0) output.write(','.code)
+        output.write(image.toJson().toString().dropLast(1).toByteArray(Charsets.UTF_8))
+        output.write(",\"data_base64\":\"".toByteArray())
+        val digest = MessageDigest.getInstance("SHA-256")
+        val input = try { image.file.inputStream() } catch (error: IOException) { throw UnreadableImageException(error) }
+        input.use {
+            Base64.getEncoder().wrap(object : FilterOutputStream(output) {
+                override fun write(buffer: ByteArray, offset: Int, length: Int) { output.write(buffer, offset, length) }
+                override fun close() { flush() }
+            }).use { encoded ->
+                val buffer = ByteArray(8192)
+                while (true) {
+                    val count = try { input.read(buffer) } catch (error: IOException) { throw UnreadableImageException(error) }
+                    if (count < 0) break
+                    digest.update(buffer, 0, count)
+                    encoded.write(buffer, 0, count)
+                }
+            }
+        }
+        if (Base64.getEncoder().encodeToString(digest.digest()) != image.checksum) throw UnreadableImageException()
+        output.write("\"}".toByteArray())
+    }
+    output.write("]}".toByteArray())
 }

@@ -1,0 +1,463 @@
+{
+  "name": "Message487 · 04 · Telegram images · standard nodes",
+  "active": false,
+  "nodes": [
+    {
+      "id": "78a162bc-637c-5884-922b-82abd805f4b6",
+      "name": "Webhook",
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 2.1,
+      "position": [
+        0,
+        0
+      ],
+      "parameters": {
+        "httpMethod": "POST",
+        "path": "message487/04-telegram-images-standard",
+        "authentication": "headerAuth",
+        "responseMode": "responseNode",
+        "options": {}
+      },
+      "webhookId": "154ba0e9-5b8f-52ef-9407-cbf5594c2fec"
+    },
+    {
+      "id": "de64de2d-3b14-5b23-8bfd-451367bf97c1",
+      "name": "Validate event",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        220,
+        0
+      ],
+      "parameters": {
+        "jsCode": "const processImages = true;\nconst event = $('Webhook').first().json.body;\nlet reason = '';\nif (!event || event.schema_version !== 1 || typeof event.event_id !== 'string' ||\n    !event.event_id || !['test', 'notification', 'sms'].includes(event.message_type) ||\n    typeof event.text !== 'string') reason = 'Invalid Message487 event';\nconst images = event?.images ?? [];\nif (!Array.isArray(images)) reason = 'images must be an array';\nelse if (processImages && images.some(image => !image || !['image/jpeg', 'image/png'].includes(image.mime_type) ||\n    !Number.isInteger(image.width) || image.width <= 0 || !Number.isInteger(image.height) || image.height <= 0 ||\n    typeof image.data_base64 !== 'string' || !image.data_base64.length ||\n    image.data_base64.length % 4 !== 0 || !/^[A-Za-z0-9+/]*={0,2}$/.test(image.data_base64))) {\n  reason = 'Invalid JPEG/PNG image';\n}\nreturn [{ json: { valid: !reason, reason, event_id: event?.event_id ?? null } }];\n"
+      }
+    },
+    {
+      "id": "0d734e56-db7a-5e7d-aa98-2c756872942e",
+      "name": "Valid event",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2.2,
+      "position": [
+        440,
+        0
+      ],
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "strict",
+            "version": 2
+          },
+          "conditions": [
+            {
+              "id": "ad1abe2e-40cb-5729-b1e2-5ab82f4422e0",
+              "leftValue": "={{ $json.valid }}",
+              "rightValue": true,
+              "operator": {
+                "type": "boolean",
+                "operation": "true",
+                "singleValue": true
+              }
+            }
+          ],
+          "combinator": "and"
+        },
+        "options": {}
+      }
+    },
+    {
+      "id": "fc774526-7525-5439-a817-49abcd377df1",
+      "name": "Reject",
+      "type": "n8n-nodes-base.respondToWebhook",
+      "typeVersion": 1.4,
+      "position": [
+        640,
+        300
+      ],
+      "parameters": {
+        "respondWith": "json",
+        "responseBody": "={{ { status: \"rejected\", event_id: $json.event_id, reason: $json.reason } }}",
+        "options": {
+          "responseCode": 400
+        }
+      }
+    },
+    {
+      "id": "e184535f-6270-5868-b669-368ed35db075",
+      "name": "Configure",
+      "type": "n8n-nodes-base.set",
+      "typeVersion": 3.4,
+      "position": [
+        640,
+        0
+      ],
+      "parameters": {
+        "assignments": {
+          "assignments": [
+            {
+              "id": "cc14013d-4c02-5063-b108-47cb28b60fec",
+              "name": "chat_id",
+              "value": "REPLACE_WITH_CHAT_ID",
+              "type": "string"
+            }
+          ]
+        },
+        "options": {}
+      }
+    },
+    {
+      "id": "b7380935-2c78-5cd7-8e53-08475221b95b",
+      "name": "Prepare Telegram text",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        860,
+        0
+      ],
+      "parameters": {
+        "jsCode": "const timeZone = 'UTC';\nconst locale = 'en-GB';\nconst messageTypes = { sms: 'SMS', notification: 'Notification', test: 'Test' };\nconst event = $('Webhook').first().json.body;\n\nif (!event || event.schema_version !== 1 ||\n    typeof event.event_id !== 'string' || !event.event_id ||\n    !Object.hasOwn(messageTypes, event.message_type) ||\n    typeof event.text !== 'string') {\n  throw new Error('Invalid Message487 event');\n}\n\nconst escapeHtml = value => value.replace(/[&<>]/g, character => ({\n  '&': '&amp;', '<': '&lt;', '>': '&gt;',\n})[character]);\nconst firstText = (...values) => values.find(value => typeof value === 'string' && value) || '—';\nconst date = new Date(event.occurred_at);\nconst timestamp = typeof event.occurred_at === 'string' && !Number.isNaN(date.getTime())\n  ? new Intl.DateTimeFormat(locale, {\n    timeZone, day: '2-digit', month: '2-digit', year: 'numeric',\n    hour: '2-digit', minute: '2-digit', second: '2-digit', hourCycle: 'h23',\n  }).format(date).replace(/,/g, '')\n  : '—';\nconst source = firstText(event.sender, event.source_name, event.source);\nconst device = firstText(event.device_code, event.device_id);\nconst segments = [\n  { text: 'Message487: ', bold: false },\n  { text: source, bold: true },\n  { text: '\\n', bold: false },\n  { text: `${messageTypes[event.message_type]}\\n${device}\\n${timestamp}`, bold: true },\n  { text: '\\n', bold: false },\n  { text: typeof event.title === 'string' && event.title ? `${event.title}\\n` : '', bold: false },\n  { text: event.text, bold: false },\n];\n\n// Split unescaped text and close formatting in each part to keep HTML valid.\nconst chunks = [];\nlet html = '';\nlet length = 0;\nfor (const segment of segments) {\n  let run = '';\n  const flush = () => {\n    if (run) {\n      const escaped = escapeHtml(run);\n      html += segment.bold ? `<b>${escaped}</b>` : escaped;\n      run = '';\n    }\n  };\n  for (const character of segment.text) {\n    if (length + character.length > 3500) {\n      flush();\n      chunks.push(html);\n      html = '';\n      length = 0;\n    }\n    run += character;\n    length += character.length;\n  }\n  flush();\n}\nif (html) chunks.push(html);\n\nreturn chunks.map((part, index) => ({\n  json: {\n    telegram_text: chunks.length > 1 ? `[${index + 1}/${chunks.length}]\\n${part}` : part,\n  },\n}));\n"
+      }
+    },
+    {
+      "id": "165432a0-b202-5ef0-9fb5-98bb082f060a",
+      "name": "Prepare image parts",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        1080,
+        0
+      ],
+      "parameters": {
+        "jsCode": "// Standard Telegram nodes send each image separately; no custom node is needed.\nconst result = $input.all();\nconst images = $('Webhook').first().json.body.images ?? [];\nimages.forEach((image, index) => {\n  const kind = ['avatar', 'app_icon'].includes(image.kind) ? image.kind : 'attachment';\n  result.push({ json: {\n    telegram_operation: kind === 'attachment' && ['big_picture', 'gallery'].includes(image.presentation)\n      ? 'sendPhoto' : 'sendDocument',\n    caption: kind === 'avatar' ? 'Avatar' : kind === 'app_icon' ? 'Application icon' : '',\n  }, binary: { data: { data: image.data_base64, mimeType: image.mime_type,\n    fileName: `${kind}-${index + 1}.${image.mime_type === 'image/png' ? 'png' : 'jpg'}` } } });\n});\nreturn result;\n"
+      }
+    },
+    {
+      "id": "01af9442-8d9b-553c-a16f-646c5a6eb6d2",
+      "name": "Loop Over Parts",
+      "type": "n8n-nodes-base.splitInBatches",
+      "typeVersion": 3,
+      "position": [
+        1500,
+        0
+      ],
+      "parameters": {
+        "batchSize": 1,
+        "options": {}
+      }
+    },
+    {
+      "id": "2c4640c7-2680-51e8-9f1e-98db68bd0773",
+      "name": "Respond",
+      "type": "n8n-nodes-base.respondToWebhook",
+      "typeVersion": 1.4,
+      "position": [
+        1720,
+        -200
+      ],
+      "parameters": {
+        "respondWith": "json",
+        "responseBody": "={{ { status: 'accepted', event_id: $('Webhook').first().json.body.event_id } }}",
+        "options": {
+          "responseCode": 200
+        }
+      }
+    },
+    {
+      "id": "f95a6e24-6d49-562d-aba3-ee3f58916656",
+      "name": "Is text",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2.2,
+      "position": [
+        1720,
+        100
+      ],
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "strict",
+            "version": 2
+          },
+          "conditions": [
+            {
+              "id": "a737408d-de3a-5892-8b9a-cfa290e2e8e0",
+              "leftValue": "={{ !$json.telegram_operation }}",
+              "rightValue": true,
+              "operator": {
+                "type": "boolean",
+                "operation": "true",
+                "singleValue": true
+              }
+            }
+          ],
+          "combinator": "and"
+        },
+        "options": {}
+      }
+    },
+    {
+      "id": "cc9c07e4-f3ff-54d8-b4a5-28efbaa3cf5d",
+      "name": "Is photo",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2.2,
+      "position": [
+        1940,
+        220
+      ],
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "strict",
+            "version": 2
+          },
+          "conditions": [
+            {
+              "id": "07deda4b-c3fe-5d93-9907-d755f47b4428",
+              "leftValue": "={{ $json.telegram_operation === \"sendPhoto\" }}",
+              "rightValue": true,
+              "operator": {
+                "type": "boolean",
+                "operation": "true",
+                "singleValue": true
+              }
+            }
+          ],
+          "combinator": "and"
+        },
+        "options": {}
+      }
+    },
+    {
+      "id": "6dc0c188-042f-5435-9bc3-fa0634331d21",
+      "name": "Send text",
+      "type": "n8n-nodes-base.telegram",
+      "typeVersion": 1.2,
+      "position": [
+        2160,
+        0
+      ],
+      "parameters": {
+        "resource": "message",
+        "operation": "sendMessage",
+        "chatId": "={{ $('Configure').first().json.chat_id }}",
+        "additionalFields": {
+          "appendAttribution": false,
+          "parse_mode": "HTML",
+          "disable_web_page_preview": true
+        },
+        "text": "={{ $json.telegram_text }}"
+      }
+    },
+    {
+      "id": "33e9ecd8-9bc5-520c-b305-944730d62634",
+      "name": "Send photo",
+      "type": "n8n-nodes-base.telegram",
+      "typeVersion": 1.2,
+      "position": [
+        2160,
+        160
+      ],
+      "parameters": {
+        "resource": "message",
+        "operation": "sendPhoto",
+        "chatId": "={{ $('Configure').first().json.chat_id }}",
+        "additionalFields": {
+          "caption": "={{ $json.caption }}"
+        },
+        "binaryData": true,
+        "binaryPropertyName": "data"
+      }
+    },
+    {
+      "id": "e8b745ac-66e4-5451-bc52-12561da7783c",
+      "name": "Send file",
+      "type": "n8n-nodes-base.telegram",
+      "typeVersion": 1.2,
+      "position": [
+        2160,
+        320
+      ],
+      "parameters": {
+        "resource": "message",
+        "operation": "sendDocument",
+        "chatId": "={{ $('Configure').first().json.chat_id }}",
+        "additionalFields": {
+          "caption": "={{ $json.caption }}"
+        },
+        "binaryData": true,
+        "binaryPropertyName": "data"
+      }
+    }
+  ],
+  "connections": {
+    "Webhook": {
+      "main": [
+        [
+          {
+            "node": "Validate event",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Validate event": {
+      "main": [
+        [
+          {
+            "node": "Valid event",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Valid event": {
+      "main": [
+        [
+          {
+            "node": "Configure",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Reject",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Configure": {
+      "main": [
+        [
+          {
+            "node": "Prepare Telegram text",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Prepare Telegram text": {
+      "main": [
+        [
+          {
+            "node": "Prepare image parts",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Loop Over Parts": {
+      "main": [
+        [
+          {
+            "node": "Respond",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Is text",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Prepare image parts": {
+      "main": [
+        [
+          {
+            "node": "Loop Over Parts",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Is text": {
+      "main": [
+        [
+          {
+            "node": "Send text",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Is photo",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Is photo": {
+      "main": [
+        [
+          {
+            "node": "Send photo",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Send file",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Send text": {
+      "main": [
+        [
+          {
+            "node": "Loop Over Parts",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Send photo": {
+      "main": [
+        [
+          {
+            "node": "Loop Over Parts",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Send file": {
+      "main": [
+        [
+          {
+            "node": "Loop Over Parts",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "settings": {
+    "executionOrder": "v1",
+    "timezone": "UTC"
+  }
+}

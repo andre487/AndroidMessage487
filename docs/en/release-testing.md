@@ -166,8 +166,8 @@ a reason; emulator SMS does not establish carrier delivery.
 | Q03 | Wrong/missing ACK ID/status, malformed/oversized JSON and generic mode without ACK. Invalid ACK with 2xx blocks for manual retry; generic 2xx yields HTTP_SUCCESS. A successful n8n error execution is not accepted delivery. |
 | Q04 | Network/timeout and HTTP 408/425/429/5xx retry; other HTTP failures need correction/manual retry. Preserve event ID/body/original URL/token/ACK after recovery. Lost response may duplicate server receipt with the same ID. No exact WorkManager retry-time promise. |
 | Q05 | Queue offline events for endpoint A, then switch settings to B. Old events retain A and its credentials; new events use B. UI token rotation does not repair old encrypted envelopes. Use synthetic endpoints; explicitly delete unwanted old events instead of silently rerouting. |
-| Q06 | Retry now, delete test records, repeated actions and details during state change. No duplicate local event/lost queue; in-flight entries are not freely deletable. Acceptance removes payload from active records while bounded metadata remains. Logical deletion is not forensic erasure. |
-| Q07 | Offline enqueue, process death/rotation/relaunch, network restoration; preserve encrypted payload and delivery, including previous-version queue. Keystore/storage failures on isolated fixtures: no garbage transmission or silent deletion, visible error. Robolectric success does not prove real Keystore. |
+| Q06 | Retry now, delete test records, repeated actions and details during state change. No duplicate local event/lost queue; in-flight entries are not freely deletable. Acceptance removes encrypted request and private image files while bounded metadata remains. Logical deletion is not forensic erasure. |
+| Q07 | Offline enqueue, process death/rotation/relaunch, network restoration; preserve the encrypted request, private image files and delivery, including previous-version queue migration. Keystore/storage failures on isolated fixtures: no garbage transmission or silent deletion, visible error. Robolectric success does not prove real Keystore. |
 
 ### Lifecycle and background
 

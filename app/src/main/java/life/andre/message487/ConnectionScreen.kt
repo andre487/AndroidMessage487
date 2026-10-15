@@ -7,6 +7,8 @@ import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.outlined.*
 import androidx.compose.material3.*
 import androidx.compose.runtime.Composable
+import androidx.compose.foundation.selection.toggleable
+import androidx.compose.ui.semantics.Role
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.res.stringResource
@@ -62,12 +64,42 @@ internal fun ConnectionScreen(state: ConnectionState, model: ConnectionViewModel
                 Button(onClick = { model.save(false) }, enabled = !state.busy, modifier = Modifier.fillMaxWidth().heightIn(min = 52.dp)) {
                     Text(stringResource(R.string.save))
                 }
-                OutlinedButton(onClick = { model.save(true) }, enabled = !state.busy, modifier = Modifier.fillMaxWidth().heightIn(min = 48.dp)) {
+
+            }
+        }
+        item {
+            Panel {
+                SectionTitle(stringResource(R.string.test_message_heading))
+                SupportingText(stringResource(R.string.test_message_hint))
+                TestImageOption(R.string.test_big_picture, state.testOptions.bigPicture, !state.busy) {
+                    model.setTestOptions(state.testOptions.copy(bigPicture = it))
+                }
+                TestImageOption(R.string.test_gallery, state.testOptions.gallery, !state.busy) {
+                    model.setTestOptions(state.testOptions.copy(gallery = it))
+                }
+                TestImageOption(R.string.test_avatar, state.testOptions.avatar, !state.busy) {
+                    model.setTestOptions(state.testOptions.copy(avatar = it))
+                }
+                TestImageOption(R.string.test_app_icon, state.testOptions.appIcon, !state.busy) {
+                    model.setTestOptions(state.testOptions.copy(appIcon = it))
+                }
+                OutlinedButton(onClick = { model.save(true) }, enabled = !state.busy,
+                    modifier = Modifier.fillMaxWidth().heightIn(min = 48.dp)) {
                     Text(stringResource(R.string.send_test))
                 }
             }
         }
         item { SupportingText(stringResource(R.string.destination_note)) }
         item { AppInfo() }
+    }
+}
+
+@Composable
+private fun TestImageOption(title: Int, checked: Boolean, enabled: Boolean, onChange: (Boolean) -> Unit) {
+    Row(Modifier.fillMaxWidth().heightIn(min = 48.dp)
+        .toggleable(value = checked, enabled = enabled, role = Role.Switch, onValueChange = onChange),
+        verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(12.dp)) {
+        Text(stringResource(title), modifier = Modifier.weight(1f))
+        Switch(checked = checked, onCheckedChange = null, enabled = enabled)
     }
 }

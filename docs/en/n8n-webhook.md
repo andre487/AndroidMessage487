@@ -2,6 +2,8 @@
 
 [English](../en/n8n-webhook.md) | [Русский](../ru/n8n-webhook.md)
 
+Choose an [importable example by level](n8n-examples.md): text webhook, image webhook, Telegram text, standard Telegram images, or advanced Rich Messages.
+
 Choose a guide based on where your n8n runs:
 
 | Your setup | Guide |

@@ -18,6 +18,43 @@ class SettingsStoreTest {
         override fun decrypt(value: ByteArray) = String(value).reversed()
     }
 
+    @Test fun `image limits are validated and survive disabling and restart`() {
+        val context = RuntimeEnvironment.getApplication()
+        val store = SettingsStore(context, cipher)
+        assertTrue(store.state.value.imageLimitsEnabled)
+        store.update { it.copy(imageMaxCount = 7, imageMaxEdge = 2048, imageMaxKiB = 1024, imageTotalKiB = 4096,
+            imageLimitsEnabled = false) }
+        val restored = SettingsStore(context, cipher).state.value
+        assertFalse(restored.imageLimitsEnabled)
+        assertEquals(7, restored.imageMaxCount)
+        assertEquals(2048, restored.imageMaxEdge)
+        assertEquals(1024, restored.imageMaxKiB)
+        assertEquals(4096, restored.imageTotalKiB)
+        assertThrows(IllegalArgumentException::class.java) { store.update { it.copy(imageMaxCount = 0) } }
+        assertThrows(IllegalArgumentException::class.java) { store.update { it.copy(imageMaxEdge = -1) } }
+        assertThrows(IllegalArgumentException::class.java) { store.update { it.copy(imageMaxKiB = 0) } }
+        assertThrows(IllegalArgumentException::class.java) { store.update { it.copy(imageTotalKiB = -1) } }
+    }
+
+    @Test fun `image format defaults to JPEG and quality settings survive restart`() {
+        context.getSharedPreferences("connection", Context.MODE_PRIVATE).edit().clear().commit()
+        val store = SettingsStore(context, cipher)
+        assertEquals(NotificationImageFormat.JPEG, store.state.value.imageFormat)
+        assertEquals(80, store.state.value.imageQuality)
+        assertFalse(store.state.value.forwardAvatars)
+        assertFalse(store.state.value.forwardAppIcons)
+        store.update { it.copy(imageFormat = NotificationImageFormat.PNG, imageQuality = 35, forwardAvatars = true, forwardAppIcons = true) }
+        assertEquals(NotificationImageFormat.PNG, SettingsStore(context, cipher).state.value.imageFormat)
+        assertEquals(35, SettingsStore(context, cipher).state.value.imageQuality)
+        assertTrue(SettingsStore(context, cipher).state.value.forwardAvatars)
+        assertTrue(SettingsStore(context, cipher).state.value.forwardAppIcons)
+        store.update { it.copy(forwardAvatars = false) }
+        assertFalse(SettingsStore(context, cipher).state.value.forwardAvatars)
+        assertTrue(SettingsStore(context, cipher).state.value.forwardAppIcons)
+        assertThrows(IllegalArgumentException::class.java) { store.update { it.copy(imageQuality = -1) } }
+        assertThrows(IllegalArgumentException::class.java) { store.update { it.copy(imageQuality = 101) } }
+    }
+
     @Test fun `new app selection is opt in persistent and respects manual exclusions`() {
         context.getSharedPreferences("connection", Context.MODE_PRIVATE).edit().clear().commit()
         val store = SettingsStore(context, cipher)

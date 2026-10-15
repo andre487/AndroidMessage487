@@ -1,0 +1,151 @@
+{
+  "name": "Message487 · 01 · Webhook text",
+  "active": false,
+  "nodes": [
+    {
+      "id": "a638475d-e440-5f20-a18e-dafb55a44735",
+      "name": "Webhook",
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 2.1,
+      "position": [
+        0,
+        0
+      ],
+      "parameters": {
+        "httpMethod": "POST",
+        "path": "message487/01-webhook-text",
+        "authentication": "headerAuth",
+        "responseMode": "responseNode",
+        "options": {}
+      },
+      "webhookId": "dd26cd40-1653-5527-bc86-e0889e9b79f8"
+    },
+    {
+      "id": "44ddec63-b843-5e34-8a67-2aa2a8e3dad7",
+      "name": "Validate event",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        220,
+        0
+      ],
+      "parameters": {
+        "jsCode": "const processImages = false;\nconst event = $('Webhook').first().json.body;\nlet reason = '';\nif (!event || event.schema_version !== 1 || typeof event.event_id !== 'string' ||\n    !event.event_id || !['test', 'notification', 'sms'].includes(event.message_type) ||\n    typeof event.text !== 'string') reason = 'Invalid Message487 event';\nconst images = event?.images ?? [];\nif (!Array.isArray(images)) reason = 'images must be an array';\nelse if (processImages && images.some(image => !image || !['image/jpeg', 'image/png'].includes(image.mime_type) ||\n    !Number.isInteger(image.width) || image.width <= 0 || !Number.isInteger(image.height) || image.height <= 0 ||\n    typeof image.data_base64 !== 'string' || !image.data_base64.length ||\n    image.data_base64.length % 4 !== 0 || !/^[A-Za-z0-9+/]*={0,2}$/.test(image.data_base64))) {\n  reason = 'Invalid JPEG/PNG image';\n}\nreturn [{ json: { valid: !reason, reason, event_id: event?.event_id ?? null } }];\n"
+      }
+    },
+    {
+      "id": "f3581b2f-32e9-570d-a835-8b48aee4b777",
+      "name": "Valid event",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2.2,
+      "position": [
+        440,
+        0
+      ],
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "strict",
+            "version": 2
+          },
+          "conditions": [
+            {
+              "id": "ad1abe2e-40cb-5729-b1e2-5ab82f4422e0",
+              "leftValue": "={{ $json.valid }}",
+              "rightValue": true,
+              "operator": {
+                "type": "boolean",
+                "operation": "true",
+                "singleValue": true
+              }
+            }
+          ],
+          "combinator": "and"
+        },
+        "options": {}
+      }
+    },
+    {
+      "id": "1e5e4191-e6c8-5b7f-8aec-5bc08710f4f4",
+      "name": "Reject",
+      "type": "n8n-nodes-base.respondToWebhook",
+      "typeVersion": 1.4,
+      "position": [
+        640,
+        300
+      ],
+      "parameters": {
+        "respondWith": "json",
+        "responseBody": "={{ { status: \"rejected\", event_id: $json.event_id, reason: $json.reason } }}",
+        "options": {
+          "responseCode": 400
+        }
+      }
+    },
+    {
+      "id": "3c09d965-83fc-5ced-9f95-24243d9a47ae",
+      "name": "Respond",
+      "type": "n8n-nodes-base.respondToWebhook",
+      "typeVersion": 1.4,
+      "position": [
+        880,
+        -200
+      ],
+      "parameters": {
+        "respondWith": "json",
+        "responseBody": "={{ { status: 'accepted', event_id: $('Webhook').first().json.body.event_id } }}",
+        "options": {
+          "responseCode": 200
+        }
+      }
+    }
+  ],
+  "connections": {
+    "Webhook": {
+      "main": [
+        [
+          {
+            "node": "Validate event",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Validate event": {
+      "main": [
+        [
+          {
+            "node": "Valid event",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Valid event": {
+      "main": [
+        [
+          {
+            "node": "Respond",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Reject",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "settings": {
+    "executionOrder": "v1",
+    "timezone": "UTC"
+  }
+}

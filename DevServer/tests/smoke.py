@@ -65,6 +65,26 @@ def main():
         }, (code, body)
     code, body = post('receive', {})
     assert code == 400 and body['status'] == 'rejected', (code, body)
+    examples = Path(__file__).resolve().parents[2] / 'examples/n8n/payloads'
+    # Docker mounts the portable examples separately from /bootstrap.
+    if not examples.exists():
+        examples = Path('/examples/n8n/payloads')
+    for scenario in ('01-webhook-text', '02-webhook-images'):
+        code, body = post(scenario, event)
+        assert code == 200 and body['event_id'] == event['event_id'], (
+            scenario,
+            code,
+            body,
+        )
+        code, _ = post(scenario, event, token='wrong-token')
+        assert code in (401, 403), (scenario, code)
+        code, body = post(scenario, {})
+        assert code == 400, (scenario, code, body)
+    graphic_event = json.loads((examples / 'images.json').read_text())
+    code, body = post('01-webhook-text', graphic_event)
+    assert code == 200, (code, body)
+    code, body = post('02-webhook-images', graphic_event)
+    assert code == 200 and body['event_id'] == graphic_event['event_id'], (code, body)
     code, body = post('error', event)
     assert code == 500, (code, body)
     code, body = post('invalid-ack', event)

@@ -2,6 +2,8 @@
 
 [English](../en/n8n-cloud.md) | [Русский](../ru/n8n-cloud.md)
 
+For image handling or Telegram, see the [five importable example levels](n8n-examples.md). This guide starts with level 1, without Telegram.
+
 You need a browser, an n8n Cloud account and a phone with [Message487 installed](apk-installation.md).
 Every step uses the interface: no server installation, terminal or coding is required.
 It is easiest to open n8n on a computer and the app on your phone.
@@ -17,7 +19,7 @@ Cloud provides an HTTPS address. Check [n8n pricing](https://n8n.io/pricing/)
 for current trial conditions, prices and execution limits.
 
 In n8n, an automation is called a **workflow** and its individual steps are called
-**nodes**. We will import a ready-made workflow with two nodes.
+**nodes**. We will import a ready-made workflow with validation and an ACK response.
 
 ## 2. Import the ready-made workflow
 
@@ -26,14 +28,14 @@ In n8n, an automation is called a **workflow** and its individual steps are call
 3. Paste this address and confirm the import:
 
    ```text
-   https://raw.githubusercontent.com/andre487/AndroidMessage487/main/DevServer/workflows/receive.json
+   https://raw.githubusercontent.com/andre487/AndroidMessage487/main/examples/n8n/workflows/01-webhook-text.json
    ```
 
-4. You should see two connected nodes: **Webhook → Respond**. The first receives
-   the message; the second confirms receipt to the phone.
+4. You should see **Webhook → Validate event → Valid event**, followed by **Respond**
+   for valid requests or **Reject** for invalid ones.
 5. Name the workflow, for example `Message487 — my phone`.
 
-If URL import is unavailable, open the [workflow file](../../DevServer/workflows/receive.json)
+If URL import is unavailable, open the [workflow file](../../examples/n8n/workflows/01-webhook-text.json)
 on GitHub, download it using **Download raw file**, then select
 **⋯ → Import from File** in n8n. You do not need to edit the file contents.
 [Official import guide](https://docs.n8n.io/build/manage-workflows/export-and-import).
@@ -92,7 +94,7 @@ Open the **Connection** tab at the bottom of Message487 and fill in:
 | **Device code** | A recognizable phone name, such as `my-phone` |
 | **n8n confirmation** | Leave enabled |
 
-Tap **Save and send test event**. Open **Journal**, then the new test event: success means
+In **Connection → Test message**, leave image switches off and tap **Save and send test event**. Open **Journal**, then the new test event: success means
 **Accepted by webhook** and **HTTP 200**. This test does not yet require notification
 access or SMS permission.
 

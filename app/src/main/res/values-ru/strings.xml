@@ -1,4 +1,15 @@
 <resources>
+    <string name="forward_avatars">Пересылать аватары</string>
+    <string name="forward_avatars_hint">По умолчанию выключено. Добавлять последний доступный аватар отправителя или крупный значок уведомления. Используются выбранный формат и качество JPEG.</string>
+    <string name="forward_app_icons">Пересылать значки приложений</string>
+    <string name="forward_app_icons_hint">По умолчанию выключено. Добавлять значок выбранного приложения-источника. Используются выбранный формат и качество JPEG.</string>
+
+    <string name="notification_images">Графика</string>
+    <string name="notification_images_hint">К изображениям выбранных приложений применяются формат и ограничения ниже. Недоступные изображения пропускаются, текст отправляется. В разделе Connection есть отдельный блок выбора тестовых изображений.</string>
+    <string name="image_quality">Качество JPEG: %1$d%%</string>
+    <string name="image_quality_label">Качество изображений JPEG</string>
+    <string name="png_quality_hint">PNG использует сжатие без потерь; качество JPEG к нему не применяется. Размеры изображения могут уменьшаться для соблюдения лимита.</string>
+
     <string name="auto_select_new_apps">Автоматически выбирать новые приложения</string>
     <string name="auto_select_new_apps_hint">По умолчанию выключено. При открытии или возврате в Message487 новые приложения со значком запуска выбираются для пересылки уведомлений. Текущий выбор сохраняется; снятый вручную выбор не возвращается. Избегайте циклов пересылки.</string>
     <string name="select_all_apps">Выбрать все приложения</string>
@@ -34,12 +45,12 @@
     <string name="pause">Приостановить пересылку</string>
     <string name="pause_hint">Приостановить приём и отправку очереди. Уже начавшийся запрос может завершиться.</string>
     <string name="sms_not_granted">Нет разрешения на SMS. Разрешите доступ в настройках приложения.</string>
-    <string name="capture_error">Не удалось сохранить или запланировать некоторые события. Проверьте свободное место и журнал.</string>
+    <string name="capture_error">Не удалось прочитать некоторые изображения уведомлений, сохранить события или запланировать отправку. Проверьте свободное место, доступ к источникам и журнал.</string>
     <string name="dismiss">Скрыть</string>
     <string name="local_error">Не удалось выполнить операцию. Проверьте место на устройстве и настройки.</string>
     <string name="settings_unavailable">Не удалось открыть настройки Android.</string>
     <string name="destination_note">События в очереди сохраняют адрес получателя, токен и режим подтверждения на момент приёма.</string>
-    <string name="sources_disclosure">Включённые источники передают текст, имя источника и время на сохранённый webhook. SMS также содержит отправителя. По умолчанию оба источника выключены.</string>
+    <string name="sources_disclosure">Включённые источники отправляют текст, изображения уведомлений, названия источников и время в сохранённый webhook. SMS также содержит отправителя. Оба источника изначально выключены.</string>
     <string name="notifications_enabled">Уведомления</string>
     <string name="notifications_hint">Только выбранные приложения. Постоянные уведомления и сводки групп пропускаются.</string>
     <string name="notification_access">Настройки доступа к уведомлениям</string>
@@ -85,7 +96,7 @@
     <string name="source_off">Выключено</string>
     <string name="needs_setup">Нужна настройка</string>
     <string name="not_configured">Не настроено</string>
-    <string name="test_connection">Отправить тест</string>
+    <string name="test_connection">Отправить текстовый тест</string>
     <string name="connection_heading">Куда отправлять сообщения</string>
     <string name="connection_description">Подключите сценарий n8n или свой webhook.</string>
     <string name="recipient">Получатель</string>
@@ -168,4 +179,16 @@
     <string name="update_background_retry">Ошибка сети или временная ошибка сервера. Повтор запрошен через 30 минут с увеличением интервала; Android может отложить запуск.</string>
     <string name="update_background_interrupted">Android прервал проверку. Запрошена повторная попытка.</string>
     <string name="update_background_error">Проверка не удалась. Повторите вручную; выбранный источник не изменён.</string>
+    <string name="image_limits_enabled">Ограничивать изображения</string>
+    <string name="image_limits_hint">Выключите, чтобы отправлять все доступные вложения без уменьшения и ограничений объёма отправки. Защита при чтении входных изображений сохраняется. Количество относится к вложениям, без аватара и значка; общий объём учитывает все изображения.</string>
+    <string name="image_max_count">Максимум вложений на уведомление</string>
+    <string name="image_max_edge">Максимальная сторона изображения (пиксели)</string>
+    <string name="image_max_kib">Максимальный объём изображения (КиБ)</string>
+    <string name="image_total_kib">Общий объём на уведомление (КиБ)</string>
+    <string name="test_message_heading">Тестовое сообщение</string>
+    <string name="test_message_hint">Выберите дополнения только для этого теста. Если всё выключено, отправляется только текст. Формат, качество и ограничения берутся из Источники → Графика.</string>
+    <string name="test_big_picture">Большая картинка</string>
+    <string name="test_gallery">Галерея (2 изображения)</string>
+    <string name="test_avatar">Аватар</string>
+    <string name="test_app_icon">Значок приложения</string>
 </resources>

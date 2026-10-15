@@ -22,8 +22,20 @@ data class ForwardingSettings(
     val smsDeduplication: Boolean = true,
     val notificationDeduplication: Boolean = true,
     val deduplicationWindowSeconds: Int = 1,
+    val imageFormat: NotificationImageFormat = NotificationImageFormat.JPEG,
+    val imageQuality: Int = 80,
+    val imageLimitsEnabled: Boolean = true,
+    val imageMaxCount: Int = MAX_NOTIFICATION_IMAGES,
+    val imageMaxEdge: Int = 1024,
+    val imageMaxKiB: Int = MAX_NOTIFICATION_IMAGE_BYTES / 1024,
+    val imageTotalKiB: Int = MAX_NOTIFICATION_IMAGES_BYTES / 1024,
+    val forwardAvatars: Boolean = false,
+    val forwardAppIcons: Boolean = false,
 ) {
-    init { require(deduplicationWindowSeconds >= 0) }
+    init {
+        require(deduplicationWindowSeconds >= 0 && imageQuality in 0..100)
+        require(imageMaxCount > 0 && imageMaxEdge > 0 && imageMaxKiB > 0 && imageTotalKiB > 0)
+    }
 
     override fun toString(): String = "ForwardingSettings(redacted)"
 
@@ -61,6 +73,15 @@ class SettingsStore(
         autoSelectNewApps = preferences.getBoolean("auto_select_new_apps", false),
         knownPackages = preferences.getStringSet("known_packages", emptySet()).orEmpty().toSet(),
         captureFailed = preferences.getBoolean("capture_failed", false),
+        imageFormat = NotificationImageFormat.entries.firstOrNull { it.name == preferences.getString("image_format", null) } ?: NotificationImageFormat.JPEG,
+        imageQuality = preferences.getInt("image_quality", 80).coerceIn(0, 100),
+        imageLimitsEnabled = preferences.getBoolean("image_limits_enabled", true),
+        imageMaxCount = preferences.getInt("image_max_count", 3).coerceAtLeast(1),
+        imageMaxEdge = preferences.getInt("image_max_edge", 1024).coerceAtLeast(1),
+        imageMaxKiB = preferences.getInt("image_max_kib", 256).coerceAtLeast(1),
+        imageTotalKiB = preferences.getInt("image_total_kib", 512).coerceAtLeast(1),
+        forwardAvatars = preferences.getBoolean("forward_avatars", false),
+        forwardAppIcons = preferences.getBoolean("forward_app_icons", false),
     )
 
     @Synchronized
@@ -94,6 +115,11 @@ class SettingsStore(
                 .putBoolean("notification_deduplication", next.notificationDeduplication)
                 .remove("deduplication")
                 .putInt("deduplication_window_seconds", next.deduplicationWindowSeconds)
+                .putBoolean("image_limits_enabled", next.imageLimitsEnabled)
+                .putInt("image_max_count", next.imageMaxCount).putInt("image_max_edge", next.imageMaxEdge)
+                .putInt("image_max_kib", next.imageMaxKiB).putInt("image_total_kib", next.imageTotalKiB)
+                .putBoolean("forward_avatars", next.forwardAvatars).putBoolean("forward_app_icons", next.forwardAppIcons)
+                .putString("image_format", next.imageFormat.name).putInt("image_quality", next.imageQuality)
                 .putBoolean("auto_select_new_apps", next.autoSelectNewApps)
                 .putStringSet("known_packages", next.knownPackages)
                 .putBoolean("paused", next.paused).putStringSet("packages", next.packages)

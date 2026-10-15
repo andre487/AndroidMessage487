@@ -1,0 +1,11 @@
+{
+  "schema_version": 1,
+  "event_id": "example-text-001",
+  "device_id": "example-installation",
+  "device_code": "example-phone",
+  "message_type": "test",
+  "occurred_at": "2026-01-01T12:00:00Z",
+  "source": "org.example.demo",
+  "source_name": "Example App",
+  "text": "Synthetic connection test"
+}

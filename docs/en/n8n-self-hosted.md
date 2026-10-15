@@ -2,6 +2,8 @@
 
 [English](../en/n8n-self-hosted.md) | [Русский](../ru/n8n-self-hosted.md)
 
+For image handling or Telegram, see the [five importable example levels](n8n-examples.md). This guide starts with level 1, without Telegram.
+
 Installing on a phone? See [APK installation and Android restrictions](apk-installation.md).
 
 This guide targets Message487 0.0.2 and later, with Bearer authentication. You need the n8n editor and an HTTPS endpoint
@@ -26,16 +28,19 @@ publicly with its bundled test credentials.
 
 ## 1. Create a receiving workflow
 
-Import [receive.json](../../DevServer/workflows/receive.json) using **Import from File**
+Import [01-webhook-text.json](../../examples/n8n/workflows/01-webhook-text.json) using **Import from File**
 in the editor menu. It validates basic fields and acknowledges the incoming `event_id`.
 Import a separate workflow rather than replacing an existing production workflow.
 
 ```mermaid
 flowchart LR
-    W[Webhook: POST] --> R[Respond to Webhook: JSON ACK]
+    W[Webhook: POST] --> V[Validate event]
+    V --> I{Valid event}
+    I -->|Yes| R[Respond: JSON ACK]
+    I -->|No| E[Reject: HTTP 400]
 ```
 
-To configure the same two nodes manually, set **Webhook** as follows:
+For a minimal two-node receiver without validation, set **Webhook** as follows:
 
 | Field | Value |
 | --- | --- |
@@ -58,7 +63,7 @@ this **Expression** in **Response Body**:
 ```
 
 `Webhook` is the trigger node's name; adjust the expression if you rename it.
-This minimal manual example does not validate requests. The imported `receive.json`
+This minimal manual example does not validate requests. The imported `01-webhook-text.json`
 also validates `schema_version`, `event_id`, `message_type` and `text`, returning
 HTTP 400 for invalid input.
 

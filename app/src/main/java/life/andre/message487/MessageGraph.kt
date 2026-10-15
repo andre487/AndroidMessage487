@@ -31,6 +31,7 @@ class MessageGraph internal constructor(private val context: Application) {
     val outbox = Outbox(context, (context as MessageApplication).payloadCipher)
     val scheduler by lazy { DeliveryScheduler(context) }
     val captureExecutor = Executors.newSingleThreadExecutor()
+    internal val imageCaptureQueue = NotificationImageQueue()
     private val sources = AppSourceResolver(context.packageManager)
 
     fun start() {
@@ -45,17 +46,19 @@ class MessageGraph internal constructor(private val context: Application) {
 
     fun recover() {
         if (!settings.state.value.paused) {
+            outbox.cleanupFiles()
             val pending = outbox.pendingIds()
             pending.forEach { scheduler.schedule(it) }
             diagnostics.record(DiagnosticEvent.RECOVERY, count = pending.size)
         }
     }
 
-    fun enqueueTest() {
+    fun enqueueTest(options: TestMessageOptions = TestMessageOptions()) {
         val config = settings.state.value
         require(config.ready())
-        val event = MessageEvent(config.deviceId, config.deviceCode, sources.resolve(context.packageName))
-        enqueue(event, config)
+        val images = testMessageImages(context, config, options)
+        val event = MessageEvent(config.deviceId, config.deviceCode, sources.resolve(context.packageName), images = images)
+        try { enqueue(event, config) } finally { discardImages(images) }
     }
 
     fun captureNotification(notification: CapturedNotification) {
@@ -64,7 +67,7 @@ class MessageGraph internal constructor(private val context: Application) {
         val event = MessageEvent(
             config.deviceId, config.deviceCode, sources.resolve(notification.packageName),
             occurredAt = Instant.ofEpochMilli(notification.postedAt).toString(),
-            messageType = "notification", text = notification.text, title = notification.title,
+            messageType = "notification", text = notification.text, title = notification.title, images = notification.images,
         )
         enqueue(event, config)
     }

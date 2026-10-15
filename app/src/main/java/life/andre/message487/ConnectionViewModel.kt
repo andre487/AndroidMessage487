@@ -28,6 +28,7 @@ data class ConnectionState(
     val notice: Int? = null,
     val authToken: String = "",
     val invalidToken: Boolean = false,
+    val testOptions: TestMessageOptions = TestMessageOptions(),
 ) {
     override fun toString(): String = "ConnectionState(redacted)"
 }
@@ -114,6 +115,8 @@ class ConnectionViewModel(application: Application) : AndroidViewModel(applicati
     fun setDeviceCode(code: String) { mutableState.value = state.value.copy(deviceCode = code, invalidDeviceCode = false, notice = null) }
     fun setRequireAck(value: Boolean) { mutableState.value = state.value.copy(requireAck = value, notice = null) }
 
+    fun setTestOptions(options: TestMessageOptions) { mutableState.value = state.value.copy(testOptions = options) }
+
     fun save(sendTest: Boolean) {
         val draft = state.value
         val url = draft.url.trim()
@@ -123,7 +126,7 @@ class ConnectionViewModel(application: Application) : AndroidViewModel(applicati
         if (!validAuthToken(draft.authToken)) { mutableState.value = draft.copy(invalidToken = true); return }
         action(if (sendTest) R.string.test_queued else R.string.saved) {
             graph.settings.update { it.copy(url = url, deviceCode = code, requireAck = draft.requireAck, authToken = draft.authToken) }
-            if (sendTest) graph.enqueueTest()
+            if (sendTest) graph.enqueueTest(draft.testOptions)
         }
     }
 
@@ -134,6 +137,15 @@ class ConnectionViewModel(application: Application) : AndroidViewModel(applicati
     }
     fun smsDeduplication(enabled: Boolean) = action { graph.settings.update { it.copy(smsDeduplication = enabled) } }
     fun notificationDeduplication(enabled: Boolean) = action { graph.settings.update { it.copy(notificationDeduplication = enabled) } }
+    fun forwardAvatars(enabled: Boolean) = action { graph.settings.update { it.copy(forwardAvatars = enabled) } }
+    fun forwardAppIcons(enabled: Boolean) = action { graph.settings.update { it.copy(forwardAppIcons = enabled) } }
+    fun imageLimits(enabled: Boolean) = action { graph.settings.update { it.copy(imageLimitsEnabled = enabled) } }
+    fun imageMaxCount(value: Int) = action { graph.settings.update { it.copy(imageMaxCount = value) } }
+    fun imageMaxEdge(value: Int) = action { graph.settings.update { it.copy(imageMaxEdge = value) } }
+    fun imageMaxKiB(value: Int) = action { graph.settings.update { it.copy(imageMaxKiB = value) } }
+    fun imageTotalKiB(value: Int) = action { graph.settings.update { it.copy(imageTotalKiB = value) } }
+    fun imageFormat(format: NotificationImageFormat) = action { graph.settings.update { it.copy(imageFormat = format) } }
+    fun imageQuality(quality: Int) = action { graph.settings.update { it.copy(imageQuality = quality) } }
     fun sms(enabled: Boolean) = action { graph.settings.update { it.copy(sms = enabled) } }
     fun autoSelectNewApps(enabled: Boolean) = action {
         val baseline = if (enabled) installedApps().map { it.packageName }.toSet() else emptySet()
