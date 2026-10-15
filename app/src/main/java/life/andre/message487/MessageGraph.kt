@@ -10,18 +10,27 @@ import life.andre.message487.diagnostics.CrashHandler
 import life.andre.message487.diagnostics.DiagnosticLog
 import life.andre.message487.diagnostics.DiagnosticEvent
 
-open class MessageApplication : Application() {
+open class MessageApplication : Application(), androidx.work.Configuration.Provider {
+    override val workManagerConfiguration: androidx.work.Configuration
+        get() = androidx.work.Configuration.Builder().build()
     internal open val payloadCipher: PayloadCipher by lazy { KeystorePayloadCipher() }
-    internal val diagnostics by lazy { DiagnosticLog(File(filesDir, "logs")) }
+    internal val diagnostics by lazy { DiagnosticLog({ File(filesDir, "logs") }) }
     internal val crashHandler by lazy { CrashHandler(this, diagnostics) }
     val graph by lazy { MessageGraph(this) }
 
+    internal val backgroundExecutor = Executors.newSingleThreadExecutor()
+
     override fun onCreate() {
         super.onCreate()
+        if (BuildConfig.DEBUG) android.os.StrictMode.setThreadPolicy(android.os.StrictMode.ThreadPolicy.Builder()
+            .detectDiskReads().detectDiskWrites().detectNetwork().penaltyLog().build())
         crashHandler.install()
-        diagnostics.record(DiagnosticEvent.APP_STARTED)
-        graph.start()
-        UpdateNotifications.schedule(this)
+        backgroundExecutor.execute {
+            crashHandler.load()
+            diagnostics.record(DiagnosticEvent.APP_STARTED)
+            graph.start()
+            UpdateNotifications.schedule(this)
+        }
     }
 }
 
@@ -45,6 +54,7 @@ class MessageGraph internal constructor(private val context: Application) {
     }
 
     fun recover() {
+        settings.load()
         if (!settings.state.value.paused) {
             outbox.cleanupFiles()
             val pending = outbox.pendingIds()
@@ -54,7 +64,7 @@ class MessageGraph internal constructor(private val context: Application) {
     }
 
     fun enqueueTest(options: TestMessageOptions = TestMessageOptions()) {
-        val config = settings.state.value
+        val config = settings.load()
         require(config.ready())
         val images = testMessageImages(context, config, options)
         val event = MessageEvent(config.deviceId, config.deviceCode, sources.resolve(context.packageName), images = images)
@@ -62,7 +72,7 @@ class MessageGraph internal constructor(private val context: Application) {
     }
 
     fun captureNotification(notification: CapturedNotification) {
-        val config = settings.state.value
+        val config = settings.load()
         if (!config.acceptsPackage(notification.packageName, context.packageName)) return
         val event = MessageEvent(
             config.deviceId, config.deviceCode, sources.resolve(notification.packageName),
@@ -73,7 +83,7 @@ class MessageGraph internal constructor(private val context: Application) {
     }
 
     fun captureSms(sender: String, text: String, timestamp: Long) {
-        val config = settings.state.value
+        val config = settings.load()
         if (config.paused || !config.sms || !config.ready()) return
         val event = MessageEvent(
             config.deviceId, config.deviceCode, sources.resolve("android"),
@@ -90,9 +100,16 @@ class MessageGraph internal constructor(private val context: Application) {
         } else diagnostics.record(DiagnosticEvent.DUPLICATE_SKIPPED, type = event.messageType)
     }
 
+    private val failurePending = java.util.concurrent.atomic.AtomicBoolean()
     fun captureFailed(error: Throwable? = null) {
-        diagnostics.record(DiagnosticEvent.CAPTURE_FAILED, error = error)
-        try { settings.update { it.copy(captureFailed = true) } } catch (_: Exception) { }
+        if (!failurePending.compareAndSet(false, true)) return
+        (context as MessageApplication).backgroundExecutor.execute {
+            try {
+                diagnostics.record(DiagnosticEvent.CAPTURE_FAILED, error = error)
+                if (!settings.load().captureFailed) settings.update { it.copy(captureFailed = true) }
+            } catch (_: Exception) { }
+            finally { failurePending.set(false) }
+        }
     }
 
     companion object {

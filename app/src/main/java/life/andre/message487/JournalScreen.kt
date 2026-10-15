@@ -23,7 +23,7 @@ internal fun JournalScreen(queue: QueueSnapshot, busy: Boolean, model: Connectio
     var waitingOnly by rememberSaveable { mutableStateOf(false) }
     var selectedId by rememberSaveable { mutableStateOf<String?>(null) }
     var deleteId by rememberSaveable { mutableStateOf<String?>(null) }
-    val visible = queue.entries.filter { !waitingOnly || !it.delivered }
+    val visible = remember(queue.entries, waitingOnly) { queue.entries.filter { !waitingOnly || !it.delivered } }
     val selected = queue.entries.firstOrNull { it.id == selectedId }
     LazyColumn(contentPadding = PaddingValues(20.dp), verticalArrangement = Arrangement.spacedBy(10.dp)) {
         item {
@@ -84,7 +84,9 @@ private fun EventRow(entry: QueueEntry, onClick: () -> Unit) {
             Column(Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(5.dp)) {
                 Text(entry.sourceName, style = MaterialTheme.typography.titleSmall)
                 Text(stringResource(when (entry.type) { "sms" -> R.string.sms_type; "notification" -> R.string.notification_type; else -> R.string.test_type }) +
-                    " · " + DateFormat.getDateTimeInstance(DateFormat.SHORT, DateFormat.SHORT).format(Date(entry.createdAt)),
+                    " · " + remember(entry.createdAt, androidx.compose.ui.platform.LocalConfiguration.current) {
+                        DateFormat.getDateTimeInstance(DateFormat.SHORT, DateFormat.SHORT).format(Date(entry.createdAt))
+                    },
                     style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
                 StatusLabel(entry)
             }

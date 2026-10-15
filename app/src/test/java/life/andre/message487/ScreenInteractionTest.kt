@@ -51,6 +51,7 @@ class ScreenInteractionTest {
             })[ConnectionViewModel::class.java]
         }
         compose.setContent { MessageTheme { MessageScreen(model) } }
+        compose.waitUntil(10_000) { compose.waitForIdle(); !model.state.value.busy }
     }
 
     @After fun close() {
@@ -63,19 +64,19 @@ class ScreenInteractionTest {
         compose.onNode(hasText(compose.activity.getString(R.string.sources_tab)) and hasClickAction()).performClick()
         icon(R.string.sms_deduplication).performScrollTo().assertIsOn().performClick()
         compose.waitUntil(10_000) { compose.waitForIdle(); !model.state.value.busy }
-        assertFalse(SettingsStore(application).state.value.smsDeduplication)
+        assertFalse(SettingsStore(application).load().smsDeduplication)
         icon(R.string.sms_deduplication).assertIsOff().performClick()
         compose.waitUntil(10_000) { compose.waitForIdle(); !model.state.value.busy }
-        assertTrue(SettingsStore(application).state.value.smsDeduplication)
+        assertTrue(SettingsStore(application).load().smsDeduplication)
         icon(R.string.sms_deduplication).assertIsOn()
         icon(R.string.notification_deduplication).performScrollTo().assertIsOn().performClick()
         compose.waitUntil(10_000) { compose.waitForIdle(); !model.state.value.busy }
-        assertFalse(SettingsStore(application).state.value.notificationDeduplication)
-        assertTrue(SettingsStore(application).state.value.smsDeduplication)
+        assertFalse(SettingsStore(application).load().notificationDeduplication)
+        assertTrue(SettingsStore(application).load().smsDeduplication)
         node(R.string.deduplication_window).performScrollTo().performTextReplacement("3")
         compose.waitUntil(10_000) {
             compose.waitForIdle()
-            SettingsStore(application).state.value.deduplicationWindowSeconds == 3
+            SettingsStore(application).load().deduplicationWindowSeconds == 3
         }
     }
 
@@ -141,7 +142,7 @@ class ScreenInteractionTest {
         assertNull("Save failed", model.state.value.notice?.takeIf { it == R.string.local_error })
         assertEquals("State: ${model.state.value}", "test-phone", application.graph.settings.state.value.deviceCode)
         compose.waitForIdle()
-        val restored = SettingsStore(application).state.value
+        val restored = SettingsStore(application).load()
         assertEquals("https://example.test/webhook", restored.url)
         assertEquals("test-phone", restored.deviceCode)
         assertEquals("test-token", restored.authToken)
@@ -191,14 +192,14 @@ class ScreenInteractionTest {
         icon(R.string.image_quality_label).performScrollTo().performSemanticsAction(
             androidx.compose.ui.semantics.SemanticsActions.SetProgress) { it(35f) }
         compose.waitUntil(10_000) { compose.waitForIdle(); !model.state.value.busy }
-        assertEquals(35, SettingsStore(application).state.value.imageQuality)
+        assertEquals(35, SettingsStore(application).load().imageQuality)
         compose.onNodeWithText("PNG").performScrollTo().performClick()
         compose.waitUntil(10_000) { compose.waitForIdle(); !model.state.value.busy }
-        assertEquals(NotificationImageFormat.PNG, SettingsStore(application).state.value.imageFormat)
+        assertEquals(NotificationImageFormat.PNG, SettingsStore(application).load().imageFormat)
         icon(R.string.image_quality_label).performScrollTo().assertIsNotEnabled()
         compose.onNodeWithText("JPEG").performScrollTo().performClick()
         compose.waitUntil(10_000) { compose.waitForIdle(); !model.state.value.busy }
-        assertEquals(35, SettingsStore(application).state.value.imageQuality)
+        assertEquals(35, SettingsStore(application).load().imageQuality)
         icon(R.string.image_quality_label).performScrollTo().assertIsEnabled()
     }
 
@@ -208,20 +209,20 @@ class ScreenInteractionTest {
             hasContentDescription(application.getString(R.string.image_limits_enabled)))
         icon(R.string.image_limits_enabled).performScrollTo().assertIsOn()
         node(R.string.image_max_count).performScrollTo().performTextReplacement("7")
-        compose.waitUntil(10_000) { compose.waitForIdle(); !model.state.value.busy }
-        assertEquals(7, SettingsStore(application).state.value.imageMaxCount)
+        compose.waitUntil(10_000) { compose.waitForIdle(); model.settings.value.imageMaxCount == 7 }
+        assertEquals(7, SettingsStore(application).load().imageMaxCount)
         node(R.string.image_max_edge).performScrollTo().performTextReplacement("2048")
-        compose.waitUntil(10_000) { compose.waitForIdle(); !model.state.value.busy }
-        assertEquals(2048, SettingsStore(application).state.value.imageMaxEdge)
+        compose.waitUntil(10_000) { compose.waitForIdle(); model.settings.value.imageMaxEdge == 2048 }
+        assertEquals(2048, SettingsStore(application).load().imageMaxEdge)
         node(R.string.image_max_kib).performScrollTo().performTextReplacement("1024")
-        compose.waitUntil(10_000) { compose.waitForIdle(); !model.state.value.busy }
-        assertEquals(1024, SettingsStore(application).state.value.imageMaxKiB)
+        compose.waitUntil(10_000) { compose.waitForIdle(); model.settings.value.imageMaxKiB == 1024 }
+        assertEquals(1024, SettingsStore(application).load().imageMaxKiB)
         node(R.string.image_total_kib).performScrollTo().performTextReplacement("4096")
-        compose.waitUntil(10_000) { compose.waitForIdle(); !model.state.value.busy }
-        assertEquals(4096, SettingsStore(application).state.value.imageTotalKiB)
+        compose.waitUntil(10_000) { compose.waitForIdle(); model.settings.value.imageTotalKiB == 4096 }
+        assertEquals(4096, SettingsStore(application).load().imageTotalKiB)
         icon(R.string.image_limits_enabled).performScrollTo().performClick()
         compose.waitUntil(10_000) { compose.waitForIdle(); !model.state.value.busy }
-        assertFalse(SettingsStore(application).state.value.imageLimitsEnabled)
+        assertFalse(SettingsStore(application).load().imageLimitsEnabled)
         node(R.string.image_max_count).assertDoesNotExist()
         icon(R.string.image_limits_enabled).performClick()
         compose.waitUntil(10_000) { compose.waitForIdle(); !model.state.value.busy }
@@ -235,25 +236,25 @@ class ScreenInteractionTest {
             hasContentDescription(application.getString(R.string.forward_avatars)))
         icon(R.string.forward_avatars).performScrollTo().assertIsOff().performClick()
         compose.waitUntil(10_000) { compose.waitForIdle(); !model.state.value.busy }
-        assertTrue(SettingsStore(application).state.value.forwardAvatars)
-        assertFalse(SettingsStore(application).state.value.forwardAppIcons)
+        assertTrue(SettingsStore(application).load().forwardAvatars)
+        assertFalse(SettingsStore(application).load().forwardAppIcons)
         icon(R.string.forward_app_icons).performScrollTo().assertIsOff().performClick()
         compose.waitUntil(10_000) { compose.waitForIdle(); !model.state.value.busy }
-        assertTrue(SettingsStore(application).state.value.forwardAppIcons)
+        assertTrue(SettingsStore(application).load().forwardAppIcons)
         icon(R.string.forward_avatars).performScrollTo().assertIsOn().performClick()
         compose.waitUntil(10_000) { compose.waitForIdle(); !model.state.value.busy }
-        assertFalse(SettingsStore(application).state.value.forwardAvatars)
-        assertTrue(SettingsStore(application).state.value.forwardAppIcons)
+        assertFalse(SettingsStore(application).load().forwardAvatars)
+        assertTrue(SettingsStore(application).load().forwardAppIcons)
     }
 
     @Test fun `auto select switch preserves existing choices and selects newly discovered launcher apps`() {
-        compose.waitUntil(10_000) { model.apps.value.size == 2 }
+        compose.waitUntil(10_000) { compose.waitForIdle(); model.apps.value.size == 2 }
         compose.onNode(hasText(application.getString(R.string.sources_tab)) and hasClickAction()).performClick()
         compose.onNode(hasScrollToNodeAction()).performScrollToNode(
             hasContentDescription(application.getString(R.string.auto_select_new_apps)))
         icon(R.string.auto_select_new_apps).performScrollTo().assertIsOff().performClick()
         compose.waitUntil(10_000) { compose.waitForIdle(); !model.state.value.busy }
-        assertTrue(SettingsStore(application).state.value.autoSelectNewApps)
+        assertTrue(SettingsStore(application).load().autoSelectNewApps)
         assertTrue(model.settings.value.packages.isEmpty())
         val intent = android.content.Intent(android.content.Intent.ACTION_MAIN).addCategory(android.content.Intent.CATEGORY_LAUNCHER)
         val info = android.content.pm.ResolveInfo().apply {
@@ -270,26 +271,26 @@ class ScreenInteractionTest {
         assertTrue(model.settings.value.packages.isEmpty())
         icon(R.string.auto_select_new_apps).performScrollTo().assertIsOn().performClick()
         compose.waitUntil(10_000) { compose.waitForIdle(); !model.state.value.busy }
-        assertFalse(SettingsStore(application).state.value.autoSelectNewApps)
+        assertFalse(SettingsStore(application).load().autoSelectNewApps)
     }
 
     @Test fun `select all preserves manual packages excludes self and clear removes selection`() {
         compose.waitForIdle()
         assertSame(application.graph.settings.state, model.settings)
-        compose.waitUntil(10_000) { model.apps.value.isNotEmpty() }
+        compose.waitUntil(10_000) { compose.waitForIdle(); model.apps.value.isNotEmpty() }
         assertEquals(2, model.apps.value.size)
         compose.runOnIdle { model.selectPackage("manual.hidden", true) }
         compose.waitUntil(10_000) { compose.waitForIdle(); !model.state.value.busy }
-        assertEquals(setOf("manual.hidden"), SettingsStore(application).state.value.packages)
+        assertEquals(setOf("manual.hidden"), SettingsStore(application).load().packages)
         compose.onNode(hasText(compose.activity.getString(R.string.sources_tab)) and hasClickAction()).performClick()
         compose.onNode(hasScrollToNodeAction()).performScrollToNode(
             hasText(compose.activity.getString(R.string.select_all_apps)))
         node(R.string.select_all_apps).performClick()
         compose.waitUntil(10_000) { compose.waitForIdle(); !model.state.value.busy }
-        assertEquals(setOf("manual.hidden", "example.alpha", "example.beta"), SettingsStore(application).state.value.packages)
+        assertEquals(setOf("manual.hidden", "example.alpha", "example.beta"), SettingsStore(application).load().packages)
         node(R.string.clear_app_selection).performScrollTo().performClick()
         compose.waitUntil(10_000) { compose.waitForIdle(); !model.state.value.busy }
-        assertEquals(emptySet<String>(), SettingsStore(application).state.value.packages)
+        assertEquals(emptySet<String>(), SettingsStore(application).load().packages)
     }
 
     private fun SemanticsNodeInteraction.isEnabled(): Boolean =

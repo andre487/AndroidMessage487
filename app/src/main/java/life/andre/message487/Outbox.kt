@@ -49,7 +49,7 @@ fun deliveryQueueState(result: DeliveryResult): QueueState = when (result.status
 }
 
 class Outbox(context: Context, private val cipher: PayloadCipher) : SQLiteOpenHelper(context, "outbox.db", null, 4) {
-    internal val files = File(context.noBackupFilesDir, "outbox").apply { mkdirs() }
+    internal val files by lazy { File(context.noBackupFilesDir, "outbox").apply { mkdirs() } }
     private val mutableRevision = MutableStateFlow(0L)
     val revision = mutableRevision.asStateFlow()
 

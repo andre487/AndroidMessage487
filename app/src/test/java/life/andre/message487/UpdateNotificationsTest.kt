@@ -20,6 +20,12 @@ class UpdateNotificationsTest {
     private val scheduler get() = app.getSystemService(JobScheduler::class.java)
     private val notifications get() = app.getSystemService(NotificationManager::class.java)
 
+    private fun await(condition: () -> Boolean) {
+        val deadline = System.nanoTime() + java.util.concurrent.TimeUnit.SECONDS.toNanos(5)
+        while (!condition() && System.nanoTime() < deadline) Thread.sleep(10)
+        assertTrue(condition())
+    }
+
     @Before fun reset() {
         app.getSharedPreferences("updates", 0).edit().clear().commit()
         scheduler.cancelAll()
@@ -51,10 +57,12 @@ class UpdateNotificationsTest {
         assertEquals(OPEN_UPDATES_ACTION, open.action)
         assertEquals(MainActivity::class.java.name, open.component!!.className)
         UpdateActionReceiver().onReceive(app, shadowOf(notification.actions[1].actionIntent).savedIntent)
+        await { !UpdatePreferences(app).shouldNotify(update, UPDATE_REMINDER_INTERVAL * 2) }
         assertNull(shadowOf(notifications).getNotification(UPDATE_NOTIFICATION_ID))
         assertFalse(UpdatePreferences(app).shouldNotify(update, UPDATE_REMINDER_INTERVAL * 2))
         assertTrue(UpdatePreferences(app).shouldNotify(update.copy(version = "0.1.3"), 1001))
         UpdateActionReceiver().onReceive(app, shadowOf(notification.actions[2].actionIntent).savedIntent)
+        await { !UpdatePreferences(app).automatic && scheduler.getPendingJob(UPDATE_JOB_ID) == null }
         assertFalse(UpdatePreferences(app).automatic)
         assertNull(scheduler.getPendingJob(UPDATE_JOB_ID))
     }

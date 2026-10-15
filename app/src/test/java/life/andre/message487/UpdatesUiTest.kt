@@ -19,7 +19,17 @@ import org.robolectric.annotation.LooperMode
 @LooperMode(LooperMode.Mode.PAUSED)
 class UpdatesUiTest {
     @get:Rule val compose = createAndroidComposeRule<ComponentActivity>()
-    private fun node(id: Int) = compose.onNodeWithText(compose.activity.getString(id))
+    private fun node(id: Int): SemanticsNodeInteraction {
+        val text = compose.activity.getString(id)
+        compose.waitUntil(10_000) { compose.onAllNodesWithText(text).fetchSemanticsNodes().isNotEmpty() }
+        return compose.onNodeWithText(text)
+    }
+    private fun ready(model: UpdatesViewModel) {
+        compose.waitUntil(10_000) { compose.waitForIdle(); !model.busy }
+    }
+    private fun closedDialog() {
+        compose.waitUntil(10_000) { compose.onAllNodes(isDialog()).fetchSemanticsNodes().isEmpty() }
+    }
 
     @Before fun reset() {
         compose.activity.getSharedPreferences("updates", 0).edit().clear().commit()
@@ -31,9 +41,12 @@ class UpdatesUiTest {
             checkUpdate = { AppUpdate(it, "0.0.6") },
             downloadUpdate = { downloads++; error("Test failure") })
         compose.setContent { MessageTheme { UpdatesScreen(compose.activity, model) } }
+        ready(model)
         node(R.string.update_check).assertIsNotEnabled()
         node(R.string.update_github).performScrollTo().performClick()
+        ready(model)
         node(R.string.update_check).performScrollTo().performClick()
+        ready(model)
         node(R.string.update_download).performScrollTo().performClick()
         node(R.string.update_github_consent).assertIsDisplayed()
         node(R.string.cancel).performClick()
@@ -49,9 +62,13 @@ class UpdatesUiTest {
         val model = UpdatesViewModel(compose.activity.application,
             checkUpdate = { if (fail) throw UpdateException(R.string.update_not_published) else AppUpdate(it, "0.0.6") },
             downloadUpdate = { error("F-Droid must never download an APK here") })
+        ready(model)
         model.select(UpdateSource.FDROID)
+        ready(model)
         compose.setContent { MessageTheme { UpdatesScreen(compose.activity, model) } }
+        ready(model)
         node(R.string.update_check).performScrollTo().performClick()
+        ready(model)
         node(R.string.update_in_fdroid).performScrollTo().performClick()
         compose.runOnIdle {
             assertEquals(FDROID_APP_URL, shadowOf(compose.activity).nextStartedActivity.dataString)
@@ -60,8 +77,9 @@ class UpdatesUiTest {
             fail = true
         }
         node(R.string.update_check).performScrollTo().performClick()
+        ready(model)
         node(R.string.update_not_published).assertExists()
-        node(R.string.update_download).assertDoesNotExist()
+        compose.onNodeWithText(compose.activity.getString(R.string.update_download)).assertDoesNotExist()
         assertEquals(UpdateSource.FDROID, model.source)
     }
 
@@ -74,6 +92,7 @@ class UpdatesUiTest {
         node(R.string.update_skip).assertIsDisplayed()
         node(R.string.update_remind_later).assertIsDisplayed()
         node(R.string.update_notification_open).performClick()
+        closedDialog()
         compose.runOnIdle {
             assertEquals(1, opened)
             assertNull(prefs.pending())
@@ -88,6 +107,7 @@ class UpdatesUiTest {
         prefs.detected(update.source, update)
         compose.setContent { MessageTheme { UpdateAvailableDialog(compose.activity, 0) { error("F-Droid must not download") } } }
         node(R.string.update_in_fdroid).performClick()
+        closedDialog()
         compose.runOnIdle {
             assertEquals(FDROID_APP_URL, shadowOf(compose.activity).nextStartedActivity.data.toString())
             assertNull(prefs.pending())
@@ -100,6 +120,7 @@ class UpdatesUiTest {
         prefs.detected(UpdateSource.GITHUB, AppUpdate(UpdateSource.GITHUB, "99.0.0"))
         compose.setContent { MessageTheme { UpdateAvailableDialog(compose.activity, 0) {} } }
         node(R.string.update_skip).performClick()
+        closedDialog()
         compose.runOnIdle { assertNull(UpdatePreferences(compose.activity).pending(Long.MAX_VALUE)) }
         compose.onNode(isDialog()).assertDoesNotExist()
     }
@@ -112,8 +133,10 @@ class UpdatesUiTest {
         prefs.backgroundFinished("network_error")
         val model = UpdatesViewModel(compose.activity.application, checkUpdate = { null })
         compose.setContent { MessageTheme { UpdatesScreen(compose.activity, model) } }
+        ready(model)
         node(R.string.update_background_retry).performScrollTo().assertIsDisplayed()
         node(R.string.update_check).performScrollTo().performClick()
+        ready(model)
         node(R.string.update_current).assertExists()
         compose.runOnIdle {
             assertEquals(1000, prefs.lastBackgroundTime)
@@ -131,7 +154,7 @@ class UpdatesUiTest {
         assertNotNull(prefs.pending())
         compose.activityRule.scenario.moveToState(androidx.lifecycle.Lifecycle.State.CREATED)
         compose.activityRule.scenario.moveToState(androidx.lifecycle.Lifecycle.State.RESUMED)
-        compose.onNode(isDialog()).assertExists()
+        node(R.string.update_skip).assertExists()
     }
 
     @Test fun remindLaterSuppressesBothDialogAndNotification() {
@@ -141,6 +164,7 @@ class UpdatesUiTest {
         prefs.detected(update.source, update)
         compose.setContent { MessageTheme { UpdateAvailableDialog(compose.activity, 0) {} } }
         node(R.string.update_remind_later).performClick()
+        closedDialog()
         compose.onNode(isDialog()).assertDoesNotExist()
         assertNull(UpdatePreferences(compose.activity).pending())
         assertFalse(prefs.shouldNotify(update, System.currentTimeMillis()))
@@ -152,7 +176,9 @@ class UpdatesUiTest {
         UpdatePreferences(compose.activity).skip(UpdatePreferences.key(update))
         val model = UpdatesViewModel(compose.activity.application, checkUpdate = { update })
         compose.setContent { MessageTheme { UpdatesScreen(compose.activity, model) } }
+        ready(model)
         node(R.string.update_check).performScrollTo().performClick()
+        ready(model)
         compose.onNodeWithText(compose.activity.getString(R.string.update_available, update.version)).assertExists()
         compose.runOnIdle { assertNull(UpdatePreferences(compose.activity).pending()) }
     }

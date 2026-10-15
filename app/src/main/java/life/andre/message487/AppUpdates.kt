@@ -105,7 +105,7 @@ internal fun requireUpdateMetadataStatus(status: Int) {
 }
 
 internal class AppUpdates(private val context: Context) {
-    private val preferences = context.getSharedPreferences("updates", Context.MODE_PRIVATE)
+    private val preferences by lazy { context.getSharedPreferences("updates", Context.MODE_PRIVATE) }
     private val manager = context.packageManager
 
     @Suppress("DEPRECATION")
@@ -130,7 +130,7 @@ internal class AppUpdates(private val context: Context) {
     }
 
     fun select(source: UpdateSource) {
-        preferences.edit().putString("source", source.name).apply()
+        preferences.edit().putString("source", source.name).commit()
     }
 
     suspend fun check(source: UpdateSource): AppUpdate? = withContext(Dispatchers.IO) {
