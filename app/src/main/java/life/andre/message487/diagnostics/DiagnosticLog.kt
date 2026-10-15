@@ -22,9 +22,11 @@ internal enum class DiagnosticEvent {
 }
 
 internal class DiagnosticLog(
-    private val directory: File,
+    directoryProvider: () -> File,
     private val segmentBytes: Int = 256 * 1024,
 ) : AutoCloseable {
+    constructor(directory: File, segmentBytes: Int = 256 * 1024) : this({ directory }, segmentBytes)
+    private val directory by lazy(directoryProvider)
     private val lock = Any()
     private val dropped = AtomicLong()
     private val executor = ThreadPoolExecutor(1, 1, 0L, TimeUnit.MILLISECONDS, ArrayBlockingQueue(256),

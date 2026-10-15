@@ -9,11 +9,11 @@ class SmsCaptureReceiver : BroadcastReceiver() {
     override fun onReceive(context: Context, intent: Intent) {
         if (intent.action != Telephony.Sms.Intents.SMS_RECEIVED_ACTION) return
         val graph = MessageGraph.get(context)
-        val config = graph.settings.state.value
-        if (!config.sms || config.paused || !config.ready()) return
         val pending = goAsync()
         graph.captureExecutor.execute {
             try {
+                val config = graph.settings.load()
+                if (!config.sms || config.paused || !config.ready()) return@execute
                 val messages = Telephony.Sms.Intents.getMessagesFromIntent(intent).orEmpty()
                 if (messages.isNotEmpty()) {
                     val sender = messages.first().originatingAddress.orEmpty()

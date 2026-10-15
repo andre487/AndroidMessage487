@@ -48,11 +48,8 @@ internal fun SourcesScreen(settings: ForwardingSettings, permissions: Permission
         try { context.startActivity(Intent(Settings.ACTION_NOTIFICATION_LISTENER_SETTINGS)) }
         catch (_: android.content.ActivityNotFoundException) { model.showSettingsError() }
     }
-    val displayedApps = remember(apps, settings.packages, query, selectedOnly) {
-        (apps + settings.packages.filter { pkg -> apps.none { it.packageName == pkg } }.map { AppSource(it, it) })
-            .filter { (!selectedOnly || it.packageName in settings.packages) &&
-                (it.name.contains(query, true) || it.packageName.contains(query, true)) }
-            .sortedBy { it.name.lowercase() }
+    val displayedApps by produceState<List<AppSource>>(emptyList(), apps, settings.packages, query, selectedOnly) {
+        value = withContext(Dispatchers.Default) { displayedSources(apps, settings.packages, query, selectedOnly) }
     }
     val allSelected = apps.isNotEmpty() && apps.all { it.packageName in settings.packages }
     LazyColumn(contentPadding = PaddingValues(20.dp), verticalArrangement = Arrangement.spacedBy(12.dp)) {
@@ -99,7 +96,7 @@ internal fun SourcesScreen(settings: ForwardingSettings, permissions: Permission
                     settings.smsDeduplication, !busy, model::smsDeduplication)
                 SourceSwitch(Icons.Outlined.Notifications, R.string.notification_deduplication, R.string.deduplication_hint,
                     settings.notificationDeduplication, !busy, model::notificationDeduplication)
-                var window by remember(settings.deduplicationWindowSeconds) {
+                var window by rememberSaveable {
                     mutableStateOf(settings.deduplicationWindowSeconds.toString())
                 }
                 val seconds = window.toIntOrNull()?.takeIf { it >= 0 }
@@ -240,7 +237,7 @@ private fun SourceSwitch(icon: ImageVector, title: Int, hint: Int, checked: Bool
 
 @Composable
 private fun ImageLimitField(label: Int, value: Int, enabled: Boolean, onChange: (Int) -> Unit) {
-    var text by remember(value) { mutableStateOf(value.toString()) }
+    var text by rememberSaveable(label) { mutableStateOf(value.toString()) }
     OutlinedTextField(value = text, onValueChange = { input ->
         text = input
         input.toIntOrNull()?.takeIf { it > 0 }?.let(onChange)
@@ -249,4 +246,12 @@ private fun ImageLimitField(label: Int, value: Int, enabled: Boolean, onChange: 
         enabled = enabled, singleLine = true, modifier = Modifier.fillMaxWidth(),
         keyboardOptions = androidx.compose.foundation.text.KeyboardOptions(
             keyboardType = androidx.compose.ui.text.input.KeyboardType.Number))
+}
+
+internal fun displayedSources(apps: List<AppSource>, selected: Set<String>, query: String, selectedOnly: Boolean): List<AppSource> {
+    val known = apps.mapTo(HashSet()) { it.packageName }
+    return (apps + (selected - known).map { AppSource(it, it) })
+        .filter { (!selectedOnly || it.packageName in selected) &&
+            (it.name.contains(query, true) || it.packageName.contains(query, true)) }
+        .sortedBy { it.name.lowercase() }
 }

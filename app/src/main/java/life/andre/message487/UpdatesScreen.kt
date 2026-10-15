@@ -42,6 +42,10 @@ import androidx.lifecycle.viewmodel.compose.viewModel
 import java.io.File
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.launch
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.withContext
+import kotlinx.coroutines.flow.first
+import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.ui.res.stringResource
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.Arrangement
@@ -53,15 +57,15 @@ internal class UpdatesViewModel @JvmOverloads constructor(
     private val checkUpdate: suspend (UpdateSource) -> AppUpdate? = updates::check,
     private val downloadUpdate: suspend (AppUpdate) -> File = updates::download,
 ) : AndroidViewModel(application) {
-    var backgroundTime by mutableStateOf(UpdatePreferences(application).lastBackgroundTime)
+    var backgroundTime by mutableStateOf(0L)
         private set
-    var backgroundResult by mutableStateOf(UpdatePreferences(application).lastBackgroundResult)
+    var backgroundResult by mutableStateOf<String?>(null)
         private set
-    var backgroundSource by mutableStateOf(UpdatePreferences(application).lastBackgroundSource)
+    var backgroundSource by mutableStateOf<String?>(null)
         private set
-    var automatic by mutableStateOf(UpdatePreferences(application).automatic)
+    var automatic by mutableStateOf(true)
         private set
-    var source by mutableStateOf(updates.source())
+    var source by mutableStateOf<UpdateSource?>(null)
         private set
     var busy by mutableStateOf(false)
         private set
@@ -72,15 +76,23 @@ internal class UpdatesViewModel @JvmOverloads constructor(
     var message by mutableStateOf<Int?>(null)
         private set
 
+    var notificationsEnabled by mutableStateOf(true)
+        private set
+
+    init { refresh() }
+
     fun select(value: UpdateSource) {
         if (busy) return
-        updates.select(value)
-        UpdateNotifications.cancel(getApplication())
-        UpdateNotifications.schedule(getApplication())
-        source = value
-        update = null
-        apk = null
-        message = null
+        runOperation {
+            withContext(Dispatchers.IO) {
+                updates.select(value)
+                UpdateNotifications.cancel(getApplication())
+                UpdateNotifications.schedule(getApplication())
+            }
+            source = value
+            update = null
+            apk = null
+        }
     }
 
     private var handledCheckRequest = 0
@@ -88,7 +100,10 @@ internal class UpdatesViewModel @JvmOverloads constructor(
     fun checkFromNotification(request: Int) {
         if (request <= 0 || request == handledCheckRequest) return
         handledCheckRequest = request
-        check()
+        viewModelScope.launch {
+            androidx.compose.runtime.snapshotFlow { busy }.first { !it }
+            check()
+        }
     }
 
     fun check() {
@@ -98,7 +113,7 @@ internal class UpdatesViewModel @JvmOverloads constructor(
         apk = null
         runOperation {
             update = checkUpdate(selected)
-            UpdatePreferences(getApplication()).detected(selected, update)
+            withContext(Dispatchers.IO) { UpdatePreferences(getApplication()).detected(selected, update) }
             if (update == null) message = R.string.update_current
         }
     }
@@ -110,17 +125,52 @@ internal class UpdatesViewModel @JvmOverloads constructor(
     }
 
     fun automatic(value: Boolean) {
-        UpdatePreferences(getApplication()).automatic = value
-        automatic = value
-        UpdateNotifications.schedule(getApplication())
+        if (busy) return
+        runOperation {
+            withContext(Dispatchers.IO) {
+                UpdatePreferences(getApplication()).automatic = value
+                UpdateNotifications.schedule(getApplication())
+            }
+            automatic = value
+        }
     }
 
     fun refresh() {
-        val prefs = UpdatePreferences(getApplication())
-        automatic = prefs.automatic
-        backgroundTime = prefs.lastBackgroundTime
-        backgroundResult = prefs.lastBackgroundResult
-        backgroundSource = prefs.lastBackgroundSource
+        if (busy) return
+        runOperation {
+            val snapshot = withContext(Dispatchers.IO) {
+                val prefs = UpdatePreferences(getApplication())
+                UpdateSettingsSnapshot(prefs.automatic, prefs.lastBackgroundTime, prefs.lastBackgroundResult,
+                    prefs.lastBackgroundSource, updates.source(), UpdateNotifications.enabled(getApplication()))
+            }
+            automatic = snapshot.automatic
+            backgroundTime = snapshot.time
+            backgroundResult = snapshot.result
+            backgroundSource = snapshot.backgroundSource
+            source = snapshot.source
+            notificationsEnabled = snapshot.notificationsEnabled
+        }
+    }
+
+    fun install(activity: Activity) {
+        val candidate = apk ?: return
+        if (busy) return
+        runOperation {
+            try {
+                val intent = withContext(Dispatchers.IO) {
+                    if (!activity.packageManager.canRequestPackageInstalls()) {
+                        Intent(Settings.ACTION_MANAGE_UNKNOWN_APP_SOURCES, Uri.parse("package:${activity.packageName}"))
+                    } else {
+                        require(candidate.isFile)
+                        val uri = FileProvider.getUriForFile(activity, "${activity.packageName}.fileprovider", candidate)
+                        Intent(Intent.ACTION_VIEW).setDataAndType(uri, "application/vnd.android.package-archive")
+                            .addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION)
+                    }
+                }
+                activity.startActivity(intent)
+            } catch (cancelled: CancellationException) { throw cancelled }
+            catch (_: Exception) { throw UpdateException(R.string.update_open_error) }
+        }
     }
 
     fun reportOpenError() { message = R.string.update_open_error }
@@ -137,18 +187,20 @@ internal class UpdatesViewModel @JvmOverloads constructor(
     }
 }
 
+private data class UpdateSettingsSnapshot(val automatic: Boolean, val time: Long, val result: String?,
+    val backgroundSource: String?, val source: UpdateSource?, val notificationsEnabled: Boolean)
+
 @Composable
 internal fun UpdatesScreen(activity: Activity, model: UpdatesViewModel = viewModel(), checkRequest: Int = 0) {
     val lifecycle = LocalLifecycleOwner.current
-    var notificationsEnabled by remember { mutableStateOf(UpdateNotifications.enabled(activity)) }
+    val scope = rememberCoroutineScope()
     val notificationPermission = rememberLauncherForActivityResult(ActivityResultContracts.RequestPermission()) {
-        notificationsEnabled = UpdateNotifications.enabled(activity)
+        model.refresh()
     }
     DisposableEffect(lifecycle) {
         val observer = LifecycleEventObserver { _, event ->
             if (event == Lifecycle.Event.ON_RESUME) {
                 model.refresh()
-                notificationsEnabled = UpdateNotifications.enabled(activity)
             }
         }
         lifecycle.lifecycle.addObserver(observer)
@@ -179,20 +231,24 @@ internal fun UpdatesScreen(activity: Activity, model: UpdatesViewModel = viewMod
             Text(stringResource(result))
         }
         Text(stringResource(R.string.update_automatic))
-        Switch(checked = model.automatic, onCheckedChange = model::automatic,
+        Switch(checked = model.automatic, onCheckedChange = model::automatic, enabled = !model.busy,
             modifier = Modifier.semantics { contentDescription = activity.getString(R.string.update_automatic) })
-        if (!notificationsEnabled) {
+        if (!model.notificationsEnabled) {
             Text(stringResource(R.string.update_notifications_disabled))
-            TextButton(onClick = {
+            TextButton(onClick = { scope.launch {
                 try {
-                    if (Build.VERSION.SDK_INT >= 33 && activity.checkSelfPermission(Manifest.permission.POST_NOTIFICATIONS) != PackageManager.PERMISSION_GRANTED) {
+                    val needsPermission = withContext(Dispatchers.IO) {
+                        Build.VERSION.SDK_INT >= 33 && activity.checkSelfPermission(Manifest.permission.POST_NOTIFICATIONS) != PackageManager.PERMISSION_GRANTED
+                    }
+                    if (needsPermission) {
                         notificationPermission.launch(Manifest.permission.POST_NOTIFICATIONS)
                     } else {
                         activity.startActivity(Intent(Settings.ACTION_APP_NOTIFICATION_SETTINGS)
                             .putExtra(Settings.EXTRA_APP_PACKAGE, activity.packageName))
                     }
-                } catch (_: Exception) { model.reportOpenError() }
-            }) { Text(stringResource(R.string.update_allow_notifications)) }
+                } catch (cancelled: CancellationException) { throw cancelled }
+                catch (_: Exception) { model.reportOpenError() }
+            } }) { Text(stringResource(R.string.update_allow_notifications)) }
         }
         Text(stringResource(R.string.update_source), style = MaterialTheme.typography.titleMedium)
         if (model.source == null) Text(stringResource(R.string.update_choose_source))
@@ -228,21 +284,7 @@ internal fun UpdatesScreen(activity: Activity, model: UpdatesViewModel = viewMod
             } else {
                 Text(stringResource(R.string.update_ready))
                 Text(stringResource(R.string.update_install_permission))
-                Button(onClick = {
-                    try {
-                        if (!activity.packageManager.canRequestPackageInstalls()) {
-                            activity.startActivity(Intent(Settings.ACTION_MANAGE_UNKNOWN_APP_SOURCES,
-                                Uri.parse("package:${activity.packageName}")))
-                        } else {
-                            val apk = requireNotNull(model.apk)
-                            require(apk.isFile)
-                            val uri = FileProvider.getUriForFile(activity, "${activity.packageName}.fileprovider", apk)
-                            activity.startActivity(Intent(Intent.ACTION_VIEW)
-                                .setDataAndType(uri, "application/vnd.android.package-archive")
-                                .addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION))
-                        }
-                    } catch (_: Exception) { model.reportOpenError() }
-                }, enabled = !model.busy) { Text(stringResource(R.string.update_install)) }
+                Button(onClick = { model.install(activity) }, enabled = !model.busy) { Text(stringResource(R.string.update_install)) }
             }
         }
     }

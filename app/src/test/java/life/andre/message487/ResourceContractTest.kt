@@ -41,7 +41,12 @@ class ResourceContractTest {
         assertEquals("android.permission.BIND_NOTIFICATION_LISTENER_SERVICE",
             elements("service").single { it.getAttributeNS(namespace, "name") == ".NotificationCaptureService" }.getAttributeNS(namespace, "permission"))
         assertEquals("android.permission.BROADCAST_SMS", elements("receiver").single { it.getAttributeNS(namespace, "name") == ".SmsCaptureReceiver" }.getAttributeNS(namespace, "permission"))
-        val provider = elements("provider").single()
+        assertTrue(elements("provider").all { it.getAttributeNS(namespace, "exported") == "false" })
+        val initializer = elements("provider").single { it.getAttributeNS(namespace, "name") == "androidx.startup.InitializationProvider" }
+        val metadata = initializer.getElementsByTagName("meta-data").item(0) as Element
+        assertEquals("androidx.work.WorkManagerInitializer", metadata.getAttributeNS(namespace, "name"))
+        assertEquals("remove", metadata.getAttributeNS("http://schemas.android.com/tools", "node"))
+        val provider = elements("provider").single { it.getAttributeNS(namespace, "name") == "androidx.core.content.FileProvider" }
         assertEquals("false", provider.getAttributeNS(namespace, "exported"))
         assertEquals("true", provider.getAttributeNS(namespace, "grantUriPermissions"))
         assertEquals("false", elements("application").single().getAttributeNS(namespace, "allowBackup"))

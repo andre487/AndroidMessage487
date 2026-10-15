@@ -2,11 +2,16 @@ package life.andre.message487.diagnostics
 
 import android.content.Context
 import android.os.Process
+import kotlinx.coroutines.flow.asStateFlow
 import kotlin.system.exitProcess
 
 internal class CrashHandler(context: Context, private val log: DiagnosticLog) {
-    private val preferences = context.getSharedPreferences("crash_state", Context.MODE_PRIVATE)
-    val pending: Boolean get() = preferences.getBoolean("pending", false)
+    private val preferences by lazy { context.getSharedPreferences("crash_state", Context.MODE_PRIVATE) }
+    private val mutablePending = kotlinx.coroutines.flow.MutableStateFlow(false)
+    val state = mutablePending.asStateFlow()
+    val pending: Boolean get() = mutablePending.value
+
+    fun load() { mutablePending.value = preferences.getBoolean("pending", false) }
 
     fun install() {
         val previous = Thread.getDefaultUncaughtExceptionHandler()
@@ -18,5 +23,8 @@ internal class CrashHandler(context: Context, private val log: DiagnosticLog) {
         }
     }
 
-    fun dismiss() { preferences.edit().putBoolean("pending", false).apply() }
+    fun dismiss() {
+        check(preferences.edit().putBoolean("pending", false).commit())
+        mutablePending.value = false
+    }
 }

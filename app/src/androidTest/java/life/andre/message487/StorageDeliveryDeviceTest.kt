@@ -37,7 +37,7 @@ class StorageDeliveryDeviceTest {
         encrypted[encrypted.lastIndex] = (encrypted.last().toInt() xor 1).toByte()
         assertThrows(Exception::class.java) { cipher.decrypt(encrypted) }
         SettingsStore(context).update { it.copy(authToken = token, url = "https://example.test/hook") }
-        val reopened = SettingsStore(context).state.value
+        val reopened = SettingsStore(context).load()
         assertEquals(token, reopened.authToken)
         assertTrue(reopened.ready())
         assertFalse(context.getSharedPreferences("connection", Context.MODE_PRIVATE).all.toString().contains(token))

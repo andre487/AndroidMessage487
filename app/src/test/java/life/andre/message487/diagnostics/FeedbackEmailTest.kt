@@ -79,7 +79,7 @@ class FeedbackEmailTest {
                 handler.install()
                 Thread.getDefaultUncaughtExceptionHandler()!!.uncaughtException(Thread.currentThread(), error)
                 assertTrue(delegated)
-                assertTrue(CrashHandler(context, log).pending)
+                assertTrue(CrashHandler(context, log).also { it.load() }.pending)
                 handler.dismiss()
                 assertFalse(handler.pending)
             } finally { Thread.setDefaultUncaughtExceptionHandler(previous) }

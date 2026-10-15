@@ -43,6 +43,16 @@ class NotificationCaptureService : NotificationListenerService() {
 
     override fun onNotificationPosted(sbn: StatusBarNotification) {
         val graph = MessageGraph.get(this)
+        if (!graph.settings.loaded.value) {
+            graph.captureExecutor.execute {
+                try { graph.settings.load(); capturePosted(sbn) }
+                catch (error: Exception) { graph.captureFailed(error) }
+            }
+        } else capturePosted(sbn)
+    }
+
+    private fun capturePosted(sbn: StatusBarNotification) {
+        val graph = MessageGraph.get(this)
         val config = graph.settings.state.value
         if (!config.acceptsPackage(sbn.packageName, packageName)) return
         if (!sbn.isClearable || sbn.notification.flags and Notification.FLAG_GROUP_SUMMARY != 0) return

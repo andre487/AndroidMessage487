@@ -233,3 +233,10 @@ Record the exact PR head/base and CI URL, individual API 26/35 verdicts, JUnit C
 APK artifact link and SHA-256. Download links are updated in the PR description; unsigned
 PR APKs and debug-emulator tests do not establish acceptance of the signed release candidate.
 A new commit requires a new CI run; skipped or missing emulator results block finalization.
+
+The emulator suite includes `UiThreadDeviceTest`: main-thread disk/network access fails the
+process through StrictMode, and real Keystore calls assert that they run off the main thread.
+It covers model initialization with a persisted token, navigation, numeric settings, diagnostics,
+update preferences/dialogs, lifecycle refresh and capture-error reporting. Debug builds also log
+StrictMode violations from `Application.onCreate()`. These checks do not measure frame times or
+cover every platform/native operation; use a system trace when investigating animation or CPU jank.

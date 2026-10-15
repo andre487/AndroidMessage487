@@ -35,10 +35,10 @@ internal fun shouldNotifyUpdate(key: String, skipped: String?, lastKey: String?,
     key != skipped && (key != lastKey || now - lastTime >= UPDATE_REMINDER_INTERVAL)
 
 internal class UpdatePreferences(private val context: Context) {
-    private val prefs = context.getSharedPreferences("updates", Context.MODE_PRIVATE)
+    private val prefs by lazy { context.getSharedPreferences("updates", Context.MODE_PRIVATE) }
     var automatic: Boolean
         get() = prefs.getBoolean("automatic", true)
-        set(value) { prefs.edit().putBoolean("automatic", value).apply() }
+        set(value) { prefs.edit().putBoolean("automatic", value).commit() }
 
     val lastBackgroundTime: Long get() = prefs.getLong("background_at", 0)
     val lastBackgroundResult: String? get() = prefs.getString("background_result", null)
@@ -46,11 +46,11 @@ internal class UpdatePreferences(private val context: Context) {
 
     fun backgroundStarted(source: UpdateSource, now: Long = System.currentTimeMillis()) {
         prefs.edit().putLong("background_at", now).putString("background_source", source.name)
-            .putString("background_result", "running").apply()
+            .putString("background_result", "running").commit()
     }
 
     fun backgroundFinished(result: String) {
-        prefs.edit().putString("background_result", result).apply()
+        prefs.edit().putString("background_result", result).commit()
     }
 
     fun detected(source: UpdateSource, update: AppUpdate?) {
@@ -58,7 +58,7 @@ internal class UpdatePreferences(private val context: Context) {
         prefs.edit().apply {
             if (update == null) { remove("detected_source"); remove("detected_version") }
             else { putString("detected_source", source.name); putString("detected_version", update.version) }
-        }.apply()
+        }.commit()
     }
 
     fun pending(now: Long = System.currentTimeMillis()): AppUpdate? {
@@ -73,19 +73,19 @@ internal class UpdatePreferences(private val context: Context) {
 
     fun remindLater(update: AppUpdate, now: Long = System.currentTimeMillis()) {
         prefs.edit().putString("dialog_key", key(update)).putLong("dialog_after", now + UPDATE_REMINDER_INTERVAL)
-            .putString("notified", key(update)).putLong("notified_at", now).apply()
+            .putString("notified", key(update)).putLong("notified_at", now).commit()
     }
 
     fun shouldNotify(update: AppUpdate, now: Long): Boolean = automatic && shouldNotifyUpdate(
         key(update), key(update).takeIf { it in prefs.getStringSet("skipped_versions", emptySet()).orEmpty() }, prefs.getString("notified", null), prefs.getLong("notified_at", 0), now)
 
     fun notified(update: AppUpdate, now: Long) {
-        prefs.edit().putString("notified", key(update)).putLong("notified_at", now).apply()
+        prefs.edit().putString("notified", key(update)).putLong("notified_at", now).commit()
     }
 
     fun skip(key: String) {
         val skipped = prefs.getStringSet("skipped_versions", emptySet()).orEmpty() + key
-        prefs.edit().putStringSet("skipped_versions", skipped).apply()
+        prefs.edit().putStringSet("skipped_versions", skipped).commit()
     }
 
     companion object { fun key(update: AppUpdate) = "${update.source.name}:${update.version}" }
@@ -147,18 +147,21 @@ internal object UpdateNotifications {
 }
 
 class UpdateActionReceiver : BroadcastReceiver() {
+    companion object { private val executor = java.util.concurrent.Executors.newSingleThreadExecutor() }
     override fun onReceive(context: Context, intent: Intent) {
-        val prefs = UpdatePreferences(context)
-        when (intent.action) {
-            SKIP_UPDATE_ACTION -> {
-                val key = intent.getStringExtra("version_key") ?: return
-                prefs.skip(key)
-            }
-            DISABLE_UPDATES_ACTION -> prefs.automatic = false
-            else -> return
+        if (intent.action !in setOf(SKIP_UPDATE_ACTION, DISABLE_UPDATES_ACTION)) return
+        val pending = goAsync()
+        executor.execute {
+            try {
+                val prefs = UpdatePreferences(context)
+                when (intent.action) {
+                    SKIP_UPDATE_ACTION -> intent.getStringExtra("version_key")?.let(prefs::skip)
+                    DISABLE_UPDATES_ACTION -> prefs.automatic = false
+                }
+                UpdateNotifications.cancel(context)
+                UpdateNotifications.schedule(context)
+            } finally { pending?.finish() }
         }
-        UpdateNotifications.cancel(context)
-        UpdateNotifications.schedule(context)
     }
 }
 
@@ -167,20 +170,21 @@ class UpdateCheckService : JobService() {
     private var check: Job? = null
 
     override fun onStartJob(params: JobParameters): Boolean {
-        val updates = AppUpdates(this)
-        val source = updates.source() ?: return false
-        if (!UpdatePreferences(this).automatic) return false
         check = scope.launch {
-            val retry = runBackgroundUpdateCheck(this@UpdateCheckService, source, updates::check)
+            val retry = kotlinx.coroutines.withContext(Dispatchers.IO) {
+                val updates = AppUpdates(this@UpdateCheckService)
+                val source = updates.source()
+                if (source == null || !UpdatePreferences(this@UpdateCheckService).automatic) false
+                else runBackgroundUpdateCheck(this@UpdateCheckService, source, updates::check)
+            }
             jobFinished(params, retry)
         }
         return true
     }
 
     override fun onStopJob(params: JobParameters): Boolean {
-        UpdatePreferences(this).backgroundFinished("interrupted")
         check?.cancel()
-        return UpdatePreferences(this).automatic
+        return true
     }
 
     override fun onDestroy() {
@@ -193,7 +197,7 @@ internal suspend fun runBackgroundUpdateCheck(
     context: Context,
     source: UpdateSource,
     check: suspend (UpdateSource) -> AppUpdate?,
-): Boolean {
+): Boolean = kotlinx.coroutines.withContext(Dispatchers.IO) {
     val prefs = UpdatePreferences(context)
     prefs.backgroundStarted(source)
     var retry = false
@@ -210,5 +214,5 @@ internal suspend fun runBackgroundUpdateCheck(
         retry = error is java.io.IOException
         prefs.backgroundFinished(if (retry) "network_error" else "error")
     }
-    return retry && prefs.automatic && AppUpdates(context).source() == source
+    retry && prefs.automatic && AppUpdates(context).source() == source
 }

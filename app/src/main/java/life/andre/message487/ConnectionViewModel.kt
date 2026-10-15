@@ -39,9 +39,10 @@ data class PermissionState(val notifications: Boolean = false, val sms: Boolean 
 class ConnectionViewModel(application: Application) : AndroidViewModel(application) {
     private val graph = MessageGraph.get(application)
     val settings = graph.settings.state
+    val settingsLoaded = graph.settings.loaded
     val listenerConnected = ListenerState.connected
     private val mutableState = MutableStateFlow(settings.value.let {
-        ConnectionState(it.url, it.deviceCode, it.requireAck, authToken = it.authToken)
+        ConnectionState(it.url, it.deviceCode, it.requireAck, authToken = it.authToken, busy = true)
     })
     val state = mutableState.asStateFlow()
     private val mutableQueue = MutableStateFlow(QueueSnapshot())
@@ -55,6 +56,13 @@ class ConnectionViewModel(application: Application) : AndroidViewModel(applicati
     init {
         refreshPermissions()
         viewModelScope.launch {
+            try {
+                val saved = withContext(Dispatchers.IO) { graph.settings.load() }
+                mutableState.value = ConnectionState(saved.url, saved.deviceCode, saved.requireAck, authToken = saved.authToken)
+            } catch (error: Exception) {
+                if (error is kotlinx.coroutines.CancellationException) throw error
+                mutableState.value = state.value.copy(notice = R.string.local_error)
+            }
             graph.outbox.revision.collect {
                 try {
                     mutableQueue.value = withContext(Dispatchers.IO) {
@@ -101,13 +109,24 @@ class ConnectionViewModel(application: Application) : AndroidViewModel(applicati
         }
     }
 
+    private var permissionRefresh: kotlinx.coroutines.Job? = null
     fun refreshPermissions() {
         refreshApps()
-        val app = getApplication<Application>()
-        mutablePermissions.value = PermissionState(
-            notifications = app.packageName in NotificationManagerCompat.getEnabledListenerPackages(app),
-            sms = ContextCompat.checkSelfPermission(app, Manifest.permission.RECEIVE_SMS) == PackageManager.PERMISSION_GRANTED,
-        )
+        permissionRefresh?.cancel()
+        permissionRefresh = viewModelScope.launch {
+            try {
+                mutablePermissions.value = withContext(Dispatchers.IO) {
+                    val app = getApplication<Application>()
+                    PermissionState(
+                        notifications = app.packageName in NotificationManagerCompat.getEnabledListenerPackages(app),
+                        sms = ContextCompat.checkSelfPermission(app, Manifest.permission.RECEIVE_SMS) == PackageManager.PERMISSION_GRANTED,
+                    )
+                }
+            } catch (error: Exception) {
+                if (error is kotlinx.coroutines.CancellationException) throw error
+                mutableState.value = state.value.copy(notice = R.string.local_error)
+            }
+        }
     }
 
     fun setAuthToken(token: String) { mutableState.value = state.value.copy(authToken = token, invalidToken = false, notice = null) }
@@ -118,6 +137,7 @@ class ConnectionViewModel(application: Application) : AndroidViewModel(applicati
     fun setTestOptions(options: TestMessageOptions) { mutableState.value = state.value.copy(testOptions = options) }
 
     fun save(sendTest: Boolean) {
+        if (state.value.busy) return
         val draft = state.value
         val url = draft.url.trim()
         val code = draft.deviceCode.trim()
@@ -132,7 +152,7 @@ class ConnectionViewModel(application: Application) : AndroidViewModel(applicati
 
     fun sendTest() = action(R.string.test_queued) { graph.enqueueTest() }
     fun notifications(enabled: Boolean) = action { graph.settings.update { it.copy(notifications = enabled) } }
-    fun deduplicationWindow(seconds: Int) = action {
+    fun deduplicationWindow(seconds: Int) = numberSetting("deduplicationWindow") {
         graph.settings.update { it.copy(deduplicationWindowSeconds = seconds) }
     }
     fun smsDeduplication(enabled: Boolean) = action { graph.settings.update { it.copy(smsDeduplication = enabled) } }
@@ -140,10 +160,10 @@ class ConnectionViewModel(application: Application) : AndroidViewModel(applicati
     fun forwardAvatars(enabled: Boolean) = action { graph.settings.update { it.copy(forwardAvatars = enabled) } }
     fun forwardAppIcons(enabled: Boolean) = action { graph.settings.update { it.copy(forwardAppIcons = enabled) } }
     fun imageLimits(enabled: Boolean) = action { graph.settings.update { it.copy(imageLimitsEnabled = enabled) } }
-    fun imageMaxCount(value: Int) = action { graph.settings.update { it.copy(imageMaxCount = value) } }
-    fun imageMaxEdge(value: Int) = action { graph.settings.update { it.copy(imageMaxEdge = value) } }
-    fun imageMaxKiB(value: Int) = action { graph.settings.update { it.copy(imageMaxKiB = value) } }
-    fun imageTotalKiB(value: Int) = action { graph.settings.update { it.copy(imageTotalKiB = value) } }
+    fun imageMaxCount(value: Int) = numberSetting("imageMaxCount") { graph.settings.update { it.copy(imageMaxCount = value) } }
+    fun imageMaxEdge(value: Int) = numberSetting("imageMaxEdge") { graph.settings.update { it.copy(imageMaxEdge = value) } }
+    fun imageMaxKiB(value: Int) = numberSetting("imageMaxKiB") { graph.settings.update { it.copy(imageMaxKiB = value) } }
+    fun imageTotalKiB(value: Int) = numberSetting("imageTotalKiB") { graph.settings.update { it.copy(imageTotalKiB = value) } }
     fun imageFormat(format: NotificationImageFormat) = action { graph.settings.update { it.copy(imageFormat = format) } }
     fun imageQuality(quality: Int) = action { graph.settings.update { it.copy(imageQuality = quality) } }
     fun sms(enabled: Boolean) = action { graph.settings.update { it.copy(sms = enabled) } }
@@ -175,13 +195,27 @@ class ConnectionViewModel(application: Application) : AndroidViewModel(applicati
     }
     fun delete(id: String) = action { graph.outbox.delete(id); graph.diagnostics.record(DiagnosticEvent.EVENT_DELETED) }
     fun clearError() = action { graph.settings.update { it.copy(captureFailed = false) } }
-    fun rebind() {
+    fun rebind() = action {
         NotificationListenerService.requestRebind(ComponentName(getApplication(), NotificationCaptureService::class.java))
+    }
+
+    private val numberSaves = mutableMapOf<String, kotlinx.coroutines.Job>()
+    private fun numberSetting(key: String, block: () -> Unit) {
+        if (!graph.settings.loaded.value) return
+        numberSaves.remove(key)?.cancel()
+        numberSaves[key] = viewModelScope.launch {
+            kotlinx.coroutines.delay(300)
+            try { withContext(Dispatchers.IO) { block() } }
+            catch (error: Exception) {
+                if (error is kotlinx.coroutines.CancellationException) throw error
+                mutableState.value = state.value.copy(notice = R.string.local_error)
+            }
+        }
     }
     fun showSettingsError() { mutableState.value = state.value.copy(notice = R.string.settings_unavailable) }
 
     private fun action(notice: Int? = null, block: () -> Unit) {
-        if (state.value.busy) return
+        if (state.value.busy || !graph.settings.loaded.value) return
         mutableState.value = state.value.copy(busy = true, notice = null)
         viewModelScope.launch {
             val result = try {

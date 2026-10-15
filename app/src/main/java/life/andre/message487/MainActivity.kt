@@ -25,6 +25,9 @@ import androidx.lifecycle.LifecycleEventObserver
 import androidx.lifecycle.compose.LocalLifecycleOwner
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.lifecycle.viewmodel.compose.viewModel
+import kotlinx.coroutines.launch
+import kotlinx.coroutines.withContext
+import kotlinx.coroutines.Dispatchers
 
 class MainActivity : ComponentActivity() {
     private var updateCheckRequest by mutableIntStateOf(0)
@@ -58,6 +61,7 @@ private enum class Destination(val label: Int, val icon: ImageVector) {
 internal fun MessageScreen(model: ConnectionViewModel = viewModel(), checkRequest: Int = 0) {
     val state by model.state.collectAsStateWithLifecycle()
     val settings by model.settings.collectAsStateWithLifecycle()
+    val settingsLoaded by model.settingsLoaded.collectAsStateWithLifecycle()
     val permissions by model.permissions.collectAsStateWithLifecycle()
     val connected by model.listenerConnected.collectAsStateWithLifecycle()
     val queue by model.queue.collectAsStateWithLifecycle()
@@ -67,10 +71,16 @@ internal fun MessageScreen(model: ConnectionViewModel = viewModel(), checkReques
     var diagnostics by rememberSaveable { mutableStateOf(false) }
     var updates by rememberSaveable { mutableStateOf(false) }
     LaunchedEffect(checkRequest) { if (checkRequest > 0) { updates = true; diagnostics = false } }
-    var crash by remember { mutableStateOf(application.crashHandler.pending) }
+    val crash by application.crashHandler.state.collectAsStateWithLifecycle()
+    val scope = rememberCoroutineScope()
+    val snackbar = remember { SnackbarHostState() }
+    fun dismissCrash() { scope.launch {
+        try { withContext(Dispatchers.IO) { application.crashHandler.dismiss() } }
+        catch (cancelled: kotlinx.coroutines.CancellationException) { throw cancelled }
+        catch (_: Exception) { snackbar.showSnackbar(application.getString(R.string.local_error)) }
+    } }
     fun back() { if (updates) updates = false else if (diagnostics) diagnostics = false else destination = Destination.OVERVIEW }
     var help by rememberSaveable { mutableStateOf(false) }
-    val snackbar = remember { SnackbarHostState() }
     val noticeText = state.notice?.let { stringResource(it) }
     LaunchedEffect(noticeText) { noticeText?.let { snackbar.showSnackbar(it) } }
     BackHandler(updates || diagnostics || destination != Destination.OVERVIEW) { back() }
@@ -129,7 +139,8 @@ internal fun MessageScreen(model: ConnectionViewModel = viewModel(), checkReques
                     if (state.busy) LinearProgressIndicator(Modifier.fillMaxWidth())
                     key(destination) {
                         Box(Modifier.widthIn(max = 720.dp).fillMaxSize()) {
-                            if (updates) UpdatesScreen(requireNotNull(LocalActivity.current), checkRequest = checkRequest)
+                            if (!settingsLoaded) Box(Modifier.fillMaxSize(), contentAlignment = Alignment.Center) { CircularProgressIndicator() }
+                            else if (updates) UpdatesScreen(requireNotNull(LocalActivity.current), checkRequest = checkRequest)
                             else if (diagnostics) DiagnosticsScreen(application, settings) else when (destination) {
                                 Destination.OVERVIEW -> OverviewScreen(settings, permissions, connected, queue, state.busy, model,
                                     onConnection = { destination = Destination.CONNECTION },
@@ -144,14 +155,14 @@ internal fun MessageScreen(model: ConnectionViewModel = viewModel(), checkReques
             }
         }
     }
-    if (crash) AlertDialog(onDismissRequest = { crash = false; application.crashHandler.dismiss() },
+    if (crash) AlertDialog(onDismissRequest = { dismissCrash() },
         icon = { Icon(Icons.Outlined.BugReport, null) },
         title = { Text(stringResource(R.string.crash_title)) },
         text = { Text(stringResource(R.string.crash_description)) },
         confirmButton = { TextButton(onClick = {
-            crash = false; application.crashHandler.dismiss(); diagnostics = true
+            dismissCrash(); diagnostics = true
         }) { Text(stringResource(R.string.review_report)) } },
-        dismissButton = { TextButton(onClick = { crash = false; application.crashHandler.dismiss() }) {
+        dismissButton = { TextButton(onClick = { dismissCrash() }) {
             Text(stringResource(R.string.close))
         } })
     if (help) AlertDialog(onDismissRequest = { help = false },

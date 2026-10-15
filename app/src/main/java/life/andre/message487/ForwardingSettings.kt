@@ -49,8 +49,19 @@ class SettingsStore(
     private val cipher: PayloadCipher = (context.applicationContext as? MessageApplication)?.payloadCipher ?: KeystorePayloadCipher(),
 ) {
     private val diagnostics = (context.applicationContext as? MessageApplication)?.diagnostics
-    private val preferences = context.getSharedPreferences("connection", Context.MODE_PRIVATE)
-    private val mutableState = MutableStateFlow(read())
+    private val preferences by lazy { context.getSharedPreferences("connection", Context.MODE_PRIVATE) }
+    private val mutableState = MutableStateFlow(ForwardingSettings())
+    private val mutableLoaded = MutableStateFlow(false)
+    val loaded = mutableLoaded.asStateFlow()
+
+    @Synchronized
+    fun load(): ForwardingSettings {
+        if (!mutableLoaded.value) {
+            mutableState.value = read()
+            mutableLoaded.value = true
+        }
+        return mutableState.value
+    }
     val state = mutableState.asStateFlow()
 
     private fun read() = ForwardingSettings(
@@ -86,6 +97,7 @@ class SettingsStore(
 
     @Synchronized
     fun discoverPackages(packages: Set<String>, ownPackage: String) {
+        load()
         val discovered = packages - ownPackage
         if (state.value.knownPackages.containsAll(discovered)) return
         update {
@@ -98,9 +110,11 @@ class SettingsStore(
 
     @Synchronized
     fun update(transform: (ForwardingSettings) -> ForwardingSettings): ForwardingSettings {
+        load()
         val next = transform(mutableState.value).let {
             if (it.deviceId.isBlank()) it.copy(deviceId = UUID.randomUUID().toString()) else it
         }
+        if (next == mutableState.value) return next
         val editor = preferences.edit()
         if (next.authToken != mutableState.value.authToken) {
             require(validAuthToken(next.authToken))
