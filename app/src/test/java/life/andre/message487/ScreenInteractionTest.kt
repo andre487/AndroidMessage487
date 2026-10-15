@@ -248,7 +248,7 @@ class ScreenInteractionTest {
     }
 
     @Test fun `auto select switch preserves existing choices and selects newly discovered launcher apps`() {
-        compose.waitUntil(10_000) { model.apps.value.size == 2 }
+        compose.waitUntil(10_000) { compose.waitForIdle(); model.apps.value.size == 2 }
         compose.onNode(hasText(application.getString(R.string.sources_tab)) and hasClickAction()).performClick()
         compose.onNode(hasScrollToNodeAction()).performScrollToNode(
             hasContentDescription(application.getString(R.string.auto_select_new_apps)))
@@ -277,7 +277,7 @@ class ScreenInteractionTest {
     @Test fun `select all preserves manual packages excludes self and clear removes selection`() {
         compose.waitForIdle()
         assertSame(application.graph.settings.state, model.settings)
-        compose.waitUntil(10_000) { model.apps.value.isNotEmpty() }
+        compose.waitUntil(10_000) { compose.waitForIdle(); model.apps.value.isNotEmpty() }
         assertEquals(2, model.apps.value.size)
         compose.runOnIdle { model.selectPackage("manual.hidden", true) }
         compose.waitUntil(10_000) { compose.waitForIdle(); !model.state.value.busy }
