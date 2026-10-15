@@ -125,12 +125,10 @@ jobs:
         env:
           GH_TOKEN: ${{ github.token }}
         run: |
-          version_code="$(sed -nE 's/^[[:space:]]*versionCode = ([0-9]+)/\1/p' app/build.gradle.kts)"
           notes="$RUNNER_TEMP/release-notes.md"
-          en="fastlane/metadata/android/en-US/changelogs/$version_code.txt"
-          ru="fastlane/metadata/android/ru-RU/changelogs/$version_code.txt"
-          test -s "$en" && test -s "$ru"
-          { printf '## English\n\n'; cat "$en"; printf '\n## Русский\n\n'; cat "$ru"; } > "$notes"
+          committed_notes="release-notes/${GITHUB_REF_NAME#v}.md"
+          test -s "$committed_notes"
+          cp "$committed_notes" "$notes"
           cd dist/release
           sha256sum -c SHA256SUMS
           gh release create "$GITHUB_REF_NAME" ./*.apk mapping.txt SHA256SUMS \
