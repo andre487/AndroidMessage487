@@ -130,7 +130,7 @@ internal object UpdateNotifications {
                 .putExtra("version_key", UpdatePreferences.key(update)), flags)
         val source = context.getString(if (update.source == UpdateSource.FDROID) R.string.update_fdroid else R.string.update_github)
         val notification = NotificationCompat.Builder(context, UPDATE_NOTIFICATION_CHANNEL)
-            .setSmallIcon(R.drawable.ic_update)
+            .setSmallIcon(R.drawable.ic_notification)
             .setContentTitle(context.getString(R.string.update_available, update.version))
             .setContentText(context.getString(R.string.update_notification_text, source))
             .setStyle(NotificationCompat.BigTextStyle().bigText(context.getString(R.string.update_notification_text, source)))

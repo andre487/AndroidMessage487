@@ -1,0 +1,17 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="512" height="512" viewBox="209 209 836 836">
+  <defs>
+    <linearGradient id="background" gradientUnits="userSpaceOnUse" x1="0" y1="0" x2="1254" y2="1254">
+      <stop stop-color="#00C9EF" />
+      <stop offset=".35" stop-color="#0754F5" />
+      <stop offset=".65" stop-color="#6500ED" />
+      <stop offset="1" stop-color="#FF1AB9" />
+    </linearGradient>
+  </defs>
+  <path fill="url(#background)" d="M0 0H1254V1254H0Z" />
+  <g transform="translate(169.29 169.29) scale(0.73)">
+    <path d="M313,298H877Q942,298 942,363V563H878V377Q878,361 862,361H329Q313,361 313,377V711Q313,727 329,727H764V790H313Q248,790 248,725V363Q248,298 313,298Z M544,790H642V857H698Q730,857 730,887Q730,917 698,917H488Q456,917 456,887Q456,857 488,857H544Z" fill="#fff" />
+    <path d="M819,563H960Q1015,563 1015,618V887Q1015,942 960,942H819Q764,942 764,887V618Q764,563 819,563Z M831,616Q813,616 813,634V870Q813,888 831,888H948Q966,888 966,870V634Q966,616 948,616Z" fill="#fff" fill-rule="evenodd" />
+    <path d="M508,522L590,465L672,522V611H508Z M508,522L546,547H634L672,522" fill="none" stroke="#fff" stroke-width="17" stroke-linejoin="round" stroke-linecap="round" />
+    <path d="M855,725H923Q929,725 929,731V783Q929,789 923,789H855Q849,789 849,783V731Q849,725 855,725Z M850,731L889,761L928,731" fill="none" stroke="#fff" stroke-width="11" stroke-linejoin="round" stroke-linecap="round" />
+  </g>
+</svg>
