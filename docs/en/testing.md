@@ -98,3 +98,6 @@ Notification capture retains at most 32 queued tasks; SMS has its own 16-task qu
 HTTP requests have a 2-minute total deadline. Queued metadata (including old inline-image bodies)
 is read only up to 8 MiB and the available-memory budget; unreadable entries become blocked and
 retain their files for manual retry. This limit does not cap streamed image-file sizes.
+
+StrictMode also covers failed initial settings reads and Retry, temporary-file cleanup after a
+failed update download, and asynchronous diagnostic formatting from a UI error handler.

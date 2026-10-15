@@ -13,6 +13,9 @@ import java.io.File
 import java.net.HttpURLConnection
 import java.net.URI
 import java.security.MessageDigest
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.ensureActive
+import kotlinx.coroutines.withContext
 import org.json.JSONObject
 
 internal class UpdateException(val textId: Int) : Exception()
@@ -130,52 +133,57 @@ internal class AppUpdates(private val context: Context) {
         preferences.edit().putString("source", source.name).save()
     }
 
-    suspend fun check(source: UpdateSource): AppUpdate? = cancellableHttp { cancellation ->
-        val url = if (source == UpdateSource.FDROID) FDROID_UPDATE_API else GITHUB_RELEASES_API
-        val json = request(url, cancellation) { connection ->
-            requireUpdateMetadataStatus(connection.responseCode)
-            connection.inputStream.use { stream ->
-                String(readUpdateMetadata(stream), Charsets.UTF_8)
-            }
-        }
-        if (source == UpdateSource.FDROID) parseFdroidUpdate(json, installedCode())
-        else parseGithubUpdate(json, BuildConfig.VERSION_NAME)
-    }
-
-    suspend fun download(update: AppUpdate): File = cancellableHttp { cancellation ->
-        require(update.source == UpdateSource.GITHUB)
-        val directory = File(context.cacheDir, "updates").apply { mkdirs() }
-        cleanupUpdateFiles(directory)
-        val partial = File.createTempFile("update-", ".part", directory)
-        val apk = File(directory, partial.nameWithoutExtension + ".apk")
-        try {
-            val digest = MessageDigest.getInstance("SHA-256")
-            request(requireNotNull(update.apkUrl), cancellation) { connection ->
-                require(connection.responseCode == 200)
-                connection.inputStream.use { input ->
-                    partial.outputStream().use { output ->
-                        val buffer = ByteArray(64 * 1024)
-                        var total = 0L
-                        while (true) {
-                            if (cancellation.isCanceled) throw kotlinx.coroutines.CancellationException("Download cancelled")
-                            val count = input.read(buffer)
-                            if (count < 0) break
-                            total += count
-                            require(total <= update.size && total <= MAX_UPDATE_APK_BYTES)
-                            digest.update(buffer, 0, count)
-                            output.write(buffer, 0, count)
-                        }
-                        require(total == update.size)
-                    }
+    suspend fun check(source: UpdateSource): AppUpdate? = withContext(Dispatchers.IO) {
+        cancellableHttp { cancellation ->
+            val url = if (source == UpdateSource.FDROID) FDROID_UPDATE_API else GITHUB_RELEASES_API
+            val json = request(url, cancellation) { connection ->
+                requireUpdateMetadataStatus(connection.responseCode)
+                connection.inputStream.use { stream ->
+                    String(readUpdateMetadata(stream), Charsets.UTF_8)
                 }
             }
-            require(digest.digest().hex() == update.sha256)
-            verifyApk(partial, update.version)
-            check(partial.renameTo(apk))
-            cleanupUpdateFiles(directory, keep = apk)
-            apk
-        } finally {
-            partial.delete()
+            if (source == UpdateSource.FDROID) parseFdroidUpdate(json, installedCode())
+            else parseGithubUpdate(json, BuildConfig.VERSION_NAME)
+        }
+    }
+
+    suspend fun download(update: AppUpdate): File = withContext(Dispatchers.IO) {
+        cancellableHttp { cancellation ->
+            require(update.source == UpdateSource.GITHUB)
+            val directory = File(context.cacheDir, "updates").apply { mkdirs() }
+            cleanupUpdateFiles(directory)
+            val partial = File.createTempFile("update-", ".part", directory)
+            val apk = File(directory, partial.nameWithoutExtension + ".apk")
+            try {
+                val digest = MessageDigest.getInstance("SHA-256")
+                request(requireNotNull(update.apkUrl), cancellation) { connection ->
+                    require(connection.responseCode == 200)
+                    connection.inputStream.use { input ->
+                        partial.outputStream().use { output ->
+                            val buffer = ByteArray(64 * 1024)
+                            var total = 0L
+                            while (true) {
+                                coroutineContext.ensureActive()
+                                if (cancellation.isCanceled) throw kotlinx.coroutines.CancellationException("Download cancelled")
+                                val count = input.read(buffer)
+                                if (count < 0) break
+                                total += count
+                                require(total <= update.size && total <= MAX_UPDATE_APK_BYTES)
+                                digest.update(buffer, 0, count)
+                                output.write(buffer, 0, count)
+                            }
+                            require(total == update.size)
+                        }
+                    }
+                }
+                require(digest.digest().hex() == update.sha256)
+                verifyApk(partial, update.version)
+                check(partial.renameTo(apk))
+                cleanupUpdateFiles(directory, keep = apk)
+                apk
+            } finally {
+                partial.delete()
+            }
         }
     }
 

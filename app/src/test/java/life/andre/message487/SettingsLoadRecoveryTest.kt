@@ -26,6 +26,7 @@ class SettingsLoadRecoveryTest {
         try {
             compose.runOnIdle {
                 model = ConnectionViewModel(app) {
+                    assertNotSame(android.os.Looper.getMainLooper(), android.os.Looper.myLooper())
                     if (reads.incrementAndGet() == 1) throw IOException("storage unavailable")
                     app.graph.settings.load()
                 }
