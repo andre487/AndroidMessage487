@@ -1,4 +1,15 @@
 <resources>
+    <string name="forward_avatars">Forward avatars</string>
+    <string name="forward_avatars_hint">Off by default. Include the latest available sender avatar, or the notification’s large icon. Uses the chosen image format and JPEG quality.</string>
+    <string name="forward_app_icons">Forward app icons</string>
+    <string name="forward_app_icons_hint">Off by default. Include the selected source app’s icon. Uses the chosen image format and JPEG quality.</string>
+
+    <string name="notification_images">Graphics</string>
+    <string name="notification_images_hint">Images from selected apps use the format and limits below. Unavailable images are skipped; text is still forwarded. Connection has a separate block for choosing test images.</string>
+    <string name="image_quality">JPEG quality: %1$d%%</string>
+    <string name="image_quality_label">JPEG image quality</string>
+    <string name="png_quality_hint">PNG uses lossless compression; JPEG quality does not apply. Images may still be resized to fit the size limit.</string>
+
     <string name="auto_select_new_apps">Automatically select new apps</string>
     <string name="auto_select_new_apps_hint">Off by default. When you open or return to Message487, newly detected apps with launcher icons are selected for notification forwarding. Existing choices stay unchanged; apps you deselect stay excluded. Avoid forwarding loops.</string>
     <string name="select_all_apps">Select all applications</string>
@@ -34,12 +45,12 @@
     <string name="pause">Pause forwarding</string>
     <string name="pause_hint">Pause capture and queued delivery. A request already in progress may finish.</string>
     <string name="sms_not_granted">SMS permission is missing. Enable SMS access in the app permissions.</string>
-    <string name="capture_error">Some events could not be saved or scheduled. Check available storage and the journal.</string>
+    <string name="capture_error">Some notification images could not be read, or events could not be saved or scheduled. Check available storage, source permissions and the journal.</string>
     <string name="dismiss">Dismiss</string>
     <string name="local_error">Could not complete the local operation. Check storage and settings.</string>
     <string name="settings_unavailable">Could not open Android settings.</string>
     <string name="destination_note">Queued events keep the recipient, token and confirmation mode used when they were captured.</string>
-    <string name="sources_disclosure">Enabled sources send message text, source names and timestamps to your saved webhook. SMS also includes the sender. Both sources are off initially.</string>
+    <string name="sources_disclosure">Enabled sources send message text, notification images, source names and timestamps to your saved webhook. SMS also includes the sender. Both sources are off initially.</string>
     <string name="notifications_enabled">Notifications</string>
     <string name="notifications_hint">Selected apps only. Ongoing notifications and group summaries are skipped.</string>
     <string name="notification_access">Notification access settings</string>
@@ -85,7 +96,7 @@
     <string name="source_off">Off</string>
     <string name="needs_setup">Needs setup</string>
     <string name="not_configured">Not configured</string>
-    <string name="test_connection">Send test event</string>
+    <string name="test_connection">Send text test</string>
     <string name="connection_heading">Where messages go</string>
     <string name="connection_description">Connect an n8n workflow or your own webhook.</string>
     <string name="recipient">Recipient</string>
@@ -168,4 +179,16 @@
     <string name="update_background_retry">A network or temporary server error occurred. A retry is requested after 30 minutes, with increasing delays; Android may defer it.</string>
     <string name="update_background_interrupted">Android interrupted the check. A retry was requested.</string>
     <string name="update_background_error">The check failed. Retry manually; the selected source has not changed.</string>
+    <string name="image_limits_enabled">Limit images</string>
+    <string name="image_limits_hint">Turn off to send all available attachments without resizing or output size limits. Input decoding safeguards still apply. Limits count attachments separately from the optional avatar and app icon; the size budget includes all images.</string>
+    <string name="image_max_count">Maximum attachments per notification</string>
+    <string name="image_max_edge">Maximum image side (pixels)</string>
+    <string name="image_max_kib">Maximum per image (KiB)</string>
+    <string name="image_total_kib">Maximum total per notification (KiB)</string>
+    <string name="test_message_heading">Test message</string>
+    <string name="test_message_hint">Choose extra content for this test only. All options off sends text only. Image format, quality and limits come from Sources → Graphics.</string>
+    <string name="test_big_picture">Big Picture</string>
+    <string name="test_gallery">Gallery (2 images)</string>
+    <string name="test_avatar">Avatar</string>
+    <string name="test_app_icon">Application icon</string>
 </resources>

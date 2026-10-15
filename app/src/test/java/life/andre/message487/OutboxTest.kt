@@ -34,6 +34,123 @@ class OutboxTest {
 
     @After fun close() { outbox.close(); context.deleteDatabase("outbox.db") }
 
+    @Test fun `image collection checksum and deduplication ignore order but preserve content roles and multiplicity`() {
+        val first = imageFixture("first-image")
+        val second = imageFixture("second-image")
+        val avatar = first.copy(kind = "avatar")
+        val images = listOf(first, second, avatar)
+        val original = event().copy(images = images)
+        assertEquals(notificationImagesChecksum(images), notificationImagesChecksum(images.reversed()))
+        assertTrue(outbox.enqueue(original, settings))
+        outbox.close()
+        outbox = Outbox(context, codec)
+        assertFalse(outbox.enqueue(original.copy(eventId = "reordered", images = images.reversed()), settings))
+        val variants = listOf(
+            listOf(first, imageFixture("changed"), avatar),
+            listOf(first, second, avatar.copy(kind = "app_icon")),
+            listOf(first.copy(presentation = "big_picture"), second, avatar),
+            listOf(first, avatar),
+            images + second,
+            emptyList(),
+        )
+        variants.forEachIndexed { index, variant ->
+            assertNotEquals(notificationImagesChecksum(images), notificationImagesChecksum(variant))
+            assertTrue(outbox.enqueue(original.copy(eventId = "changed-$index", images = variant), settings))
+        }
+        val request = JSONObject(requestJson(outbox.beginAttempt(original.eventId)!!.request)).getJSONArray("images")
+        assertEquals(images.map(::imageBase64), (0 until request.length()).map { request.getJSONObject(it).getString("data_base64") })
+    }
+
+    @Test fun `images survive encrypted queue restart and retries and participate in deduplication`() {
+        val photo = imageFixture("synthetic-image-base64").copy(presentation = "big_picture")
+        val first = event().copy(text = "", images = listOf(photo))
+        assertTrue(outbox.enqueue(first.copy(eventId = "text-only-before-image", images = emptyList()), settings))
+        val legacy = digest(org.json.JSONArray().put(first.source.packageName).put(first.occurredAt).put(first.text).toString())
+        outbox.writableDatabase.execSQL("INSERT INTO message_fingerprints (fingerprint) VALUES (?)", arrayOf(legacy))
+        assertTrue(outbox.enqueue(first, settings))
+        assertFalse(outbox.enqueue(first.copy(eventId = "same-image"), settings))
+        val changed = first.copy(eventId = "different-image", images = listOf(imageFixture("changed-image")))
+        assertTrue(outbox.enqueue(changed, settings))
+        outbox.close()
+        outbox = Outbox(context, codec)
+        val attempt = outbox.beginAttempt(first.eventId)!!
+        val image = JSONObject(requestJson(attempt.request)).getJSONArray("images").getJSONObject(0)
+        assertEquals(imageBase64(photo), image.getString("data_base64"))
+        assertEquals(photo.mimeType, image.getString("mime_type"))
+        assertEquals("big_picture", image.getString("presentation"))
+        outbox.finish(first.eventId, attempt.token, DeliveryResult(first.eventId, DeliveryStatus.TIMEOUT))
+        assertEquals(attempt.request, outbox.beginAttempt(first.eventId)!!.request)
+        val delivered = outbox.beginAttempt(changed.eventId)!!
+        outbox.finish(changed.eventId, delivered.token, DeliveryResult(changed.eventId, DeliveryStatus.ACCEPTED))
+        outbox.readableDatabase.rawQuery("SELECT payload FROM events WHERE id = ?", arrayOf(changed.eventId)).use {
+            assertTrue(it.moveToFirst()); assertTrue(it.isNull(0))
+        }
+        assertFalse(JSONObject(event().toJson()).has("images"))
+    }
+
+    @Test fun `large file images stay outside SQLite and stream through retries until acknowledged`() {
+        val photo = imageFixture("x".repeat(3 * 1024 * 1024))
+        val original = event().copy(images = listOf(photo))
+        assertTrue(outbox.enqueue(original, settings))
+        assertEquals(1, outbox.entries().size)
+        outbox.readableDatabase.rawQuery("SELECT payload,payload_file FROM events", null).use {
+            assertTrue(it.moveToFirst()); assertTrue(it.isNull(0)); assertFalse(it.isNull(1))
+        }
+        val first = outbox.beginAttempt(original.eventId)!!
+        val file = first.request.images.single().file
+        assertEquals(photo.file.readText(), file.readText())
+        assertFalse(first.request.json.contains("data_base64"))
+        var count = 0L
+        first.request.writeTo(object : java.io.OutputStream() {
+            override fun write(value: Int) { count++ }
+            override fun write(buffer: ByteArray, offset: Int, length: Int) { count += length }
+        })
+        assertTrue(count > 4 * 1024 * 1024)
+        outbox.finish(original.eventId, first.token, DeliveryResult(original.eventId, DeliveryStatus.TIMEOUT))
+        assertTrue(file.exists())
+        val retry = outbox.beginAttempt(original.eventId)!!
+        outbox.finish(original.eventId, first.token, DeliveryResult(original.eventId, DeliveryStatus.ACCEPTED))
+        assertTrue(file.exists())
+        outbox.finish(original.eventId, retry.token, DeliveryResult(original.eventId, DeliveryStatus.ACCEPTED))
+        assertFalse(file.exists())
+    }
+
+    @Test fun `legacy inline image payload migrates even above CursorWindow size`() {
+        val photo = imageFixture("y".repeat(3 * 1024 * 1024))
+        val original = event()
+        val body = JSONObject(original.toJson()).put("images", org.json.JSONArray().put(photo.toJson().put("data_base64", imageBase64(photo))))
+        val old = JSONObject().put("url", settings.url).put("require_ack", true).put("auth_token", settings.authToken).put("event", body)
+        outbox.writableDatabase.insertOrThrow("events", null, android.content.ContentValues().apply {
+            put("id", original.eventId); put("type", "notification"); put("source_name", "Chat")
+            put("created_at", 1L); put("state", "PENDING"); put("payload", codec.encrypt(old.toString()))
+        })
+        assertEquals(1, outbox.entries().size)
+        val request = outbox.beginAttempt(original.eventId)!!.request
+        assertEquals(photo.file.readText(), request.images.single().file.readText())
+        assertEquals(original.text, JSONObject(request.json).getString("text"))
+        outbox.readableDatabase.rawQuery("SELECT payload,payload_file FROM events", null).use {
+            assertTrue(it.moveToFirst()); assertTrue(it.isNull(0)); assertFalse(it.isNull(1))
+        }
+    }
+
+    @Test fun `cleanup preserves pending files and removes abandoned capture and snapshot directories`() {
+        val original = event().copy(images = listOf(imageFixture("keep")))
+        val interrupted = java.io.File(outbox.files, "event-${digest(original.eventId)}").apply {
+            mkdirs(); resolve("partial").writeText("Crash before DB commit")
+        }
+        assertTrue(outbox.enqueue(original, settings))
+        assertFalse(interrupted.resolve("partial").exists())
+        val pending = outbox.beginAttempt(original.eventId)!!.request.images.single().file
+        val old = System.currentTimeMillis() - 600_000
+        pending.parentFile!!.setLastModified(old)
+        val capture = java.io.File(outbox.files, "capture-abandoned").apply { mkdirs(); resolve("partial").writeText("partial"); setLastModified(old) }
+        val orphan = java.io.File(outbox.files, "event-abandoned").apply { mkdirs(); resolve("partial").writeText("partial"); setLastModified(old) }
+        outbox.cleanupFiles()
+        assertTrue(pending.exists())
+        assertFalse(capture.exists())
+        assertFalse(orphan.exists())
+    }
+
     @Test fun `restart preserves payload destination and identity across retries`() {
         val event = event()
         assertTrue(outbox.enqueue(event, settings))
@@ -57,7 +174,7 @@ class OutboxTest {
         outbox.enqueue(event, settings)
         val envelope = JSONObject().put("url", settings.url).put("require_ack", true)
             .put("event", JSONObject(event.toJson()))
-        val values = android.content.ContentValues().apply { put("payload", codec.encrypt(envelope.toString())) }
+        val values = android.content.ContentValues().apply { put("payload", codec.encrypt(envelope.toString())); putNull("payload_file") }
         outbox.writableDatabase.update("events", values, "id = ?", arrayOf(event.eventId))
         assertThrows(org.json.JSONException::class.java) { outbox.beginAttempt(event.eventId) }
     }
@@ -165,7 +282,7 @@ class OutboxTest {
         outbox = Outbox(context, codec)
         assertEquals(original.text, JSONObject(outbox.beginAttempt(original.eventId)!!.request.json).getString("text"))
         assertTrue(outbox.enqueue(event(), settings))
-        assertEquals(3, outbox.readableDatabase.version)
+        assertEquals(4, outbox.readableDatabase.version)
     }
 
     @Test fun `version two migration preserves queued payloads and old exact history`() {
@@ -185,7 +302,7 @@ class OutboxTest {
         val fresh = original.copy(eventId = "fresh", occurredAt = "2026-09-09T10:01:00Z")
         assertTrue(outbox.enqueue(fresh, settings))
         assertFalse(outbox.enqueue(fresh.copy(eventId = "fresh-duplicate", occurredAt = "2026-09-09T10:01:00.500Z"), settings))
-        assertEquals(3, outbox.readableDatabase.version)
+        assertEquals(4, outbox.readableDatabase.version)
     }
 
     @Test fun `invalid acknowledgement blocks automatic delivery until manual retry`() {

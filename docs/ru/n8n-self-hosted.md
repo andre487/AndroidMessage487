@@ -2,6 +2,8 @@
 
 [English](../en/n8n-self-hosted.md) | [Русский](../ru/n8n-self-hosted.md)
 
+Для изображений и Telegram см. [пять уровней импортируемых примеров](n8n-examples.md). Эта инструкция начинается с уровня 1, без Telegram.
+
 Для установки на телефон см. [инструкцию по APK и ограничениям Android](apk-installation.md).
 
 Инструкция для Message487 0.0.2 и новее, с Bearer-авторизацией. Нужен доступ к редактору n8n и HTTPS-адрес,
@@ -26,19 +28,22 @@
 
 ## 1. Создайте принимающий workflow
 
-Быстрее всего импортировать [receive.json](../../DevServer/workflows/receive.json)
+Быстрее всего импортировать [01-webhook-text.json](../../examples/n8n/workflows/01-webhook-text.json)
 через **Import from File** в меню редактора n8n. Это готовый пример приёмника с
 проверкой базовых полей и подтверждением `event_id`. Импортируйте его как отдельный
 workflow; не заменяйте им рабочий сценарий с вашими действиями.
 
-В импортированном workflow уже соединены два узла:
+Импортированный workflow проверяет запрос перед подтверждением:
 
 ```mermaid
 flowchart LR
-    W[Webhook: POST] --> R[Respond to Webhook: JSON ACK]
+    W[Webhook: POST] --> V[Validate event]
+    V --> I{Valid event}
+    I -->|Yes| R[Respond: JSON ACK]
+    I -->|No| E[Reject: HTTP 400]
 ```
 
-Для ручной настройки создайте те же узлы. В узле **Webhook** установите:
+Минимальный ручной вариант без валидации состоит только из Webhook и Respond. В узле **Webhook** установите:
 
 | Поле | Значение |
 | --- | --- |
@@ -62,7 +67,7 @@ credential DevServer нельзя использовать на рабочем �
 
 Здесь `Webhook` — имя первого узла; при переименовании исправьте ссылку в выражении.
 Этот минимальный ручной пример подтверждает запрос без валидации. Импортированный
-`receive.json` дополнительно проверяет `schema_version`, `event_id`, `message_type`
+`01-webhook-text.json` дополнительно проверяет `schema_version`, `event_id`, `message_type`
 и `text` и возвращает HTTP 400 для некорректного тела.
 
 Клиент ждёт JSON-объект следующего вида, а не массив, строку с JSON или HTML:

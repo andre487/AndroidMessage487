@@ -39,7 +39,8 @@ class WebhookClientTest {
 
     @Test
     fun `HTTP transport sends event and validates confirmation`() = withServer { server ->
-        val event = MessageEvent(deviceId = "installation", deviceCode = "test-device", source = source)
+        val image = imageFixture("photo", width = 1, height = 1)
+        val event = MessageEvent(deviceId = "installation", deviceCode = "test-device", source = source, images = listOf(image))
         server.enqueue(MockResponse().setBody("""{"status":"accepted","event_id":"${event.eventId}"}"""))
         val result = WebhookClient().send(server.url("/receive").toString(), event, true, "test-token")
         assertEquals(DeliveryStatus.ACCEPTED, result.status)
@@ -55,6 +56,7 @@ class WebhookClientTest {
         assertEquals("example.source", body.getString("source"))
         assertEquals("Source app", body.getString("source_name"))
         assertEquals("test", body.getString("message_type"))
+        assertEquals(image.toJson().put("data_base64", imageBase64(image)).toString(), body.getJSONArray("images").getJSONObject(0).toString())
     }
 
     @Test

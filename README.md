@@ -13,8 +13,25 @@ Message487 connects selected Android notifications and incoming SMS to your n8n 
 A custom webhook is also supported. Telegram forwarding is one possible workflow; the Android
 app does not depend on Telegram.
 
-**Status:** development preview with notification/SMS capture, a persistent encrypted outbox,
+**Status:** development preview with notification/SMS capture, a persistent private outbox,
 background delivery, automatic retries and a delivery journal. Webhook requests require a Bearer token, stored encrypted on the device. Signed APK release automation is configured; see [Releases](docs/en/releases.md) and [release automation](docs/en/release-automation.md), and [release testing](docs/en/release-testing.md).
+
+## n8n workflow examples
+
+Choose an [English guide](docs/en/n8n-examples.md) or [инструкцию на русском](docs/ru/n8n-examples.md).
+Every workflow is self-contained, inactive on import and contains placeholders rather than personal data.
+
+| Level | Importable workflow |
+| --- | --- |
+| Text webhook, no Telegram | [01 · Webhook text](examples/n8n/workflows/01-webhook-text.json) |
+| Text + images webhook, no Telegram | [02 · Webhook images](examples/n8n/workflows/02-webhook-images.json) |
+| Telegram text | [03 · Telegram text](examples/n8n/workflows/03-telegram-text.json) |
+| Telegram images, built-in nodes | [04 · Telegram images standard](examples/n8n/workflows/04-telegram-images-standard.json) |
+| Telegram Rich Messages, all media + retry progress | [05 · Telegram advanced](examples/n8n/workflows/05-telegram-images-advanced.json) |
+
+Level 5 uses the MIT-licensed [N8nTelegramNode487](https://github.com/andre487/N8nTelegramNode487)
+and a Data Table; it includes an optional [sent-key cleanup workflow](examples/n8n/workflows/05-telegram-cleanup.json).
+Levels 1–4 require only built-in n8n nodes. Import instructions include synthetic payloads and setup steps.
 
 ## Getting started
 
@@ -60,7 +77,8 @@ forwards only the content the system exposes.
 
 **Skip duplicate SMS** and **Skip duplicate notifications** in **Sources** are independently
 enabled by default and share the time window. SMS and notifications are
-compared by source package and exact text (including whitespace), with original timestamps
+compared by source package, exact text (including whitespace) and an order-independent SHA-256
+checksum of the image collection (including image roles and repeated entries), with original timestamps
 inside the configured ± time window. Set the window in seconds in Sources; 0 requires exact timestamps.
 Titles and SMS senders are not part of this key. SMS uses the system source `android`.
 Messages outside the inclusive window count as new. Identical genuine messages inside it are also skipped. Turn the corresponding switch off
@@ -92,6 +110,46 @@ The JSON event carries `schema_version`, `event_id`, `device_id`, `device_code`,
 `source` is the originating package, with SMS using `android` for the system SMS broadcast.
 `source_name` is its PackageManager display label, falling back to the package when unavailable.
 Labels can change with language or app version; use `source` for matching rules.
+
+Notification image attachments are forwarded as an optional `images` array in the same JSON
+(`schema_version: 1`). Each image has `mime_type` (`image/jpeg` or `image/png`), `width`, `height`,
+`kind` (`attachment`, `avatar`, or `app_icon`), and `data_base64` (standard Base64 without a data-URL prefix). `presentation` (`big_picture`, `gallery`, or `file`) preserves the notification image presentation. Text-only events omit `images`.
+Choose JPEG or PNG in **Sources → Graphics**; defaults are JPEG and quality 80%.
+JPEG quality is adjustable from 0 to 100; PNG ignores that setting and preserves transparency.
+Transparent areas become white in JPEG. Settings changes apply only to new captures; queued
+images retain their original bytes across retries. The overview test button sends text only. **Connection → Test message** independently selects
+Big Picture, a two-image gallery, avatar and app icon. These test-only selections do not change
+notification capture settings; image format, quality and limits still apply. Avatar and app-icon
+test images use the Message487 logo.
+
+The app reads BigPicture content and image attachments in MessagingStyle. Avatars and app
+icons have independent switches in Sources, both off by default. When enabled, one latest
+available sender avatar (falling back to the notification large icon) and one source app icon
+are included, using the same format and quality. Image-only notifications can be forwarded.
+In **Sources → Graphics**, configure the attachment count, maximum side length, per-image size,
+and combined size before Base64. Defaults are 3 attachments, 1024 pixels, 256 KiB per image,
+and 512 KiB combined. The count excludes the optional avatar and app icon; all images share
+the size budget. Attachments prioritize the big picture and then the latest messaging images,
+with a stable content-hash tie-breaker. Duplicates within a role are removed before applying limits.
+Turn off **Limit images** to send all available attachments without output size limits or
+resizing. Saved limits are retained for re-enabling. Format conversion and JPEG quality still apply.
+Input decoding safeguards remain in both modes: content URI input is at most 8 MiB and decoded
+bitmaps at most 16 megapixels, with a lower working-memory ceiling on smaller heaps.
+EXIF rotations and mirrors are applied before encoding. URI inputs must be readable `content://` URIs;
+remote URLs and private file paths are not fetched. Unreadable/invalid images are skipped and
+reported as capture errors; available text and other readable images still proceed.
+Images are private files under `noBackupFilesDir`, without additional app-level encryption.
+The request description, text and token are AES-GCM encrypted in a separate file; SQLite holds
+queue metadata and a file reference. Base64 JSON is streamed over HTTP using chunked transfer
+for image-bearing events, so proxies must accept chunked request bodies. Retries keep the same
+files and bytes. Successful delivery or deletion removes the files; recovery cleans abandoned
+temporary files. Older database payloads migrate on their next attempt.
+Image capture has its own bounded queue and a 10-second deadline; queued tasks retain only
+notification metadata and fetch the current notification when processing starts. Superseded,
+expired or overflowed image jobs still forward available text. SMS uses a separate executor.
+The existing JSON webhook accepts the added field; downstream workflows must explicitly
+convert/process `images` to display or forward photos. Use the [importable example levels](docs/en/n8n-examples.md)
+for webhook binary files, standard Telegram images or Rich Messages with all attachments.
 
 The manifest declares launcher-app visibility rather than `QUERY_ALL_PACKAGES`. The app requests
 notification listener access and `RECEIVE_SMS` only for the features you enable. It does not request

@@ -1,0 +1,53 @@
+{
+  "schema_version": 1,
+  "event_id": "example-images-001",
+  "device_id": "example-installation",
+  "device_code": "example-phone",
+  "message_type": "test",
+  "occurred_at": "2026-01-01T12:00:00Z",
+  "source": "org.example.demo",
+  "source_name": "Example App",
+  "text": "Synthetic connection test",
+  "images": [
+    {
+      "mime_type": "image/png",
+      "width": 64,
+      "height": 48,
+      "kind": "attachment",
+      "presentation": "big_picture",
+      "data_base64": "iVBORw0KGgoAAAANSUhEUgAAAEAAAAAwCAIAAAAuKetIAAAAZElEQVR4nO3PUQkAIBTAwFfIQuY0oCH8OITBAtxm7fN1wwUNaEEDWtCAFjSgBQ1oQQNa0IAWNKAFDWhBA1rQgBY0oAUNaEEDWtCAFjSgBQ1oQQNa0IAWNKAFDWhBA1rQgBY8dgHYLcTT/pYwuAAAAABJRU5ErkJggg=="
+    },
+    {
+      "mime_type": "image/png",
+      "width": 64,
+      "height": 48,
+      "kind": "attachment",
+      "presentation": "gallery",
+      "data_base64": "iVBORw0KGgoAAAANSUhEUgAAAEAAAAAwCAIAAAAuKetIAAAAZElEQVR4nO3PUQkAIBTAwBfHTGYytCH8OITBAtxmnf11wwUNaEEDWtCAFjSgBQ1oQQNa0IAWNKAFDWhBA1rQgBY0oAUNaEEDWtCAFjSgBQ1oQQNa0IAWNKAFDWhBA1rQgBY8dgH3xqi1qhsK/AAAAABJRU5ErkJggg=="
+    },
+    {
+      "mime_type": "image/png",
+      "width": 64,
+      "height": 48,
+      "kind": "attachment",
+      "presentation": "gallery",
+      "data_base64": "iVBORw0KGgoAAAANSUhEUgAAAEAAAAAwCAIAAAAuKetIAAAAY0lEQVR4nO3PwQkAIBDAsBvMOX07qkP4CEKhA6Sz1/m64YIGtKABLWhACxrQgga0oAEtaEALGtCCBrSgAS1oQAsa0IIGtKABLWhACxrQgga0oAEtaEALGtCCBrSgAS1oQAseu1BuWQARb1GyAAAAAElFTkSuQmCC"
+    },
+    {
+      "mime_type": "image/png",
+      "width": 64,
+      "height": 48,
+      "kind": "avatar",
+      "presentation": "file",
+      "data_base64": "iVBORw0KGgoAAAANSUhEUgAAAEAAAAAwCAIAAAAuKetIAAAAZElEQVR4nO3PUQkAIBTAwJfE2EY0hyH8OITBAtzm7PV1wwUNaEEDWtCAFjSgBQ1oQQNa0IAWNKAFDWhBA1rQgBY0oAUNaEEDWtCAFjSgBQ1oQQNa0IAWNKAFDWhBA1rQgBY8dgEmBTkeIEIIeQAAAABJRU5ErkJggg=="
+    },
+    {
+      "mime_type": "image/png",
+      "width": 64,
+      "height": 48,
+      "kind": "app_icon",
+      "presentation": "file",
+      "data_base64": "iVBORw0KGgoAAAANSUhEUgAAAEAAAAAwCAIAAAAuKetIAAAAZElEQVR4nO3PUQkAIBTAwBfHxGYyliH8OITBAtxm7fN1wwUNaEEDWtCAFjSgBQ1oQQNa0IAWNKAFDWhBA1rQgBY0oAUNaEEDWtCAFjSgBQ1oQQNa0IAWNKAFDWhBA1rQgBY8dgHGfkkPFymGhQAAAABJRU5ErkJggg=="
+    }
+  ]
+}

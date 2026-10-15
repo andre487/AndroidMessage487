@@ -121,6 +121,39 @@ internal fun SourcesScreen(settings: ForwardingSettings, permissions: Permission
             }
         }
         item {
+            Panel {
+                Text(stringResource(R.string.notification_images), style = MaterialTheme.typography.titleMedium)
+                SupportingText(stringResource(R.string.notification_images_hint))
+                Row(horizontalArrangement = Arrangement.spacedBy(12.dp)) {
+                    NotificationImageFormat.entries.forEach { format ->
+                        FilterChip(selected = settings.imageFormat == format, enabled = !busy,
+                            onClick = { model.imageFormat(format) }, label = { Text(format.name) })
+                    }
+                }
+                var quality by remember(settings.imageQuality) { mutableFloatStateOf(settings.imageQuality.toFloat()) }
+                Text(stringResource(R.string.image_quality, quality.toInt()))
+                Slider(value = quality, onValueChange = { quality = it },
+                    onValueChangeFinished = { model.imageQuality(quality.toInt()) }, valueRange = 0f..100f, steps = 99,
+                    enabled = !busy && settings.imageFormat == NotificationImageFormat.JPEG,
+                    modifier = Modifier.switchLabel(stringResource(R.string.image_quality_label)))
+                if (settings.imageFormat == NotificationImageFormat.PNG) SupportingText(stringResource(R.string.png_quality_hint))
+                HorizontalDivider()
+                SourceSwitch(Icons.Outlined.Person, R.string.forward_avatars, R.string.forward_avatars_hint,
+                    settings.forwardAvatars, !busy, model::forwardAvatars)
+                SourceSwitch(Icons.Outlined.Apps, R.string.forward_app_icons, R.string.forward_app_icons_hint,
+                    settings.forwardAppIcons, !busy, model::forwardAppIcons)
+                HorizontalDivider()
+                SourceSwitch(Icons.Outlined.Image, R.string.image_limits_enabled, R.string.image_limits_hint,
+                    settings.imageLimitsEnabled, !busy, model::imageLimits)
+                if (settings.imageLimitsEnabled) {
+                    ImageLimitField(R.string.image_max_count, settings.imageMaxCount, !busy, model::imageMaxCount)
+                    ImageLimitField(R.string.image_max_edge, settings.imageMaxEdge, !busy, model::imageMaxEdge)
+                    ImageLimitField(R.string.image_max_kib, settings.imageMaxKiB, !busy, model::imageMaxKiB)
+                    ImageLimitField(R.string.image_total_kib, settings.imageTotalKiB, !busy, model::imageTotalKiB)
+                }
+            }
+        }
+        item {
             SectionTitle(stringResource(R.string.selected_apps, settings.packages.size), stringResource(R.string.add_package)) { addPackage = true }
             SupportingText(stringResource(R.string.app_selection_short))
             SourceSwitch(Icons.Outlined.Apps, R.string.auto_select_new_apps, R.string.auto_select_new_apps_hint,
@@ -203,4 +236,17 @@ private fun SourceSwitch(icon: ImageVector, title: Int, hint: Int, checked: Bool
         }
         SupportingText(stringResource(hint))
     }
+}
+
+@Composable
+private fun ImageLimitField(label: Int, value: Int, enabled: Boolean, onChange: (Int) -> Unit) {
+    var text by remember(value) { mutableStateOf(value.toString()) }
+    OutlinedTextField(value = text, onValueChange = { input ->
+        text = input
+        input.toIntOrNull()?.takeIf { it > 0 }?.let(onChange)
+    }, label = { Text(stringResource(label)) },
+        isError = text.toIntOrNull()?.let { it > 0 } != true,
+        enabled = enabled, singleLine = true, modifier = Modifier.fillMaxWidth(),
+        keyboardOptions = androidx.compose.foundation.text.KeyboardOptions(
+            keyboardType = androidx.compose.ui.text.input.KeyboardType.Number))
 }

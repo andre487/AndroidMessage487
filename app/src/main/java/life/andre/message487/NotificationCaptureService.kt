@@ -13,6 +13,7 @@ data class CapturedNotification(
     val title: String,
     val text: String,
     val postedAt: Long,
+    val images: List<NotificationImage> = emptyList(),
 )
 
 object ListenerState {
@@ -42,7 +43,8 @@ class NotificationCaptureService : NotificationListenerService() {
 
     override fun onNotificationPosted(sbn: StatusBarNotification) {
         val graph = MessageGraph.get(this)
-        if (!graph.settings.state.value.acceptsPackage(sbn.packageName, packageName)) return
+        val config = graph.settings.state.value
+        if (!config.acceptsPackage(sbn.packageName, packageName)) return
         if (!sbn.isClearable || sbn.notification.flags and Notification.FLAG_GROUP_SUMMARY != 0) return
         try {
             val extras = sbn.notification.extras
@@ -51,11 +53,35 @@ class NotificationCaptureService : NotificationListenerService() {
                 ?: extras.getCharSequence(Notification.EXTRA_TEXT)?.toString()
                 ?: extras.getCharSequenceArray(Notification.EXTRA_TEXT_LINES)?.joinToString("\n")
                 ?: ""
-            if (title.isBlank() && text.isBlank()) return
             val captured = CapturedNotification(sbn.key, sbn.packageName, title, text, sbn.postTime)
-            graph.captureExecutor.execute {
-                try { graph.captureNotification(captured) } catch (error: Exception) { graph.captureFailed(error) }
+            val hasImages = config.forwardAvatars || config.forwardAppIcons || extras.containsKey(Notification.EXTRA_PICTURE) ||
+                extras.containsKey(Notification.EXTRA_MESSAGES) ||
+                (android.os.Build.VERSION.SDK_INT >= 31 && extras.containsKey(Notification.EXTRA_PICTURE_ICON))
+            if (!hasImages) {
+                if (title.isNotBlank() || text.isNotBlank()) graph.captureExecutor.execute {
+                    try { graph.captureNotification(captured) } catch (error: Exception) { graph.captureFailed(error) }
+                }
+                return
             }
+            graph.imageCaptureQueue.submit(captured.key,
+                capture = { cancellation ->
+                    if (!graph.settings.state.value.acceptsPackage(captured.packageName, packageName)) emptyList()
+                    else {
+                        val current = getActiveNotifications(arrayOf(captured.key)).firstOrNull()
+                        if (current == null || current.postTime != captured.postedAt) emptyList()
+                        else notificationImages(this, current.notification, config, captured.packageName, cancellation) { graph.captureFailed(it) }
+                    }
+                }, complete = { images ->
+                    if (title.isNotBlank() || text.isNotBlank() || images.isNotEmpty()) {
+                        if (images.isEmpty()) graph.captureExecutor.execute {
+                            try { graph.captureNotification(captured) } catch (error: Exception) { graph.captureFailed(error) }
+                        } else {
+                            try { graph.captureNotification(captured.copy(images = images)) }
+                            catch (error: Exception) { graph.captureFailed(error) }
+                        }
+                    }
+                }, onFailure = graph::captureFailed)
+
         } catch (error: Exception) { graph.captureFailed(error) }
     }
 

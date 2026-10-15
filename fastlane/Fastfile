@@ -34,8 +34,9 @@ platform :android do
   lane :python_checks do
     python = ENV.fetch("PYTHON", "python3")
     Dir.chdir(project_root) do
-      sh(python, "-m", "isort", "--check-only", "DevServer/tests", "scripts/release_automation.py", "scripts/tests")
-      sh(python, "-m", "black", "--check", "DevServer/tests", "scripts/release_automation.py", "scripts/tests")
+      sh(python, "-m", "isort", "--check-only", "DevServer/tests", "scripts/release_automation.py", "scripts/generate_n8n_examples.py", "scripts/tests")
+      sh(python, "-m", "black", "--check", "DevServer/tests", "scripts/release_automation.py", "scripts/generate_n8n_examples.py", "scripts/tests")
+      sh(python, "scripts/generate_n8n_examples.py", "--check")
       FileUtils.rm_rf("test-results/python")
       sh(python, "-m", "xmlrunner", "discover", "-s", "DevServer/tests", "-o", "test-results/python/dev-server")
       sh(python, "-m", "xmlrunner", "discover", "-s", "scripts/tests", "-o", "test-results/python/scripts")
@@ -47,7 +48,7 @@ platform :android do
     Dir.chdir(project_root) do
       FileUtils.rm_rf("test-results/server")
       FileUtils.mkdir_p("test-results/server")
-      sh("docker compose -f DevServer/compose.yaml exec -T n8n node --test --test-reporter=junit /bootstrap/tests/telegram-format.test.cjs > test-results/server/telegram.xml")
+      sh("docker compose -f DevServer/compose.yaml exec -T n8n node --test --test-reporter=junit /bootstrap/tests/telegram-format.test.cjs /bootstrap/tests/telegram-images.test.cjs /bootstrap/tests/n8n-examples.test.cjs > test-results/server/telegram.xml")
       sh(ENV.fetch("PYTHON", "python3"), "-m", "xmlrunner", "discover", "-s", "DevServer/tests", "-p", "smoke.py", "-o", "test-results/server")
     end
   end

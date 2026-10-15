@@ -1,0 +1,175 @@
+{
+  "name": "Message487 · 02 · Webhook images",
+  "active": false,
+  "nodes": [
+    {
+      "id": "3c2a4ea6-a0fd-55ad-892d-7ebcfd0369c4",
+      "name": "Webhook",
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 2.1,
+      "position": [
+        0,
+        0
+      ],
+      "parameters": {
+        "httpMethod": "POST",
+        "path": "message487/02-webhook-images",
+        "authentication": "headerAuth",
+        "responseMode": "responseNode",
+        "options": {}
+      },
+      "webhookId": "35f4b9d4-387d-5aec-b10d-7e56171c46f1"
+    },
+    {
+      "id": "2fba2d67-8054-5b2e-9b0d-e986f7842696",
+      "name": "Validate event",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        220,
+        0
+      ],
+      "parameters": {
+        "jsCode": "const processImages = true;\nconst event = $('Webhook').first().json.body;\nlet reason = '';\nif (!event || event.schema_version !== 1 || typeof event.event_id !== 'string' ||\n    !event.event_id || !['test', 'notification', 'sms'].includes(event.message_type) ||\n    typeof event.text !== 'string') reason = 'Invalid Message487 event';\nconst images = event?.images ?? [];\nif (!Array.isArray(images)) reason = 'images must be an array';\nelse if (processImages && images.some(image => !image || !['image/jpeg', 'image/png'].includes(image.mime_type) ||\n    !Number.isInteger(image.width) || image.width <= 0 || !Number.isInteger(image.height) || image.height <= 0 ||\n    typeof image.data_base64 !== 'string' || !image.data_base64.length ||\n    image.data_base64.length % 4 !== 0 || !/^[A-Za-z0-9+/]*={0,2}$/.test(image.data_base64))) {\n  reason = 'Invalid JPEG/PNG image';\n}\nreturn [{ json: { valid: !reason, reason, event_id: event?.event_id ?? null } }];\n"
+      }
+    },
+    {
+      "id": "c57e4445-4585-5ae7-81b2-5a21aff9039a",
+      "name": "Valid event",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2.2,
+      "position": [
+        440,
+        0
+      ],
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "strict",
+            "version": 2
+          },
+          "conditions": [
+            {
+              "id": "ad1abe2e-40cb-5729-b1e2-5ab82f4422e0",
+              "leftValue": "={{ $json.valid }}",
+              "rightValue": true,
+              "operator": {
+                "type": "boolean",
+                "operation": "true",
+                "singleValue": true
+              }
+            }
+          ],
+          "combinator": "and"
+        },
+        "options": {}
+      }
+    },
+    {
+      "id": "b427fcc9-ee8b-5648-954e-06e4df3363b4",
+      "name": "Reject",
+      "type": "n8n-nodes-base.respondToWebhook",
+      "typeVersion": 1.4,
+      "position": [
+        640,
+        300
+      ],
+      "parameters": {
+        "respondWith": "json",
+        "responseBody": "={{ { status: \"rejected\", event_id: $json.event_id, reason: $json.reason } }}",
+        "options": {
+          "responseCode": 400
+        }
+      }
+    },
+    {
+      "id": "2379636e-be7e-5c90-8784-4fa4e92f3709",
+      "name": "Read images",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        640,
+        0
+      ],
+      "parameters": {
+        "jsCode": "// The previous validation node checks image metadata and Base64 before this step.\nconst event = $('Webhook').first().json.body;\nconst binary = {};\nconst images = (event.images ?? []).map((image, index) => {\n  const { data_base64, ...metadata } = image;\n  binary[`image${index}`] = { data: data_base64, mimeType: image.mime_type,\n    fileName: `${['avatar', 'app_icon'].includes(image.kind) ? image.kind : 'attachment'}-${index + 1}.${image.mime_type === 'image/png' ? 'png' : 'jpg'}` };\n  return metadata;\n});\nreturn [{ json: { ...event, images, image_count: images.length }, binary }];\n"
+      }
+    },
+    {
+      "id": "87c32929-f9c2-5d03-8d5c-47037a71ed3a",
+      "name": "Respond",
+      "type": "n8n-nodes-base.respondToWebhook",
+      "typeVersion": 1.4,
+      "position": [
+        880,
+        -200
+      ],
+      "parameters": {
+        "respondWith": "json",
+        "responseBody": "={{ { status: 'accepted', event_id: $('Webhook').first().json.body.event_id } }}",
+        "options": {
+          "responseCode": 200
+        }
+      }
+    }
+  ],
+  "connections": {
+    "Webhook": {
+      "main": [
+        [
+          {
+            "node": "Validate event",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Validate event": {
+      "main": [
+        [
+          {
+            "node": "Valid event",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Valid event": {
+      "main": [
+        [
+          {
+            "node": "Read images",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Reject",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Read images": {
+      "main": [
+        [
+          {
+            "node": "Respond",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "settings": {
+    "executionOrder": "v1",
+    "timezone": "UTC"
+  }
+}

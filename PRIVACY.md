@@ -15,28 +15,32 @@ The app does not read existing SMS history, send SMS, or reply to notifications.
 
 The app stores your webhook URL, editable device code, confirmation preference, enabled sources,
 selected and previously detected package names, the automatic-selection preference, duplicate-filter
-preference, pause state and a random installation ID in private preferences. These
+preference, pause state, notification image format/quality and limits, avatar/app-icon forwarding preferences and a random installation ID in private preferences. These
 preferences do not have additional application-level encryption. A webhook URL may itself contain
 a secret, so treat it as sensitive. Android cloud backup and device transfer are disabled for app data.
 
 The webhook Bearer token is encrypted with AES-GCM and an Android Keystore key before
 being saved in preferences. It is sent in the Authorization header to your configured endpoint.
 
-Captured event bodies, including message text, notification titles and SMS senders, are stored in
-a private SQLite outbox encrypted with AES-GCM and a key held in Android Keystore. Each queued
-request includes its original destination, encrypted authentication token and confirmation mode. Delivery metadata (event ID,
-source display name, type, timestamps, state, attempt count and HTTP result) is stored without
-additional application-level encryption. Message duplicate detection stores SHA-256 hashes of source package and text together with original event timestamps
+Message text, notification titles, SMS senders and the queued request description (including
+its original destination, authentication token and confirmation mode) are stored in private files
+encrypted with AES-GCM and an Android Keystore key. Notification images are stored separately
+as JPEG/PNG files in private internal storage without additional application-level encryption;
+Android storage isolation and device encryption apply. These files are under `noBackupFilesDir`
+and are not exposed by the app’s FileProvider or added to the media gallery. Temporary image
+files have the same storage protection. Older encrypted database payloads migrate to this layout
+on their next delivery attempt. SQLite stores delivery metadata (event ID, source display name,
+type, timestamps, state, attempt count and HTTP result) and a private file reference without
+additional application-level encryption. Message duplicate detection stores SHA-256 hashes of source package, text and an order-independent SHA-256 checksum of encoded image content, roles and presentation, together with original event timestamps
 (and retains hashes from the older exact-timestamp filter),
 including when filtering is disabled. These hashes remain after delivery or journal deletion until
 app data is cleared or the app is uninstalled. They are not a substitute for encryption against
 guesses of known content.
 
-The journal shows delivery metadata and does not display message contents. Confirmed events have
-their encrypted payload removed from the active database record; only recent delivery metadata is
-retained. Undelivered payloads are not automatically deleted by age. Database deletion is logical
-and does not guarantee forensic erasure of previously allocated storage.
-Message bodies and server response bodies are not written to diagnostic logs by the app.
+The journal shows delivery metadata and does not display message contents or image previews. Confirmed events have
+their request and image files removed; only recent delivery metadata is retained. Undelivered payloads are not automatically deleted by age. Abandoned temporary files are cleaned during recovery after a grace period. File and database
+deletion do not guarantee forensic erasure of previously allocated storage.
+Message bodies, image data and server response bodies are not written to diagnostic logs by the app.
 
 ## Diagnostics and voluntary email reports
 
@@ -65,8 +69,15 @@ copies held by your email provider remain subject to that provider's retention p
 
 Your selected endpoint receives event text, an event ID, installation ID, device code, timestamp,
 schema version, event type, source package identifier and source display name. Notifications add
-a title; SMS add the sender address. Manual connection tests send synthetic content through the
-same queue. Android may redact notification content before giving it to the app.
+a title and available image attachments, encoded as JPEG or PNG in Base64; SMS add the sender address.
+Image format and JPEG quality are configurable in Sources (default JPEG, quality 80%).
+Avatars and source app icons are sent only when their separate switches in Sources are enabled
+(both off by default). The avatar is the latest available sender avatar or notification large icon.
+Output size, dimensions and attachment count are configurable in Sources → Graphics;
+limits are enabled by default and can be disabled. Input decoding safeguards remain active.
+Images may be resized to fit enabled limits. Unreadable images
+are skipped with a local capture error. Manual connection tests send synthetic content and, when avatar/app-icon forwarding is enabled,
+the Message487 logo through the same queue. Android may redact notification content before giving it to the app.
 
 The endpoint operator can also see connection metadata such as your IP address. The endpoint and
 any downstream services process data under their own policies. An n8n instance may retain complete

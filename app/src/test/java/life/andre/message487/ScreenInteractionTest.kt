@@ -55,6 +55,7 @@ class ScreenInteractionTest {
 
     @After fun close() {
         application.graph.captureExecutor.shutdownNow()
+        application.graph.imageCaptureQueue.close()
         application.diagnostics.close()
     }
 
@@ -163,6 +164,86 @@ class ScreenInteractionTest {
         compose.waitUntil(10_000) { node(R.string.clear_log).isEnabled() }
         assertFalse(java.io.File(application.filesDir, "logs/crash-latest.log").exists())
         assertTrue(application.diagnostics.readTail().contains(DiagnosticEvent.LOG_CLEARED.name))
+    }
+
+    @Test fun `connection test switches are independent from notification capture settings`() {
+        node(R.string.connection_nav).performClick()
+        val list = compose.onNode(hasScrollToIndexAction())
+        for (title in listOf(R.string.test_big_picture, R.string.test_gallery,
+                R.string.test_avatar, R.string.test_app_icon)) {
+            list.performScrollToNode(hasText(application.getString(title)))
+            node(title).assertIsOff().performClick().assertIsOn()
+        }
+        assertEquals(TestMessageOptions(true, true, true, true), model.state.value.testOptions)
+        assertFalse(application.graph.settings.state.value.forwardAvatars)
+        assertFalse(application.graph.settings.state.value.forwardAppIcons)
+        list.performScrollToNode(hasText(application.getString(R.string.test_avatar)))
+        node(R.string.test_avatar).performClick().assertIsOff()
+        assertFalse(model.state.value.testOptions.avatar)
+        assertTrue(model.state.value.testOptions.appIcon)
+        node(R.string.send_test).performScrollTo().assertExists()
+    }
+
+    @Test fun `image format and JPEG quality can be configured from sources`() {
+        compose.onNode(hasText(application.getString(R.string.sources_tab)) and hasClickAction()).performClick()
+        compose.onNode(hasScrollToNodeAction()).performScrollToNode(hasText(application.getString(R.string.notification_images)))
+        compose.onNodeWithText("JPEG").assertIsSelected()
+        icon(R.string.image_quality_label).performScrollTo().performSemanticsAction(
+            androidx.compose.ui.semantics.SemanticsActions.SetProgress) { it(35f) }
+        compose.waitUntil(10_000) { compose.waitForIdle(); !model.state.value.busy }
+        assertEquals(35, SettingsStore(application).state.value.imageQuality)
+        compose.onNodeWithText("PNG").performScrollTo().performClick()
+        compose.waitUntil(10_000) { compose.waitForIdle(); !model.state.value.busy }
+        assertEquals(NotificationImageFormat.PNG, SettingsStore(application).state.value.imageFormat)
+        icon(R.string.image_quality_label).performScrollTo().assertIsNotEnabled()
+        compose.onNodeWithText("JPEG").performScrollTo().performClick()
+        compose.waitUntil(10_000) { compose.waitForIdle(); !model.state.value.busy }
+        assertEquals(35, SettingsStore(application).state.value.imageQuality)
+        icon(R.string.image_quality_label).performScrollTo().assertIsEnabled()
+    }
+
+    @Test fun `graphics limits can be changed and disabled without losing values`() {
+        compose.onNode(hasText(application.getString(R.string.sources_tab)) and hasClickAction()).performClick()
+        compose.onNode(hasScrollToNodeAction()).performScrollToNode(
+            hasContentDescription(application.getString(R.string.image_limits_enabled)))
+        icon(R.string.image_limits_enabled).performScrollTo().assertIsOn()
+        node(R.string.image_max_count).performScrollTo().performTextReplacement("7")
+        compose.waitUntil(10_000) { compose.waitForIdle(); !model.state.value.busy }
+        assertEquals(7, SettingsStore(application).state.value.imageMaxCount)
+        node(R.string.image_max_edge).performScrollTo().performTextReplacement("2048")
+        compose.waitUntil(10_000) { compose.waitForIdle(); !model.state.value.busy }
+        assertEquals(2048, SettingsStore(application).state.value.imageMaxEdge)
+        node(R.string.image_max_kib).performScrollTo().performTextReplacement("1024")
+        compose.waitUntil(10_000) { compose.waitForIdle(); !model.state.value.busy }
+        assertEquals(1024, SettingsStore(application).state.value.imageMaxKiB)
+        node(R.string.image_total_kib).performScrollTo().performTextReplacement("4096")
+        compose.waitUntil(10_000) { compose.waitForIdle(); !model.state.value.busy }
+        assertEquals(4096, SettingsStore(application).state.value.imageTotalKiB)
+        icon(R.string.image_limits_enabled).performScrollTo().performClick()
+        compose.waitUntil(10_000) { compose.waitForIdle(); !model.state.value.busy }
+        assertFalse(SettingsStore(application).state.value.imageLimitsEnabled)
+        node(R.string.image_max_count).assertDoesNotExist()
+        icon(R.string.image_limits_enabled).performClick()
+        compose.waitUntil(10_000) { compose.waitForIdle(); !model.state.value.busy }
+        node(R.string.image_max_count).performScrollTo()
+        compose.onNode(hasSetTextAction() and hasText("7")).assertExists()
+    }
+
+    @Test fun `avatar and app icon switches are independent and off by default`() {
+        compose.onNode(hasText(application.getString(R.string.sources_tab)) and hasClickAction()).performClick()
+        compose.onNode(hasScrollToNodeAction()).performScrollToNode(
+            hasContentDescription(application.getString(R.string.forward_avatars)))
+        icon(R.string.forward_avatars).performScrollTo().assertIsOff().performClick()
+        compose.waitUntil(10_000) { compose.waitForIdle(); !model.state.value.busy }
+        assertTrue(SettingsStore(application).state.value.forwardAvatars)
+        assertFalse(SettingsStore(application).state.value.forwardAppIcons)
+        icon(R.string.forward_app_icons).performScrollTo().assertIsOff().performClick()
+        compose.waitUntil(10_000) { compose.waitForIdle(); !model.state.value.busy }
+        assertTrue(SettingsStore(application).state.value.forwardAppIcons)
+        icon(R.string.forward_avatars).performScrollTo().assertIsOn().performClick()
+        compose.waitUntil(10_000) { compose.waitForIdle(); !model.state.value.busy }
+        assertFalse(SettingsStore(application).state.value.forwardAvatars)
+        assertTrue(SettingsStore(application).state.value.forwardAppIcons)
     }
 
     @Test fun `auto select switch preserves existing choices and selects newly discovered launcher apps`() {
