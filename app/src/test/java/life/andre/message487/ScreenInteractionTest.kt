@@ -165,6 +165,33 @@ class ScreenInteractionTest {
         assertTrue(application.diagnostics.readTail().contains(DiagnosticEvent.LOG_CLEARED.name))
     }
 
+    @Test fun `auto select switch preserves existing choices and selects newly discovered launcher apps`() {
+        compose.waitUntil(10_000) { model.apps.value.size == 2 }
+        compose.onNode(hasText(application.getString(R.string.sources_tab)) and hasClickAction()).performClick()
+        compose.onNode(hasScrollToNodeAction()).performScrollToNode(
+            hasContentDescription(application.getString(R.string.auto_select_new_apps)))
+        icon(R.string.auto_select_new_apps).performScrollTo().assertIsOff().performClick()
+        compose.waitUntil(10_000) { compose.waitForIdle(); !model.state.value.busy }
+        assertTrue(SettingsStore(application).state.value.autoSelectNewApps)
+        assertTrue(model.settings.value.packages.isEmpty())
+        val intent = android.content.Intent(android.content.Intent.ACTION_MAIN).addCategory(android.content.Intent.CATEGORY_LAUNCHER)
+        val info = android.content.pm.ResolveInfo().apply {
+            activityInfo = android.content.pm.ActivityInfo().apply { packageName = "example.new"; name = "example.new.MainActivity" }
+        }
+        org.robolectric.Shadows.shadowOf(application.packageManager).addResolveInfoForIntent(intent, info)
+        compose.runOnIdle { model.refreshPermissions() }
+        compose.waitUntil(10_000) { compose.waitForIdle(); model.apps.value.any { it.packageName == "example.new" } }
+        assertEquals(setOf("example.new"), model.settings.value.packages)
+        compose.runOnIdle { model.selectPackage("example.new", false) }
+        compose.waitUntil(10_000) { compose.waitForIdle(); !model.state.value.busy }
+        compose.runOnIdle { model.refreshPermissions() }
+        compose.waitForIdle()
+        assertTrue(model.settings.value.packages.isEmpty())
+        icon(R.string.auto_select_new_apps).performScrollTo().assertIsOn().performClick()
+        compose.waitUntil(10_000) { compose.waitForIdle(); !model.state.value.busy }
+        assertFalse(SettingsStore(application).state.value.autoSelectNewApps)
+    }
+
     @Test fun `select all preserves manual packages excludes self and clear removes selection`() {
         compose.waitForIdle()
         assertSame(application.graph.settings.state, model.settings)

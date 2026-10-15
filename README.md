@@ -37,7 +37,9 @@ Guides: [Install from APK](docs/en/apk-installation.md) · [n8n Cloud](docs/en/n
 3. In **Sources**, enable notification forwarding, grant notification access in Android settings,
    and select applications. Add a package manually if it has no launcher icon.
    **Select all applications** selects the entire available list, regardless of the search filter;
-   manually added selections are preserved. Newly installed apps must be selected separately.
+   manually added selections are preserved. Newly installed apps must be selected separately unless
+   you enable **Automatically select new apps** (off by default). It selects newly detected launcher apps when you open or return to Message487,
+   preserving existing choices and manual exclusions. Apps without a launcher icon still require manual selection.
 4. Enable SMS forwarding separately and grant SMS permission. Only new incoming SMS are read;
    existing history is not imported. Multipart SMS are combined into one event.
 

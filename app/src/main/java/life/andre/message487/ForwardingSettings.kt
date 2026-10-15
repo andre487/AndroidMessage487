@@ -15,6 +15,8 @@ data class ForwardingSettings(
     val sms: Boolean = false,
     val paused: Boolean = false,
     val packages: Set<String> = emptySet(),
+    val autoSelectNewApps: Boolean = false,
+    internal val knownPackages: Set<String> = emptySet(),
     val captureFailed: Boolean = false,
     val authToken: String = "",
     val smsDeduplication: Boolean = true,
@@ -56,8 +58,22 @@ class SettingsStore(
         sms = preferences.getBoolean("sms", false),
         paused = preferences.getBoolean("paused", false),
         packages = preferences.getStringSet("packages", emptySet()).orEmpty().toSet(),
+        autoSelectNewApps = preferences.getBoolean("auto_select_new_apps", false),
+        knownPackages = preferences.getStringSet("known_packages", emptySet()).orEmpty().toSet(),
         captureFailed = preferences.getBoolean("capture_failed", false),
     )
+
+    @Synchronized
+    fun discoverPackages(packages: Set<String>, ownPackage: String) {
+        val discovered = packages - ownPackage
+        if (state.value.knownPackages.containsAll(discovered)) return
+        update {
+            it.copy(
+                knownPackages = it.knownPackages + discovered,
+                packages = if (it.autoSelectNewApps) it.packages + (discovered - it.knownPackages) else it.packages,
+            )
+        }
+    }
 
     @Synchronized
     fun update(transform: (ForwardingSettings) -> ForwardingSettings): ForwardingSettings {
@@ -78,6 +94,8 @@ class SettingsStore(
                 .putBoolean("notification_deduplication", next.notificationDeduplication)
                 .remove("deduplication")
                 .putInt("deduplication_window_seconds", next.deduplicationWindowSeconds)
+                .putBoolean("auto_select_new_apps", next.autoSelectNewApps)
+                .putStringSet("known_packages", next.knownPackages)
                 .putBoolean("paused", next.paused).putStringSet("packages", next.packages)
                 .putBoolean("capture_failed", next.captureFailed).commit()
         ) throw IOException("Could not save settings")

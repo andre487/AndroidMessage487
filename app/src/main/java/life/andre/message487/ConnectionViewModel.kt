@@ -49,6 +49,7 @@ class ConnectionViewModel(application: Application) : AndroidViewModel(applicati
     val permissions = mutablePermissions.asStateFlow()
     private val mutableApps = MutableStateFlow<List<AppSource>>(emptyList())
     val apps = mutableApps.asStateFlow()
+    private var refreshingApps = false
 
     init {
         refreshPermissions()
@@ -66,19 +67,41 @@ class ConnectionViewModel(application: Application) : AndroidViewModel(applicati
                 }
             }
         }
+    }
+
+    private fun installedApps(): List<AppSource> {
+        val application = getApplication<Application>()
+        val pm = application.packageManager
+        val intent = Intent(Intent.ACTION_MAIN).addCategory(Intent.CATEGORY_LAUNCHER)
+        @Suppress("DEPRECATION")
+        val packages = pm.queryIntentActivities(intent, 0).map { it.activityInfo.packageName }
+        return packages.distinct().filter { it != application.packageName }
+            .map { AppSourceResolver(pm).resolve(it) }.sortedBy { it.name.lowercase() }
+    }
+
+    private fun refreshApps() {
+        if (refreshingApps) return
+        refreshingApps = true
         viewModelScope.launch {
-            mutableApps.value = withContext(Dispatchers.IO) {
-                val pm = application.packageManager
-                val intent = Intent(Intent.ACTION_MAIN).addCategory(Intent.CATEGORY_LAUNCHER)
-                @Suppress("DEPRECATION")
-                val packages = pm.queryIntentActivities(intent, 0).map { it.activityInfo.packageName }
-                packages.distinct().filter { it != application.packageName }
-                    .map { AppSourceResolver(pm).resolve(it) }.sortedBy { it.name.lowercase() }
+            try {
+                mutableApps.value = withContext(Dispatchers.IO) {
+                    installedApps().also { apps ->
+                        graph.settings.discoverPackages(apps.map { it.packageName }.toSet(), getApplication<Application>().packageName)
+                    }
+                }
+            } catch (cancelled: kotlinx.coroutines.CancellationException) {
+                throw cancelled
+            } catch (error: Exception) {
+                graph.diagnostics.record(DiagnosticEvent.LOCAL_OPERATION_FAILED, error = error)
+                mutableState.value = state.value.copy(notice = R.string.local_error)
+            } finally {
+                refreshingApps = false
             }
         }
     }
 
     fun refreshPermissions() {
+        refreshApps()
         val app = getApplication<Application>()
         mutablePermissions.value = PermissionState(
             notifications = app.packageName in NotificationManagerCompat.getEnabledListenerPackages(app),
@@ -112,6 +135,12 @@ class ConnectionViewModel(application: Application) : AndroidViewModel(applicati
     fun smsDeduplication(enabled: Boolean) = action { graph.settings.update { it.copy(smsDeduplication = enabled) } }
     fun notificationDeduplication(enabled: Boolean) = action { graph.settings.update { it.copy(notificationDeduplication = enabled) } }
     fun sms(enabled: Boolean) = action { graph.settings.update { it.copy(sms = enabled) } }
+    fun autoSelectNewApps(enabled: Boolean) = action {
+        val baseline = if (enabled) installedApps().map { it.packageName }.toSet() else emptySet()
+        graph.settings.update {
+            it.copy(autoSelectNewApps = enabled, knownPackages = it.knownPackages + baseline)
+        }
+    }
     fun selectAllPackages() = action {
         val packages = apps.value.map { it.packageName }.toSet() - getApplication<Application>().packageName
         graph.settings.update { it.copy(packages = it.packages + packages) }
