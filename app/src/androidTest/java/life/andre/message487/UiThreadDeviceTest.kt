@@ -48,6 +48,49 @@ class UiThreadDeviceTest {
         }
     }
 
+    @Test fun initializationAndUpdateFailuresKeepIoAndDiagnosticsOffMainThread() {
+        val reads = java.util.concurrent.atomic.AtomicInteger()
+        val formatted = java.util.concurrent.CountDownLatch(1)
+        val formattedOnMain = java.util.concurrent.atomic.AtomicBoolean()
+        val failure = object : java.io.IOException("injected storage failure") {
+            override fun getStackTrace(): Array<StackTraceElement> {
+                formattedOnMain.set(android.os.Looper.myLooper() == android.os.Looper.getMainLooper())
+                formatted.countDown()
+                return super.getStackTrace()
+            }
+        }
+        compose.runOnUiThread {
+            previousPolicy = StrictMode.getThreadPolicy()
+            StrictMode.setThreadPolicy(StrictMode.ThreadPolicy.Builder()
+                .detectDiskReads().detectDiskWrites().detectNetwork().penaltyDeath().build())
+            model = ConnectionViewModel(app) {
+                check(android.os.Looper.myLooper() != android.os.Looper.getMainLooper())
+                // Real disk I/O on both the failing read and its successful retry.
+                java.io.File(app.cacheDir, "settings-read-probe").writeText("probe")
+                if (reads.incrementAndGet() == 1) throw failure
+                app.graph.settings.load()
+            }
+            app.reportLocalFailure(failure)
+        }
+        compose.setContent { MessageTheme { MessageScreen(model) } }
+        compose.waitUntil(10_000) { model.state.value.initializationFailed && !model.state.value.busy }
+        node(R.string.retry).performClick()
+        compose.waitUntil(10_000) { !model.state.value.initializationFailed && !model.state.value.busy }
+        assertEquals(2, reads.get())
+        assertTrue(formatted.await(3, java.util.concurrent.TimeUnit.SECONDS))
+        assertFalse(formattedOnMain.get())
+        kotlinx.coroutines.runBlocking {
+            kotlinx.coroutines.withContext(kotlinx.coroutines.Dispatchers.Main) {
+                var failed = false
+                try {
+                    // Creates/cleans a real temporary APK, then fails before any network request.
+                    AppUpdates(app).download(AppUpdate(UpdateSource.GITHUB, "99.0.0"))
+                } catch (_: IllegalArgumentException) { failed = true }
+                assertTrue(failed)
+            }
+        }
+    }
+
     @Test fun navigateEditAndRefreshWithoutMainThreadIo() {
         show()
         node(R.string.connection_nav).performClick()
@@ -56,8 +99,15 @@ class UiThreadDeviceTest {
         compose.onNode(hasText(app.getString(R.string.sources_tab)) and hasClickAction()).performClick()
         compose.onNode(hasScrollToNodeAction()).performScrollToNode(hasText(app.getString(R.string.image_max_edge)))
         node(R.string.image_max_edge).performScrollTo().performTextReplacement("2")
+        compose.waitUntil(10_000) {
+            compose.waitForIdle()
+            model.settings.value.imageMaxEdge == 2 && !model.state.value.busy
+        }
         node(R.string.image_max_edge).performTextInput("048")
-        compose.waitUntil(10_000) { model.settings.value.imageMaxEdge == 2048 }
+        compose.waitUntil(10_000) {
+            compose.waitForIdle()
+            model.settings.value.imageMaxEdge == 2048 && !model.state.value.busy
+        }
         node(R.string.image_max_edge).assertIsEnabled()
         icon(R.string.back).performClick()
         node(R.string.journal).performClick()
@@ -69,7 +119,12 @@ class UiThreadDeviceTest {
         node(R.string.update_github).performScrollTo().performClick()
         compose.waitUntil(10_000) { AppUpdates(app).source() == UpdateSource.GITHUB }
         node(R.string.update_automatic).performScrollTo()
-        compose.onNodeWithContentDescription(app.getString(R.string.update_automatic)).performClick()
+        // The preference write can finish before the ViewModel clears busy on the main thread.
+        val automatic = hasContentDescription(app.getString(R.string.update_automatic))
+        compose.waitUntil(10_000) {
+            compose.onAllNodes(automatic and isEnabled()).fetchSemanticsNodes().isNotEmpty()
+        }
+        compose.onNode(automatic).assertIsOn().performClick()
         compose.waitUntil(10_000) { !UpdatePreferences(app).automatic }
         UpdatePreferences(app).detected(UpdateSource.GITHUB, AppUpdate(UpdateSource.GITHUB, "99.0.0"))
         // App settings, permission checks and the update dialog refresh on ON_RESUME.

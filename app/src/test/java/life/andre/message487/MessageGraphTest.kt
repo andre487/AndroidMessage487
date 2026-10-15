@@ -17,8 +17,9 @@ class MessageGraphTest {
         val app = RuntimeEnvironment.getApplication() as UiTestApplication
         // Queue requests without running delivery workers while inspecting payloads.
         val idle = java.util.concurrent.Executor { }
+        val tasks = java.util.concurrent.Executors.newSingleThreadExecutor()
         androidx.work.WorkManager.initialize(app, androidx.work.Configuration.Builder()
-            .setExecutor(idle).setTaskExecutor(idle).build())
+            .setExecutor(idle).setTaskExecutor(tasks).build())
         org.robolectric.Shadows.shadowOf(app.packageManager).setApplicationIcon(
             app.packageName, requireNotNull(app.getDrawable(app.applicationInfo.icon)))
         val graph = app.graph
@@ -64,7 +65,9 @@ class MessageGraphTest {
                 assertEquals(listOf("big_picture"), limited.map { it.presentation })
             } finally { discardImages(limited) }
         } finally {
+            tasks.shutdownNow()
             graph.captureExecutor.shutdownNow()
+            graph.smsExecutor.shutdownNow()
             graph.imageCaptureQueue.close()
             graph.outbox.close()
             app.diagnostics.close()

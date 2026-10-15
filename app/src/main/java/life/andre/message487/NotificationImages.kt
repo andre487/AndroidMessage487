@@ -66,9 +66,13 @@ internal fun discardImages(images: List<NotificationImage>) {
     images.mapNotNull { it.file.parentFile }.distinct().forEach { if (it.name.startsWith("capture-")) it.delete() }
 }
 
-private fun workingPixelLimit(): Long = minOf(16_777_216L, Runtime.getRuntime().maxMemory() / 32)
 
 internal fun encodeNotificationImage(bitmap: Bitmap, format: NotificationImageFormat, quality: Int,
+    directory: File, maxBytes: Long = MAX_NOTIFICATION_IMAGE_BYTES.toLong(), maxEdge: Int = MAX_IMAGE_EDGE,
+    orientation: Int = ExifInterface.ORIENTATION_NORMAL, checkActive: () -> Unit = {}): NotificationImage =
+    withImageMemory(checkActive) { encodeImage(bitmap, format, quality, directory, maxBytes, maxEdge, orientation, checkActive) }
+
+private fun encodeImage(bitmap: Bitmap, format: NotificationImageFormat, quality: Int,
     directory: File, maxBytes: Long = MAX_NOTIFICATION_IMAGE_BYTES.toLong(), maxEdge: Int = MAX_IMAGE_EDGE,
     orientation: Int = ExifInterface.ORIENTATION_NORMAL, checkActive: () -> Unit = {}): NotificationImage {
     require(quality in 0..100 && maxBytes > 0 && maxEdge > 0)
@@ -147,8 +151,14 @@ private fun decodeImageFile(file: File, maxEdge: Int, limited: Boolean): Bitmap 
     return BitmapFactory.decodeFile(file.path, options) ?: error("Cannot decode image")
 }
 
-@Suppress("DEPRECATION")
 internal fun notificationImages(context: Context, notification: Notification, settings: ForwardingSettings,
+    sourcePackage: String = context.packageName, cancellation: CancellationSignal = CancellationSignal(),
+    onFailure: (Exception) -> Unit): List<NotificationImage> = withImageMemory({ cancellation.throwIfCanceled() }) {
+        captureNotificationImages(context, notification, settings, sourcePackage, cancellation, onFailure)
+    }
+
+@Suppress("DEPRECATION")
+private fun captureNotificationImages(context: Context, notification: Notification, settings: ForwardingSettings,
     sourcePackage: String = context.packageName, cancellation: CancellationSignal = CancellationSignal(),
     onFailure: (Exception) -> Unit): List<NotificationImage> {
     val directory = File(context.noBackupFilesDir, "outbox/capture-${UUID.randomUUID()}").apply { mkdirs() }

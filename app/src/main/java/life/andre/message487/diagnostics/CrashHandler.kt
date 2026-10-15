@@ -4,6 +4,7 @@ import android.content.Context
 import android.os.Process
 import kotlinx.coroutines.flow.asStateFlow
 import kotlin.system.exitProcess
+import life.andre.message487.readBoolean
 
 internal class CrashHandler(context: Context, private val log: DiagnosticLog) {
     private val preferences by lazy { context.getSharedPreferences("crash_state", Context.MODE_PRIVATE) }
@@ -11,7 +12,7 @@ internal class CrashHandler(context: Context, private val log: DiagnosticLog) {
     val state = mutablePending.asStateFlow()
     val pending: Boolean get() = mutablePending.value
 
-    fun load() { mutablePending.value = preferences.getBoolean("pending", false) }
+    fun load() { mutablePending.value = preferences.readBoolean("pending", false) }
 
     fun install() {
         val previous = Thread.getDefaultUncaughtExceptionHandler()

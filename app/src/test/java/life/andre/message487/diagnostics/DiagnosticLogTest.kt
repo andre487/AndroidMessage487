@@ -10,6 +10,27 @@ import java.io.ByteArrayOutputStream
 class DiagnosticLogTest {
     @get:Rule val temporary = TemporaryFolder()
 
+    @Test fun `record formats failures and resolves storage only on its worker`() {
+        val caller = Thread.currentThread()
+        val formatted = java.util.concurrent.atomic.AtomicBoolean()
+        val error = object : java.io.IOException("injected") {
+            override fun getStackTrace(): Array<StackTraceElement> {
+                assertNotSame(caller, Thread.currentThread())
+                formatted.set(true)
+                return super.getStackTrace()
+            }
+        }
+        DiagnosticLog({
+            assertNotSame(caller, Thread.currentThread())
+            temporary.root
+        }).use { log ->
+            log.record(DiagnosticEvent.LOCAL_OPERATION_FAILED, error = error)
+            log.flush()
+            assertTrue(formatted.get())
+            assertTrue(log.readTail().contains("LOCAL_OPERATION_FAILED"))
+        }
+    }
+
     @Test fun `rotation stays bounded and persists across restart`() {
         val directory = temporary.newFolder()
         DiagnosticLog(directory, 1024).use { log ->

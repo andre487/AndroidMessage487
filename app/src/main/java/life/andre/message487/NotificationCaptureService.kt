@@ -26,7 +26,7 @@ class NotificationCaptureService : NotificationListenerService() {
         MessageGraph.get(this).diagnostics.record(DiagnosticEvent.LISTENER_CONNECTED)
         ListenerState.mutableConnected.value = true
         val graph = MessageGraph.get(this)
-        graph.captureExecutor.execute {
+        graph.submitCapture {
             try { graph.recover() } catch (error: Exception) { graph.captureFailed(error) }
         }
     }
@@ -44,7 +44,7 @@ class NotificationCaptureService : NotificationListenerService() {
     override fun onNotificationPosted(sbn: StatusBarNotification) {
         val graph = MessageGraph.get(this)
         if (!graph.settings.loaded.value) {
-            graph.captureExecutor.execute {
+            graph.submitCapture {
                 try { graph.settings.load(); capturePosted(sbn) }
                 catch (error: Exception) { graph.captureFailed(error) }
             }
@@ -68,7 +68,7 @@ class NotificationCaptureService : NotificationListenerService() {
                 extras.containsKey(Notification.EXTRA_MESSAGES) ||
                 (android.os.Build.VERSION.SDK_INT >= 31 && extras.containsKey(Notification.EXTRA_PICTURE_ICON))
             if (!hasImages) {
-                if (title.isNotBlank() || text.isNotBlank()) graph.captureExecutor.execute {
+                if (title.isNotBlank() || text.isNotBlank()) graph.submitCapture {
                     try { graph.captureNotification(captured) } catch (error: Exception) { graph.captureFailed(error) }
                 }
                 return
@@ -83,7 +83,7 @@ class NotificationCaptureService : NotificationListenerService() {
                     }
                 }, complete = { images ->
                     if (title.isNotBlank() || text.isNotBlank() || images.isNotEmpty()) {
-                        if (images.isEmpty()) graph.captureExecutor.execute {
+                        if (images.isEmpty()) graph.submitCapture {
                             try { graph.captureNotification(captured) } catch (error: Exception) { graph.captureFailed(error) }
                         } else {
                             try { graph.captureNotification(captured.copy(images = images)) }

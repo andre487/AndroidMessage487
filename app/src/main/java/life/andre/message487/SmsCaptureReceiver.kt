@@ -10,10 +10,10 @@ class SmsCaptureReceiver : BroadcastReceiver() {
         if (intent.action != Telephony.Sms.Intents.SMS_RECEIVED_ACTION) return
         val graph = MessageGraph.get(context)
         val pending = goAsync()
-        graph.captureExecutor.execute {
+        runBroadcast(context.applicationContext, pending, graph.smsExecutor, graph::captureFailed) {
             try {
                 val config = graph.settings.load()
-                if (!config.sms || config.paused || !config.ready()) return@execute
+                if (!config.sms || config.paused || !config.ready()) return@runBroadcast
                 val messages = Telephony.Sms.Intents.getMessagesFromIntent(intent).orEmpty()
                 if (messages.isNotEmpty()) {
                     val sender = messages.first().originatingAddress.orEmpty()
@@ -21,8 +21,6 @@ class SmsCaptureReceiver : BroadcastReceiver() {
                 }
             } catch (error: Exception) {
                 graph.captureFailed(error)
-            } finally {
-                pending.finish()
             }
         }
     }

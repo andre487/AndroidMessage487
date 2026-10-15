@@ -38,17 +38,17 @@ internal class DiagnosticLog(
 
     fun record(event: DiagnosticEvent, type: String? = null, outcome: String? = null,
         http: Int? = null, count: Int? = null, error: Throwable? = null) {
-        val line = buildString {
-            append("${Instant.now()} event=${event.name}")
-            type?.let { append(" type=${if (it in TYPES) it else "unknown"}") }
-            outcome?.let { append(" outcome=${if (it in OUTCOMES) it else "unknown"}") }
-            http?.let { append(" http=$it") }
-            count?.let { append(" count=$it") }
-            appendLine()
-            error?.let { append(safeStackTrace(it)) }
-        }
         try {
             executor.execute {
+                val line = buildString {
+                    append("${Instant.now()} event=${event.name}")
+                    type?.let { append(" type=${if (it in TYPES) it else "unknown"}") }
+                    outcome?.let { append(" outcome=${if (it in OUTCOMES) it else "unknown"}") }
+                    http?.let { append(" http=$it") }
+                    count?.let { append(" count=$it") }
+                    appendLine()
+                    error?.let { append(safeStackTrace(it)) }
+                }
                 safely {
                     synchronized(lock) {
                         val missed = dropped.getAndSet(0)

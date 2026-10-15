@@ -139,7 +139,12 @@ internal fun MessageScreen(model: ConnectionViewModel = viewModel(), checkReques
                     if (state.busy) LinearProgressIndicator(Modifier.fillMaxWidth())
                     key(destination) {
                         Box(Modifier.widthIn(max = 720.dp).fillMaxSize()) {
-                            if (!settingsLoaded) Box(Modifier.fillMaxSize(), contentAlignment = Alignment.Center) { CircularProgressIndicator() }
+                            if (!settingsLoaded || state.initializationFailed) Box(Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
+                                if (state.initializationFailed) Column(horizontalAlignment = Alignment.CenterHorizontally) {
+                                    Text(stringResource(R.string.local_error))
+                                    Button(onClick = model::retryLoadSettings) { Text(stringResource(R.string.retry)) }
+                                } else CircularProgressIndicator()
+                            }
                             else if (updates) UpdatesScreen(requireNotNull(LocalActivity.current), checkRequest = checkRequest)
                             else if (diagnostics) DiagnosticsScreen(application, settings) else when (destination) {
                                 Destination.OVERVIEW -> OverviewScreen(settings, permissions, connected, queue, state.busy, model,

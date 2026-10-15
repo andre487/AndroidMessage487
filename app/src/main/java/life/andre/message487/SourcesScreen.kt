@@ -23,6 +23,7 @@ import androidx.compose.ui.graphics.asImageBitmap
 import androidx.core.graphics.drawable.toBitmap
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
+import kotlinx.coroutines.ensureActive
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.semantics.Role
@@ -47,6 +48,7 @@ internal fun SourcesScreen(settings: ForwardingSettings, permissions: Permission
     fun openNotificationSettings() {
         try { context.startActivity(Intent(Settings.ACTION_NOTIFICATION_LISTENER_SETTINGS)) }
         catch (_: android.content.ActivityNotFoundException) { model.showSettingsError() }
+        catch (_: SecurityException) { model.showSettingsError() }
     }
     val displayedApps by produceState<List<AppSource>>(emptyList(), apps, settings.packages, query, selectedOnly) {
         value = withContext(Dispatchers.Default) { displayedSources(apps, settings.packages, query, selectedOnly) }
@@ -84,8 +86,10 @@ internal fun SourcesScreen(settings: ForwardingSettings, permissions: Permission
                 if (settings.sms && !permissions.sms) {
                     Text(stringResource(R.string.sms_not_granted), color = MaterialTheme.colorScheme.error)
                     TextButton(onClick = {
-                        context.startActivity(Intent(Settings.ACTION_APPLICATION_DETAILS_SETTINGS,
-                            android.net.Uri.parse("package:${context.packageName}")))
+                        try { context.startActivity(Intent(Settings.ACTION_APPLICATION_DETAILS_SETTINGS,
+                            android.net.Uri.parse("package:${context.packageName}"))) }
+                        catch (_: android.content.ActivityNotFoundException) { model.showSettingsError() }
+                        catch (_: SecurityException) { model.showSettingsError() }
                     }) { Text(stringResource(R.string.open_settings)) }
                 }
             }
@@ -214,9 +218,12 @@ private fun ApplicationIcon(packageName: String) {
     val context = LocalContext.current
     val bitmap by produceState<ImageBitmap?>(null, packageName) {
         value = withContext(Dispatchers.IO) {
-            try { context.packageManager.getApplicationIcon(packageName).toBitmap(96, 96).asImageBitmap() }
-            catch (_: android.content.pm.PackageManager.NameNotFoundException) { null }
-            catch (_: SecurityException) { null }
+            val active = coroutineContext
+            try { withImageMemory({ active.ensureActive() }) {
+                context.packageManager.getApplicationIcon(packageName).toBitmap(96, 96).asImageBitmap()
+            } }
+            catch (cancelled: kotlinx.coroutines.CancellationException) { throw cancelled }
+            catch (_: Exception) { null }
         }
     }
     bitmap?.let { Image(it, null, Modifier.size(44.dp)) } ?: IconTile(Icons.Outlined.Apps)

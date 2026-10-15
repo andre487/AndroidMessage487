@@ -15,6 +15,8 @@ import java.io.ByteArrayOutputStream
 import android.util.AtomicFile
 import java.util.Base64
 
+internal const val MAX_STORED_PAYLOAD_BYTES = 8 * 1024 * 1024
+
 private const val ENTRY_COLUMNS = "id,type,source_name,created_at,state,attempts,outcome,http_code"
 
 enum class QueueState { PENDING, SENDING, RETRY, BLOCKED, ACCEPTED, HTTP_SUCCESS }
@@ -154,9 +156,13 @@ class Outbox(context: Context, private val cipher: PayloadCipher) : SQLiteOpenHe
     }
 
     @Synchronized
-    fun pendingIds(): List<String> = readableDatabase.rawQuery(
-        "SELECT id FROM events WHERE state IN ('PENDING', 'SENDING', 'RETRY') ORDER BY created_at", null
-    ).use { cursor -> buildList { while (cursor.moveToNext()) add(cursor.getString(0)) } }
+    fun pendingIds(afterId: String? = null, limit: Int = 100): List<String> {
+        require(limit in 1..1000)
+        return readableDatabase.rawQuery(
+            "SELECT id FROM events WHERE state IN ('PENDING', 'SENDING', 'RETRY') AND id > ? ORDER BY id LIMIT ?",
+            arrayOf(afterId.orEmpty(), limit.toString())
+        ).use { cursor -> buildList { while (cursor.moveToNext()) add(cursor.getString(0)) } }
+    }
 
     @Synchronized
     fun entries(): List<QueueEntry> = readableDatabase.rawQuery(
@@ -178,8 +184,22 @@ class Outbox(context: Context, private val cipher: PayloadCipher) : SQLiteOpenHe
             entry to it.getString(it.getColumnIndexOrThrow("payload_file"))
         }
         var directory = stored?.let(::snapshotDirectory)
-        val envelope = if (directory != null) JSONObject(cipher.decrypt(AtomicFile(File(directory, "request.enc")).readFully()))
-            else JSONObject(cipher.decrypt(readLegacyPayload(id)))
+        val envelope = try {
+            val bytes = if (directory != null) AtomicFile(File(directory, "request.enc")).openRead().use { input ->
+                val size = input.channel.size()
+                if (size !in 28..payloadReadLimit().toLong()) throw java.io.IOException("Queued metadata exceeds memory budget")
+                val bytes = ByteArray(size.toInt())
+                var offset = 0
+                while (offset < bytes.size) {
+                    val count = input.read(bytes, offset, bytes.size - offset)
+                    check(count > 0) { "Truncated queued metadata" }
+                    offset += count
+                }
+                check(input.read() == -1) { "Queued metadata grew while reading" }
+                bytes
+            } else readLegacyPayload(id)
+            JSONObject(cipher.decrypt(bytes))
+        } catch (_: OutOfMemoryError) { throw java.io.IOException("Queued metadata exceeds available memory") }
         val authToken = envelope.getString("auth_token")
         require(validAuthToken(authToken)) { "Missing queued authentication token" }
         if (directory == null) {
@@ -299,15 +319,27 @@ class Outbox(context: Context, private val cipher: PayloadCipher) : SQLiteOpenHe
         } catch (error: Exception) { directory.deleteRecursively(); throw error }
     }
 
+    private fun payloadReadLimit(): Int {
+        val runtime = Runtime.getRuntime()
+        val available = runtime.maxMemory() - (runtime.totalMemory() - runtime.freeMemory())
+        return minOf(MAX_STORED_PAYLOAD_BYTES.toLong(), (available / 8).coerceAtLeast(0)).toInt()
+    }
+
     private fun readLegacyPayload(id: String): ByteArray {
         // Legacy bodies can exceed CursorWindow. Read only a small SQL substr in each cursor.
-        val output = ByteArrayOutputStream()
+        val size = readableDatabase.rawQuery("SELECT length(payload) FROM events WHERE id = ?", arrayOf(id)).use {
+            check(it.moveToFirst() && !it.isNull(0)) { "Missing queued payload" }
+            it.getLong(0)
+        }
+        if (size !in 1..payloadReadLimit().toLong()) throw java.io.IOException("Legacy payload exceeds memory budget")
+        val output = ByteArrayOutputStream(size.toInt())
         var offset = 1
         while (true) {
             val chunk = readableDatabase.rawQuery("SELECT substr(payload, ?, 262144) FROM events WHERE id = ?", arrayOf(offset.toString(), id)).use {
                 check(it.moveToFirst() && !it.isNull(0)) { "Missing queued payload" }
                 it.getBlob(0)
             }
+            check(output.size().toLong() + chunk.size <= size) { "Legacy payload grew while reading" }
             output.write(chunk)
             if (chunk.size < 262144) return output.toByteArray()
             offset += chunk.size
