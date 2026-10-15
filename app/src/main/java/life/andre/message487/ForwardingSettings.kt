@@ -66,33 +66,33 @@ class SettingsStore(
 
     private fun read() = ForwardingSettings(
         authToken = runCatching {
-            preferences.getString("auth_token_encrypted", null)?.let {
+            preferences.readString("auth_token_encrypted", null)?.let {
                 cipher.decrypt(android.util.Base64.decode(it, android.util.Base64.NO_WRAP))
             }.orEmpty()
         }.getOrDefault(""),
-        smsDeduplication = preferences.getBoolean("sms_deduplication", preferences.getBoolean("deduplication", true)),
-        notificationDeduplication = preferences.getBoolean("notification_deduplication", preferences.getBoolean("deduplication", true)),
-        deduplicationWindowSeconds = preferences.getInt("deduplication_window_seconds", 1),
-        url = preferences.getString("url", BuildConfig.DEFAULT_WEBHOOK_URL).orEmpty(),
-        deviceId = preferences.getString("device_id", "").orEmpty(),
-        deviceCode = preferences.getString("device_code", "android-device").orEmpty(),
-        requireAck = preferences.getBoolean("require_ack", true),
-        notifications = preferences.getBoolean("notifications", false),
-        sms = preferences.getBoolean("sms", false),
-        paused = preferences.getBoolean("paused", false),
-        packages = preferences.getStringSet("packages", emptySet()).orEmpty().toSet(),
-        autoSelectNewApps = preferences.getBoolean("auto_select_new_apps", false),
-        knownPackages = preferences.getStringSet("known_packages", emptySet()).orEmpty().toSet(),
-        captureFailed = preferences.getBoolean("capture_failed", false),
-        imageFormat = NotificationImageFormat.entries.firstOrNull { it.name == preferences.getString("image_format", null) } ?: NotificationImageFormat.JPEG,
-        imageQuality = preferences.getInt("image_quality", 80).coerceIn(0, 100),
-        imageLimitsEnabled = preferences.getBoolean("image_limits_enabled", true),
-        imageMaxCount = preferences.getInt("image_max_count", 3).coerceAtLeast(1),
-        imageMaxEdge = preferences.getInt("image_max_edge", 1024).coerceAtLeast(1),
-        imageMaxKiB = preferences.getInt("image_max_kib", 256).coerceAtLeast(1),
-        imageTotalKiB = preferences.getInt("image_total_kib", 512).coerceAtLeast(1),
-        forwardAvatars = preferences.getBoolean("forward_avatars", false),
-        forwardAppIcons = preferences.getBoolean("forward_app_icons", false),
+        smsDeduplication = preferences.readBoolean("sms_deduplication", preferences.readBoolean("deduplication", true)),
+        notificationDeduplication = preferences.readBoolean("notification_deduplication", preferences.readBoolean("deduplication", true)),
+        deduplicationWindowSeconds = preferences.readInt("deduplication_window_seconds", 1).takeIf { it >= 0 } ?: 1,
+        url = preferences.readString("url", BuildConfig.DEFAULT_WEBHOOK_URL).orEmpty(),
+        deviceId = preferences.readString("device_id", "").orEmpty(),
+        deviceCode = preferences.readString("device_code", "android-device").orEmpty(),
+        requireAck = preferences.readBoolean("require_ack", true),
+        notifications = preferences.readBoolean("notifications", false),
+        sms = preferences.readBoolean("sms", false),
+        paused = preferences.readBoolean("paused", false),
+        packages = preferences.readStrings("packages"),
+        autoSelectNewApps = preferences.readBoolean("auto_select_new_apps", false),
+        knownPackages = preferences.readStrings("known_packages"),
+        captureFailed = preferences.readBoolean("capture_failed", false),
+        imageFormat = NotificationImageFormat.entries.firstOrNull { it.name == preferences.readString("image_format", null) } ?: NotificationImageFormat.JPEG,
+        imageQuality = preferences.readInt("image_quality", 80).coerceIn(0, 100),
+        imageLimitsEnabled = preferences.readBoolean("image_limits_enabled", true),
+        imageMaxCount = preferences.readInt("image_max_count", 3).coerceAtLeast(1),
+        imageMaxEdge = preferences.readInt("image_max_edge", 1024).coerceAtLeast(1),
+        imageMaxKiB = preferences.readInt("image_max_kib", 256).coerceAtLeast(1),
+        imageTotalKiB = preferences.readInt("image_total_kib", 512).coerceAtLeast(1),
+        forwardAvatars = preferences.readBoolean("forward_avatars", false),
+        forwardAppIcons = preferences.readBoolean("forward_app_icons", false),
     )
 
     @Synchronized

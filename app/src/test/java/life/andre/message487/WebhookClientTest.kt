@@ -1,14 +1,18 @@
 package life.andre.message487
 
+import kotlinx.coroutines.async
 import okhttp3.mockwebserver.MockResponse
 import okhttp3.mockwebserver.MockWebServer
 import org.json.JSONObject
+import org.junit.Assert.assertNotNull
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertFalse
 import org.junit.Assert.assertTrue
 import org.junit.Test
 import java.util.concurrent.TimeUnit
 
+@org.junit.runner.RunWith(org.robolectric.RobolectricTestRunner::class)
+@org.robolectric.annotation.Config(sdk = [35], manifest = org.robolectric.annotation.Config.NONE)
 class WebhookClientTest {
     private val source = AppSource("example.source", "Source app")
     @Test
@@ -94,6 +98,30 @@ class WebhookClientTest {
             }
         }
         assertEquals(0, server.requestCount)
+    }
+
+    @Test fun `whole request deadline stops a slow drip response`() = withServer { server ->
+        server.enqueue(MockResponse().setBody("{\"status\":\"accepted\",\"event_id\":\"a\"}")
+            .throttleBody(1, 50, TimeUnit.MILLISECONDS))
+        val start = System.nanoTime()
+        val result = WebhookClient(2_000, 200).sendJson(server.url("/").toString(), "a", "{}", true, "token")
+        assertEquals(DeliveryStatus.TIMEOUT, result.status)
+        assertTrue(TimeUnit.NANOSECONDS.toMillis(System.nanoTime() - start) < 2_000)
+    }
+
+    @Test fun `coroutine cancellation disconnects a request waiting for headers`() = withServer { server ->
+        server.enqueue(MockResponse().setSocketPolicy(okhttp3.mockwebserver.SocketPolicy.NO_RESPONSE))
+        kotlinx.coroutines.runBlocking {
+            val task = async(kotlinx.coroutines.Dispatchers.IO) {
+                WebhookClient().sendCancellable(QueuedRequest(server.url("/").toString(), true, "{}", "token"), "a")
+            }
+            assertNotNull(server.takeRequest(2, TimeUnit.SECONDS))
+            val start = System.nanoTime()
+            task.cancel()
+            task.join()
+            assertTrue(task.isCancelled)
+            assertTrue(TimeUnit.NANOSECONDS.toMillis(System.nanoTime() - start) < 2_000)
+        }
     }
 
     private fun withServer(block: (MockWebServer) -> Unit) {

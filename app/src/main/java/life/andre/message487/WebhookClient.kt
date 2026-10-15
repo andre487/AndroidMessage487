@@ -62,27 +62,34 @@ fun validWebhookUrl(value: String, allowLocalHttp: Boolean): Boolean = runCatchi
 fun validAuthToken(value: String): Boolean = value.length in 1..4096 &&
     value.matches(Regex("[A-Za-z0-9._~+/-]+=*"))
 
-class WebhookClient(private val timeoutMs: Int = 10_000) {
+class WebhookClient(private val timeoutMs: Int = 10_000, private val totalTimeoutMs: Long = 120_000) {
     fun send(url: String, event: MessageEvent, requireAck: Boolean, authToken: String): DeliveryResult =
         sendRequest(QueuedRequest(url, requireAck, event.toJson(), authToken, event.images), event.eventId)
 
-    fun sendRequest(request: QueuedRequest, eventId: String): DeliveryResult =
-        if (request.images.isEmpty()) sendJson(request.url, eventId, request.json, request.requireAck, request.authToken)
-        else sendBody(request.url, eventId, request.requireAck, request.authToken, null, request::writeTo)
+    fun sendRequest(request: QueuedRequest, eventId: String, cancellation: android.os.CancellationSignal = android.os.CancellationSignal()): DeliveryResult =
+        if (request.images.isEmpty()) sendJson(request.url, eventId, request.json, request.requireAck, request.authToken, cancellation)
+        else sendBody(request.url, eventId, request.requireAck, request.authToken, null, cancellation, request::writeTo)
 
-    fun sendJson(url: String, eventId: String, json: String, requireAck: Boolean, authToken: String): DeliveryResult {
+    internal suspend fun sendCancellable(request: QueuedRequest, eventId: String): DeliveryResult =
+        cancellableHttp { sendRequest(request, eventId, it) }
+
+    fun sendJson(url: String, eventId: String, json: String, requireAck: Boolean, authToken: String,
+        cancellation: android.os.CancellationSignal = android.os.CancellationSignal()): DeliveryResult {
         val payload = json.toByteArray(StandardCharsets.UTF_8)
-        return sendBody(url, eventId, requireAck, authToken, payload.size.toLong()) { it.write(payload) }
+        return sendBody(url, eventId, requireAck, authToken, payload.size.toLong(), cancellation) { it.write(payload) }
     }
 
     private fun sendBody(url: String, eventId: String, requireAck: Boolean, authToken: String, length: Long?,
-        write: (OutputStream) -> Unit): DeliveryResult {
+        cancellation: android.os.CancellationSignal, write: (OutputStream) -> Unit): DeliveryResult {
         require(validAuthToken(authToken)) { "Invalid authentication token" }
         val start = System.nanoTime()
         var connection: HttpURLConnection? = null
         var httpCode: Int? = null
+        val control = HttpRequestControl(cancellation, totalTimeoutMs)
         val status = try {
+            control.checkActive()
             connection = URI(url).toURL().openConnection() as HttpURLConnection
+            control.attach(connection)
             connection.apply {
                 requestMethod = "POST"
                 instanceFollowRedirects = false
@@ -94,8 +101,17 @@ class WebhookClient(private val timeoutMs: Int = 10_000) {
                 setRequestProperty("Authorization", "Bearer $authToken")
             }
             if (length == null) connection.setChunkedStreamingMode(8192) else connection.setFixedLengthStreamingMode(length)
-            connection.outputStream.use(write)
+            connection.outputStream.use { output ->
+                write(object : FilterOutputStream(output) {
+                    override fun write(value: Int) { control.checkActive(); out.write(value) }
+                    override fun write(bytes: ByteArray, offset: Int, length: Int) {
+                        control.checkActive(); out.write(bytes, offset, length)
+                    }
+                })
+            }
+            control.checkActive()
             httpCode = connection.responseCode
+            control.checkActive()
             when {
                 httpCode !in 200..299 -> DeliveryStatus.HTTP_ERROR
                 !requireAck -> DeliveryStatus.HTTP_SUCCESS
@@ -104,12 +120,14 @@ class WebhookClient(private val timeoutMs: Int = 10_000) {
                         val output = ByteArrayOutputStream()
                         val buffer = ByteArray(4096)
                         while (output.size() <= MAX_ACK_BYTES) {
+                            control.checkActive()
                             val count = input.read(buffer, 0, minOf(buffer.size, MAX_ACK_BYTES + 1 - output.size()))
                             if (count == -1) break
                             output.write(buffer, 0, count)
                         }
                         output.toByteArray()
                     }
+                    control.checkActive()
                     if (bytes.size > MAX_ACK_BYTES) DeliveryStatus.INVALID_ACK
                     else validateAck(String(bytes, StandardCharsets.UTF_8), eventId)
                 }
@@ -119,8 +137,10 @@ class WebhookClient(private val timeoutMs: Int = 10_000) {
         } catch (_: SocketTimeoutException) {
             DeliveryStatus.TIMEOUT
         } catch (_: IOException) {
-            DeliveryStatus.NETWORK_ERROR
+            try { control.checkActive(); DeliveryStatus.NETWORK_ERROR }
+            catch (_: SocketTimeoutException) { DeliveryStatus.TIMEOUT }
         } finally {
+            control.close()
             connection?.disconnect()
         }
         return DeliveryResult(eventId, status, httpCode, (System.nanoTime() - start) / 1_000_000)

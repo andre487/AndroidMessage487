@@ -28,14 +28,17 @@ internal class NotificationImageQueue(private val timeoutMs: Long = 10_000, capa
             } else discardImages(images)
         }
         fun cancel() {
-            finish(emptyList())
-            cancellation.cancel()
-            worker.remove(this)
+            try { finish(emptyList()) }
+            finally { cancellation.cancel(); worker.remove(this) }
         }
         override fun run() {
             synchronized(this@NotificationImageQueue) { pending.remove(key, this) }
             if (done.get()) return
             try { finish(capture(cancellation)) }
+            catch (_: OutOfMemoryError) {
+                if (!done.get()) onFailure(ImageMemoryException())
+                finish(emptyList())
+            }
             catch (error: Exception) {
                 if (!done.get()) onFailure(error)
                 finish(emptyList())

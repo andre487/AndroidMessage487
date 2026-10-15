@@ -56,6 +56,7 @@ class ScreenInteractionTest {
 
     @After fun close() {
         application.graph.captureExecutor.shutdownNow()
+        application.graph.smsExecutor.shutdownNow()
         application.graph.imageCaptureQueue.close()
         application.diagnostics.close()
     }

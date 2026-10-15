@@ -1,5 +1,6 @@
 package life.andre.message487
 
+import kotlinx.coroutines.async
 import android.content.Context
 import androidx.core.content.FileProvider
 import androidx.test.ext.junit.runners.AndroidJUnit4
@@ -78,6 +79,41 @@ class StorageDeliveryDeviceTest {
             }
         } finally {
             reopened.close()
+        }
+    }
+
+    @Test fun allocationFailureFallsBackToTextAndNextCaptureStillRuns() {
+        val delivered = java.util.concurrent.CountDownLatch(2)
+        val errors = java.util.concurrent.atomic.AtomicInteger()
+        NotificationImageQueue().use { queue ->
+            queue.submit("failed", { withImageMemory<List<NotificationImage>> { throw OutOfMemoryError("injected") } },
+                { assertTrue(it.isEmpty()); delivered.countDown() },
+                { assertTrue(it is ImageMemoryException); errors.incrementAndGet() })
+            queue.submit("next", { withImageMemory { emptyList() } }, { delivered.countDown() }, { throw it })
+            assertTrue(delivered.await(3, TimeUnit.SECONDS))
+            assertEquals(1, errors.get())
+        }
+    }
+
+    @Test fun androidHttpDeadlineAndCoroutineCancellationReleaseConnections() {
+        MockWebServer().use { server ->
+            server.start()
+            server.enqueue(MockResponse().setBody("{\"status\":\"accepted\",\"event_id\":\"a\"}")
+                .throttleBody(1, 50, TimeUnit.MILLISECONDS))
+            val result = WebhookClient(2_000, 200).sendJson(server.url("/").toString(), "a", "{}", true, token)
+            assertEquals(DeliveryStatus.TIMEOUT, result.status)
+            assertNotNull(server.takeRequest(2, TimeUnit.SECONDS))
+            server.enqueue(MockResponse().setSocketPolicy(okhttp3.mockwebserver.SocketPolicy.NO_RESPONSE))
+            kotlinx.coroutines.runBlocking {
+                val task = async(kotlinx.coroutines.Dispatchers.IO) {
+                    WebhookClient().sendCancellable(QueuedRequest(server.url("/").toString(), true, "{}", token), "a")
+                }
+                assertNotNull(server.takeRequest(2, TimeUnit.SECONDS))
+                val start = System.nanoTime()
+                task.cancel(); task.join()
+                assertTrue(task.isCancelled)
+                assertTrue(TimeUnit.NANOSECONDS.toMillis(System.nanoTime() - start) < 2_000)
+            }
         }
     }
 

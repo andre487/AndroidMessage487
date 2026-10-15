@@ -34,6 +34,24 @@ class OutboxTest {
 
     @After fun close() { outbox.close(); context.deleteDatabase("outbox.db") }
 
+    @Test fun `pending recovery uses bounded keyset pages`() {
+        for (i in 0..6) outbox.enqueue(event("page-$i").copy(text = "unique $i"), settings)
+        assertEquals(listOf("page-0", "page-1", "page-2"), outbox.pendingIds(limit = 3))
+        assertEquals(listOf("page-3", "page-4", "page-5"), outbox.pendingIds("page-2", 3))
+        assertEquals(listOf("page-6"), outbox.pendingIds("page-5", 3))
+        assertTrue(outbox.pendingIds("page-6", 3).isEmpty())
+    }
+
+    @Test fun `oversized legacy payload is refused before decryption and retained`() {
+        outbox.enqueue(event("huge"), settings)
+        outbox.writableDatabase.execSQL("UPDATE events SET payload=zeroblob(?),payload_file=NULL WHERE id='huge'",
+            arrayOf(MAX_STORED_PAYLOAD_BYTES + 1))
+        assertThrows(java.io.IOException::class.java) { outbox.beginAttempt("huge") }
+        outbox.readableDatabase.rawQuery("SELECT length(payload) FROM events WHERE id='huge'", null).use {
+            assertTrue(it.moveToFirst()); assertEquals(MAX_STORED_PAYLOAD_BYTES + 1, it.getInt(0))
+        }
+    }
+
     @Test fun `image collection checksum and deduplication ignore order but preserve content roles and multiplicity`() {
         val first = imageFixture("first-image")
         val second = imageFixture("second-image")

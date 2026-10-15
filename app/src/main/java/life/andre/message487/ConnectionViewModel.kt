@@ -23,6 +23,7 @@ data class ConnectionState(
     val deviceCode: String = "",
     val requireAck: Boolean = true,
     val busy: Boolean = false,
+    val initializationFailed: Boolean = false,
     val invalidUrl: Boolean = false,
     val invalidDeviceCode: Boolean = false,
     val notice: Int? = null,
@@ -36,7 +37,9 @@ data class ConnectionState(
 data class QueueSnapshot(val entries: List<QueueEntry> = emptyList(), val pending: Int = 0)
 data class PermissionState(val notifications: Boolean = false, val sms: Boolean = false)
 
-class ConnectionViewModel(application: Application) : AndroidViewModel(application) {
+class ConnectionViewModel @JvmOverloads constructor(application: Application,
+    private val readSettings: () -> ForwardingSettings = { MessageGraph.get(application).settings.load() },
+) : AndroidViewModel(application) {
     private val graph = MessageGraph.get(application)
     val settings = graph.settings.state
     val settingsLoaded = graph.settings.loaded
@@ -53,16 +56,13 @@ class ConnectionViewModel(application: Application) : AndroidViewModel(applicati
     val apps = mutableApps.asStateFlow()
     private var refreshingApps = false
 
+    private var permissionRefresh: kotlinx.coroutines.Job? = null
+    private var settingsLoad: kotlinx.coroutines.Job? = null
+
     init {
         refreshPermissions()
+        retryLoadSettings()
         viewModelScope.launch {
-            try {
-                val saved = withContext(Dispatchers.IO) { graph.settings.load() }
-                mutableState.value = ConnectionState(saved.url, saved.deviceCode, saved.requireAck, authToken = saved.authToken)
-            } catch (error: Exception) {
-                if (error is kotlinx.coroutines.CancellationException) throw error
-                mutableState.value = state.value.copy(notice = R.string.local_error)
-            }
             graph.outbox.revision.collect {
                 try {
                     mutableQueue.value = withContext(Dispatchers.IO) {
@@ -74,6 +74,20 @@ class ConnectionViewModel(application: Application) : AndroidViewModel(applicati
                     graph.diagnostics.record(DiagnosticEvent.LOCAL_OPERATION_FAILED, error = error)
                     mutableState.value = state.value.copy(notice = R.string.local_error)
                 }
+            }
+        }
+    }
+
+    fun retryLoadSettings() {
+        if (settingsLoad?.isActive == true) return
+        mutableState.value = state.value.copy(busy = true, initializationFailed = false, notice = null)
+        settingsLoad = viewModelScope.launch {
+            try {
+                val saved = withContext(Dispatchers.IO) { readSettings() }
+                mutableState.value = ConnectionState(saved.url, saved.deviceCode, saved.requireAck, authToken = saved.authToken)
+            } catch (cancelled: kotlinx.coroutines.CancellationException) { throw cancelled }
+            catch (_: Exception) {
+                mutableState.value = state.value.copy(busy = false, initializationFailed = true, notice = R.string.local_error)
             }
         }
     }
@@ -109,7 +123,6 @@ class ConnectionViewModel(application: Application) : AndroidViewModel(applicati
         }
     }
 
-    private var permissionRefresh: kotlinx.coroutines.Job? = null
     fun refreshPermissions() {
         refreshApps()
         permissionRefresh?.cancel()
@@ -190,7 +203,7 @@ class ConnectionViewModel(application: Application) : AndroidViewModel(applicati
     fun retry(id: String) = action {
         if (graph.outbox.retry(id)) {
             graph.diagnostics.record(DiagnosticEvent.MANUAL_RETRY)
-            graph.scheduler.schedule(id, replace = true)
+            graph.scheduler.schedule(id, replace = true).result.get(30, java.util.concurrent.TimeUnit.SECONDS)
         }
     }
     fun delete(id: String) = action { graph.outbox.delete(id); graph.diagnostics.record(DiagnosticEvent.EVENT_DELETED) }

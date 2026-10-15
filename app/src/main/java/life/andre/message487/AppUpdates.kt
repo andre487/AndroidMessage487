@@ -13,9 +13,6 @@ import java.io.File
 import java.net.HttpURLConnection
 import java.net.URI
 import java.security.MessageDigest
-import kotlinx.coroutines.Dispatchers
-import kotlinx.coroutines.ensureActive
-import kotlinx.coroutines.withContext
 import org.json.JSONObject
 
 internal class UpdateException(val textId: Int) : Exception()
@@ -110,7 +107,7 @@ internal class AppUpdates(private val context: Context) {
 
     @Suppress("DEPRECATION")
     fun source(): UpdateSource? {
-        val saved = preferences.getString("source", null)
+        val saved = preferences.readString("source", null)
         UpdateSource.entries.firstOrNull { it.name == saved }?.let { return it }
         val installer = try {
             if (Build.VERSION.SDK_INT >= 30) manager.getInstallSourceInfo(context.packageName).installingPackageName
@@ -130,12 +127,12 @@ internal class AppUpdates(private val context: Context) {
     }
 
     fun select(source: UpdateSource) {
-        preferences.edit().putString("source", source.name).commit()
+        preferences.edit().putString("source", source.name).save()
     }
 
-    suspend fun check(source: UpdateSource): AppUpdate? = withContext(Dispatchers.IO) {
+    suspend fun check(source: UpdateSource): AppUpdate? = cancellableHttp { cancellation ->
         val url = if (source == UpdateSource.FDROID) FDROID_UPDATE_API else GITHUB_RELEASES_API
-        val json = request(url) { connection ->
+        val json = request(url, cancellation) { connection ->
             requireUpdateMetadataStatus(connection.responseCode)
             connection.inputStream.use { stream ->
                 String(readUpdateMetadata(stream), Charsets.UTF_8)
@@ -145,21 +142,22 @@ internal class AppUpdates(private val context: Context) {
         else parseGithubUpdate(json, BuildConfig.VERSION_NAME)
     }
 
-    suspend fun download(update: AppUpdate): File = withContext(Dispatchers.IO) {
+    suspend fun download(update: AppUpdate): File = cancellableHttp { cancellation ->
         require(update.source == UpdateSource.GITHUB)
         val directory = File(context.cacheDir, "updates").apply { mkdirs() }
+        cleanupUpdateFiles(directory)
         val partial = File.createTempFile("update-", ".part", directory)
         val apk = File(directory, partial.nameWithoutExtension + ".apk")
         try {
             val digest = MessageDigest.getInstance("SHA-256")
-            request(requireNotNull(update.apkUrl)) { connection ->
+            request(requireNotNull(update.apkUrl), cancellation) { connection ->
                 require(connection.responseCode == 200)
                 connection.inputStream.use { input ->
                     partial.outputStream().use { output ->
                         val buffer = ByteArray(64 * 1024)
                         var total = 0L
                         while (true) {
-                            coroutineContext.ensureActive()
+                            if (cancellation.isCanceled) throw kotlinx.coroutines.CancellationException("Download cancelled")
                             val count = input.read(buffer)
                             if (count < 0) break
                             total += count
@@ -174,6 +172,7 @@ internal class AppUpdates(private val context: Context) {
             require(digest.digest().hex() == update.sha256)
             verifyApk(partial, update.version)
             check(partial.renameTo(apk))
+            cleanupUpdateFiles(directory, keep = apk)
             apk
         } finally {
             partial.delete()
@@ -202,24 +201,31 @@ internal class AppUpdates(private val context: Context) {
 private fun ByteArray.hex(): String = joinToString("") { "%02x".format(it) }
 
 // GitHub release assets redirect to its CDN. Only HTTPS redirects on these exact hosts are allowed.
-private fun <T> request(url: String, read: (HttpURLConnection) -> T): T {
-    var current = url
-    repeat(6) {
-        val uri = URI(current)
-        require(uri.scheme == "https" && uri.userInfo == null && (uri.port == -1 || uri.port == 443))
-        require(uri.host in setOf("api.github.com", "github.com", "release-assets.githubusercontent.com", "f-droid.org"))
-        val connection = uri.toURL().openConnection() as HttpURLConnection
-        try {
-            connection.connectTimeout = 15_000
-            connection.readTimeout = 30_000
-            connection.instanceFollowRedirects = false
-            connection.setRequestProperty("User-Agent", "Message487-Updates")
-            if (connection.responseCode in listOf(301, 302, 303, 307, 308)) {
-                current = uri.resolve(requireNotNull(connection.getHeaderField("Location"))).toString()
-            } else return read(connection)
-        } finally { connection.disconnect() }
-    }
-    error("Too many redirects")
+private fun <T> request(url: String, cancellation: android.os.CancellationSignal, read: (HttpURLConnection) -> T): T =
+    HttpRequestControl(cancellation).use { control ->
+        var current = url
+        repeat(6) {
+            control.checkActive()
+            val uri = URI(current)
+            require(uri.scheme == "https" && uri.userInfo == null && (uri.port == -1 || uri.port == 443))
+            require(uri.host in setOf("api.github.com", "github.com", "release-assets.githubusercontent.com", "f-droid.org"))
+            val connection = uri.toURL().openConnection() as HttpURLConnection
+            try {
+                control.attach(connection)
+                connection.connectTimeout = 15_000
+                connection.readTimeout = 30_000
+                connection.instanceFollowRedirects = false
+                connection.setRequestProperty("User-Agent", "Message487-Updates")
+                if (connection.responseCode in listOf(301, 302, 303, 307, 308)) {
+                    current = uri.resolve(requireNotNull(connection.getHeaderField("Location"))).toString()
+                } else {
+                    val result = read(connection)
+                    control.checkActive()
+                    return result
+                }
+            } finally { connection.disconnect() }
+        }
+        error("Too many redirects")
 }
 
 internal fun readUpdateMetadata(input: InputStream): ByteArray {
@@ -231,4 +237,13 @@ internal fun readUpdateMetadata(input: InputStream): ByteArray {
         require(output.size() + count <= 1024 * 1024)
         output.write(buffer, 0, count)
     }
+}
+
+internal fun cleanupUpdateFiles(directory: File, keep: File? = null, now: Long = System.currentTimeMillis()) {
+    val files = directory.listFiles().orEmpty().filter { it.name.startsWith("update-") && it.isFile }
+    // Keep two APKs so a previously granted installer URI can still be read.
+    files.filter { it.extension == "apk" && it != keep }.sortedByDescending(File::lastModified)
+        .drop(if (keep == null) 2 else 1).forEach { if (!it.delete()) throw java.io.IOException("Could not remove old update") }
+    files.filter { it.extension == "part" && now - it.lastModified() > java.util.concurrent.TimeUnit.DAYS.toMillis(1) }
+        .forEach { if (!it.delete()) throw java.io.IOException("Could not remove abandoned update") }
 }

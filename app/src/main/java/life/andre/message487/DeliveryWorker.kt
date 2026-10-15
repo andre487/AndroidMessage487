@@ -16,18 +16,19 @@ import androidx.work.workDataOf
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
+import kotlinx.coroutines.ensureActive
 import java.util.concurrent.TimeUnit
 
 class DeliveryScheduler(context: Context) {
     private val manager = WorkManager.getInstance(context)
 
-    fun schedule(id: String, replace: Boolean = false) {
+    fun schedule(id: String, replace: Boolean = false): androidx.work.Operation {
         val work = OneTimeWorkRequestBuilder<DeliveryWorker>()
             .setInputData(workDataOf("event_id" to id))
             .setConstraints(Constraints.Builder().setRequiredNetworkType(NetworkType.CONNECTED).build())
             .setBackoffCriteria(BackoffPolicy.EXPONENTIAL, 30, TimeUnit.SECONDS)
             .build()
-        manager.enqueueUniqueWork("event-$id", if (replace) ExistingWorkPolicy.REPLACE else ExistingWorkPolicy.KEEP, work)
+        return manager.enqueueUniqueWork("event-$id", if (replace) ExistingWorkPolicy.REPLACE else ExistingWorkPolicy.KEEP, work)
     }
 
     fun startRecovery() {
@@ -54,9 +55,10 @@ class DeliveryWorker(context: Context, parameters: WorkerParameters) : Coroutine
             graph.diagnostics.record(DiagnosticEvent.DELIVERY_STARTED)
             val request = attempt.request
             val result = if (validWebhookUrl(request.url, BuildConfig.DEBUG)) {
-                WebhookClient().sendRequest(request, id)
+                WebhookClient().sendCancellable(request, id)
             } else DeliveryResult(id, DeliveryStatus.HTTP_ERROR)
             graph.diagnostics.record(DiagnosticEvent.DELIVERY_FINISHED, outcome = result.status.name, http = result.httpCode)
+            kotlinx.coroutines.currentCoroutineContext().ensureActive()
             val state = graph.outbox.finish(id, attempt.token, result)
             if (state == QueueState.RETRY) Result.retry() else Result.success()
         } catch (error: UnreadableImageException) {

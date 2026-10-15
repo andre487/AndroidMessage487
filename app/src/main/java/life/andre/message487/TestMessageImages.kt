@@ -16,6 +16,10 @@ data class TestMessageOptions(
 )
 
 internal fun testMessageImages(context: Context, settings: ForwardingSettings,
+    options: TestMessageOptions): List<NotificationImage> = if (options == TestMessageOptions()) emptyList()
+    else withImageMemory { createTestImages(context, settings, options) }
+
+private fun createTestImages(context: Context, settings: ForwardingSettings,
     options: TestMessageOptions): List<NotificationImage> {
     if (options == TestMessageOptions()) return emptyList()
     val directory = File(context.noBackupFilesDir, "outbox/capture-${UUID.randomUUID()}").apply { mkdirs() }
@@ -47,6 +51,7 @@ internal fun testMessageImages(context: Context, settings: ForwardingSettings,
             remaining -= image.file.length()
         } finally { bitmap.recycle() }
     }
+    var complete = false
     try {
         if (options.bigPicture) add("attachment", "big_picture", "Big Picture", Color.rgb(40, 90, 190))
         if (options.gallery) {
@@ -56,9 +61,7 @@ internal fun testMessageImages(context: Context, settings: ForwardingSettings,
         if (options.avatar) add("avatar")
         if (options.appIcon) add("app_icon")
         if (images.isEmpty()) directory.delete()
+        complete = true
         return images
-    } catch (error: Exception) {
-        directory.deleteRecursively()
-        throw error
-    }
+    } finally { if (!complete) directory.deleteRecursively() }
 }

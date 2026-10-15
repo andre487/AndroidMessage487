@@ -86,3 +86,15 @@ Update regression tests cover the entry dialog, weekly snooze/skip, F-Droid rout
 GitHub navigation without automatic download, persisted background results, transient-error
 retry policy, cancellation and stale-source handling. HTTP 429/5xx are retryable; 404 and
 invalid responses are not. These JVM/Compose checks do not establish real JobScheduler timing.
+
+Failure regressions cover bounded notification/SMS queues, text fallback after an injected image
+allocation failure, corrupt preference fields, retrying initial settings reads, paged queue recovery,
+legacy metadata size limits, APK cache cleanup, whole-request HTTP deadlines and coroutine
+cancellation. Real HTTP cancellation/deadlines and image-failure recovery also run on API 26/35.
+The injected OOM verifies the recovery path; it does not deliberately exhaust the emulator heap.
+
+Notification capture retains at most 32 queued tasks; SMS has its own 16-task queue and an
+8-second broadcast completion deadline. Overflow raises the existing capture-error indicator.
+HTTP requests have a 2-minute total deadline. Queued metadata (including old inline-image bodies)
+is read only up to 8 MiB and the available-memory budget; unreadable entries become blocked and
+retain their files for manual retry. This limit does not cap streamed image-file sizes.
