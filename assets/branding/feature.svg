@@ -1,0 +1,28 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1024" height="500" viewBox="0 0 1024 500">
+  <defs>
+    <linearGradient id="background" x2="1" y2="1">
+      <stop stop-color="#00C9EF" /><stop offset=".35" stop-color="#0754F5" />
+      <stop offset=".65" stop-color="#6500ED" /><stop offset="1" stop-color="#FF1AB9" />
+    </linearGradient>
+  </defs>
+  <path fill="url(#background)" d="M0 0H1024V500H0Z" />
+  <circle cx="290" cy="250" r="218" fill="#fff" opacity=".05" />
+  <circle cx="290" cy="250" r="175" fill="#fff" opacity=".06" />
+  <g transform="translate(-36 -67) scale(.52)">
+<g transform="translate(169.29 169.29) scale(0.73)">
+    <path d="M313,298H877Q942,298 942,363V563H878V377Q878,361 862,361H329Q313,361 313,377V711Q313,727 329,727H764V790H313Q248,790 248,725V363Q248,298 313,298Z M544,790H642V857H698Q730,857 730,887Q730,917 698,917H488Q456,917 456,887Q456,857 488,857H544Z" fill="#fff" />
+    <path d="M819,563H960Q1015,563 1015,618V887Q1015,942 960,942H819Q764,942 764,887V618Q764,563 819,563Z M831,616Q813,616 813,634V870Q813,888 831,888H948Q966,888 966,870V634Q966,616 948,616Z" fill="#fff" fill-rule="evenodd" />
+    <path d="M508,522L590,465L672,522V611H508Z M508,522L546,547H634L672,522" fill="none" stroke="#fff" stroke-width="17" stroke-linejoin="round" stroke-linecap="round" />
+    <path d="M855,725H923Q929,725 929,731V783Q929,789 923,789H855Q849,789 849,783V731Q849,725 855,725Z M850,731L889,761L928,731" fill="none" stroke="#fff" stroke-width="11" stroke-linejoin="round" stroke-linecap="round" />
+  </g>
+  </g>
+  <g fill="none" stroke="#fff" stroke-linecap="round" stroke-linejoin="round">
+    <path d="M536 251H598M584 239L598 251L584 263" stroke-width="5" opacity=".8" />
+    <rect x="629" y="176" width="118" height="150" rx="22" stroke-width="5" />
+    <path d="M654 207H722M654 225H708M654 243H716" stroke-width="5" opacity=".65" />
+    <path d="M747 251H791Q811 251 811 231V195Q811 177 829 177H854M791 251Q811 251 811 271V307Q811 325 829 325H854" stroke-width="4" opacity=".6" />
+    <rect x="855" y="155" width="44" height="44" rx="12" stroke-width="4" />
+    <rect x="855" y="303" width="44" height="44" rx="12" stroke-width="4" />
+    <path d="M868 176L875 183L887 169M868 324L875 331L887 317" stroke-width="4" />
+  </g>
+</svg>
