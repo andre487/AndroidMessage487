@@ -70,16 +70,36 @@ Leaving the field empty runs normal CI. Local equivalent from a clean checkout:
 
 ## Behavior and recovery
 
-Generation sends commit messages and diff statistics since the highest stable `vX.Y.Z` tag
-reachable from the selected `main` commit to OpenAI, not source code or signing secrets.
-History over 100,000 characters, API errors, refusals and invalid responses stop before file writes.
+Generation compares against the highest reachable published stable `vX.Y.Z` release with
+nonempty uploaded `message487.apk`, `message487-X.Y.Z.apk`, `mapping.txt` and `SHA256SUMS` assets.
+Bare tags, drafts, prereleases and incomplete releases are skipped. Commit messages (excluding
+merges) and the actual net diff are sent to OpenAI; historical changelogs, generated release
+notes and lock/sum files are excluded. Context over 600,000 characters fails without truncation.
+API errors, refusals and invalid responses stop before file writes; length errors retry up to
+three attempts. Returned model, Git range and token usage are logged without credentials.
 [Structured Outputs](https://developers.openai.com/api/docs/guides/structured-outputs) validates
-format, not factual accuracy; notes remain visible in the PR.
+format, not factual accuracy; review the generated notes in the PR.
 
-The `release/vX.Y.Z` commit changes only `versionName`, `versionCode` incremented by one, and two
-new `fastlane/metadata/android/{en-US,ru-RU}/changelogs/<versionCode>.txt` files, each 1–500 characters.
-Historical notes remain unchanged. GitHub Release uses the same texts. You choose the version;
+Notes use concise bullets with one sentence per change, describing concrete behavior supported
+by the diff. Maintenance-only releases name the maintenance work and state that app behavior
+is unchanged. GitHub gets up to 10 bullets and 3,000 characters per locale; F-Droid gets a
+separate summary of up to 500 characters per locale.
+
+The `release/vX.Y.Z` commit changes only `versionName`, `versionCode` incremented by one, two
+new `fastlane/metadata/android/{en-US,ru-RU}/changelogs/<versionCode>.txt` files, and bilingual
+`release-notes/X.Y.Z.md`. Finalization validates both formats; GitHub publication uses the
+committed Markdown. Historical notes remain unchanged. You choose the version;
 prereleases are unsupported.
+
+Preview an existing release without writing files or publishing:
+
+```sh
+GITHUB_REPOSITORY=andre487/AndroidMessage487 bundle exec fastlane android release_notes_preview version:0.0.6 ref:v0.0.6
+```
+
+Set `OPENAI_API_KEY`, `OPENAI_RELEASE_MODEL` and authenticate `gh` first. This is a billed API
+request. The explicit `ref` excludes later commits; use `previous:v0.0.5` only to override
+automatic baseline selection. Both GitHub and F-Droid notes print to stdout.
 
 Finalize waits up to 60 minutes for successful full CI for that PR, head SHA and comparison base.
 Both API 26/35 emulator jobs must succeed, including on version-only release PRs.

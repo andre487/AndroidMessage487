@@ -20,6 +20,14 @@ spec.loader.exec_module(m)
 SOURCE = 'android {\n    versionCode = 5\n    versionName = "0.0.5"\n}\n'
 NOTES = {"en-US": "- Improved connections.", "ru-RU": "- Улучшено подключение."}
 
+GENERATED = {
+    "store": NOTES,
+    "github": {
+        "en-US": "- Fixed notification forwarding.",
+        "ru-RU": "- Исправлена пересылка уведомлений.",
+    },
+}
+
 
 class ReleaseTests(unittest.TestCase):
     def test_generator_retries_only_length_errors_and_stops_after_three_attempts(self):
@@ -40,11 +48,11 @@ class ReleaseTests(unittest.TestCase):
                 ).encode()
             )
 
-        oversized = dict(NOTES, **{'ru-RU': 'я' * 501})
+        oversized = dict(GENERATED, store=dict(NOTES, **{'ru-RU': 'я' * 501}))
         for replies, calls, error in [
-            ([response(oversized), response(NOTES)], 2, None),
+            ([response(oversized), response(GENERATED)], 2, None),
             ([response(oversized) for _ in range(3)], 3, m.ChangelogLengthError),
-            ([response(NOTES, 'incomplete')], 1, RuntimeError),
+            ([response(GENERATED, 'incomplete')], 1, RuntimeError),
         ]:
             with (
                 self.subTest(calls=calls),
@@ -63,19 +71,29 @@ class ReleaseTests(unittest.TestCase):
                     with self.assertRaises(error):
                         m.generate_notes('1.0.0', 'v0.0.5')
                 else:
-                    self.assertEqual(NOTES, m.generate_notes('1.0.0', 'v0.0.5'))
+                    self.assertEqual(GENERATED, m.generate_notes('1.0.0', 'v0.0.5'))
                     payload = json.loads(request.call_args.args[0].data)
                     self.assertIn('501', payload['instructions'])
                     self.assertIn('fewer bullets', payload['instructions'])
                 self.assertEqual(calls, request.call_count)
 
-    def test_generator_sends_only_history_and_stats_with_strict_locale_schema(self):
+    def test_generator_sends_diff_at_requested_ref_and_keeps_distinct_outputs(self):
+        from io import BytesIO
+
+        generated = {
+            "store": NOTES,
+            "github": {
+                "en-US": "- " + "Specific behavior " * 40 + ".",
+                "ru-RU": "- " + "Конкретное изменение " * 40 + ".",
+            },
+        }
         response = {
-            'status': 'completed',
-            'output': [
+            "status": "completed",
+            "model": "test-model",
+            "output": [
                 {
-                    'type': 'message',
-                    'content': [{'type': 'output_text', 'text': json.dumps(NOTES)}],
+                    "type": "message",
+                    "content": [{"type": "output_text", "text": json.dumps(generated)}],
                 }
             ],
         }
@@ -83,50 +101,132 @@ class ReleaseTests(unittest.TestCase):
             patch.dict(
                 os.environ,
                 {
-                    'OPENAI_API_KEY': 'fixture-key',
-                    'OPENAI_RELEASE_MODEL': 'fixture-model',
+                    "OPENAI_API_KEY": "synthetic-key",
+                    "OPENAI_RELEASE_MODEL": "test-model",
                 },
             ),
             patch.object(
-                m, 'command', side_effect=['Commit summary', 'Diff statistics']
-            ) as git,
-            patch.object(m.urllib.request, 'urlopen') as request,
+                m,
+                "command",
+                side_effect=["Fix stale DNS", "-cachedAddress\n+freshAddress"],
+            ) as run,
+            patch.object(m.urllib.request, "urlopen") as opener,
         ):
-            request.return_value.__enter__.return_value = io.BytesIO(
+            opener.return_value.__enter__.return_value = BytesIO(
                 json.dumps(response).encode()
             )
-            self.assertEqual(NOTES, m.generate_notes('0.0.6', 'v0.0.5'))
-            payload = json.loads(request.call_args.args[0].data)
-            self.assertEqual('fixture-model', payload['model'])
-            self.assertFalse(payload['store'])
+            self.assertEqual(generated, m.generate_notes("1.1.3", "v1.1.2", "v1.1.3"))
+            payload = json.loads(opener.call_args.args[0].data)
+            evidence = json.loads(payload["input"])
+            self.assertEqual("-cachedAddress\n+freshAddress", evidence["diff"])
+            self.assertEqual("v1.1.3", evidence["head"])
+            self.assertIn("v1.1.2..v1.1.3", run.call_args_list[0].args)
+            self.assertIn("v1.1.3", run.call_args_list[1].args)
+            self.assertIn("exactly one sentence per change", payload["instructions"])
             self.assertEqual(
-                {
-                    'version': '0.0.6',
-                    'previous_tag': 'v0.0.5',
-                    'history': 'Commit summary',
-                    'diff_stat': 'Diff statistics',
-                },
-                json.loads(payload['input']),
+                {"store", "github"},
+                set(payload["text"]["format"]["schema"]["properties"]),
             )
-            schema = payload['text']['format']
-            self.assertTrue(schema['strict'])
-            self.assertEqual(set(m.LOCALES), set(schema['schema']['required']))
-            self.assertFalse(schema['schema']['additionalProperties'])
-            self.assertEqual(2, git.call_count)
+        response["output"][0]["content"][0]["text"] = json.dumps(
+            {"store": generated["github"], "github": NOTES}
+        )
+        with self.assertRaisesRegex(RuntimeError, "expected 1–500 characters"):
+            m.response_notes(response)
         with (
             patch.dict(
                 os.environ,
                 {
-                    'OPENAI_API_KEY': 'fixture-key',
-                    'OPENAI_RELEASE_MODEL': 'fixture-model',
+                    "OPENAI_API_KEY": "synthetic-key",
+                    "OPENAI_RELEASE_MODEL": "test-model",
                 },
             ),
-            patch.object(m, 'command', side_effect=['x' * 100001, 'stat']),
-            patch.object(m.urllib.request, 'urlopen') as request,
-            self.assertRaisesRegex(RuntimeError, 'too large'),
+            patch.object(m, "command", side_effect=["history", "x" * 600001]),
+            patch.object(m.urllib.request, "urlopen") as opener,
+            self.assertRaisesRegex(RuntimeError, "too large"),
         ):
-            m.generate_notes('0.0.6', 'v0.0.5')
-        request.assert_not_called()
+            m.generate_notes("1.1.3", "v1.1.2", "v1.1.3")
+        opener.assert_not_called()
+
+    def test_previous_release_skips_unpublished_incomplete_and_unreachable_tags(self):
+        def release(tag, **changes):
+            assets = [
+                {"name": name, "state": "uploaded", "size": 123}
+                for name in (
+                    "message487.apk",
+                    f"message487-{tag[1:]}.apk",
+                    "mapping.txt",
+                    "SHA256SUMS",
+                )
+            ]
+            return (
+                dict(tag_name=tag, draft=False, prerelease=False, assets=assets)
+                | changes
+            )
+
+        good = release("v1.1.1")
+        bad = [
+            release("v1.1.2", assets=[]),
+            release("v1.1.2", assets=good["assets"][:-1]),
+            release("v1.1.2", draft=True),
+            release("v1.1.2", prerelease=True),
+            release("v1.1.2", assets=[dict(a, size=0) for a in good["assets"]]),
+            release("v1.1.2", assets=[dict(a, state="new") for a in good["assets"]]),
+        ]
+        for broken in bad:
+            with (
+                self.subTest(broken=broken),
+                patch.object(m, "command", return_value="v1.1.1\nv1.1.2\nv1.1.3"),
+                patch.object(
+                    m,
+                    "api",
+                    return_value=[release("v1.1.3"), broken, release("v1.0.0"), good],
+                ),
+            ):
+                self.assertEqual("v1.1.1", m.previous_release("1.1.3", "v1.1.3"))
+        with (
+            patch.object(m, "command", return_value="v1.1.1\nv1.1.2"),
+            patch.object(
+                m, "api", side_effect=[[release("v1.1.2", assets=[])] * 100, [good]]
+            ) as api,
+        ):
+            self.assertEqual("v1.1.1", m.previous_release("1.1.3"))
+            self.assertEqual("releases?per_page=100&page=2", api.call_args.args[0])
+        with (
+            patch.object(m, "command", return_value="v1.1.2"),
+            patch.object(m, "api", return_value=[release("v1.1.2", assets=[])]),
+            self.assertRaisesRegex(RuntimeError, "No previous published"),
+        ):
+            m.previous_release("1.1.3")
+
+    def test_preview_prints_both_formats_without_release_mutations(self):
+        from io import StringIO
+
+        with (
+            patch.object(
+                sys,
+                "argv",
+                [
+                    "release_automation.py",
+                    "preview",
+                    "--version",
+                    "1.1.3",
+                    "--previous",
+                    "v1.1.2",
+                    "--ref",
+                    "v1.1.3",
+                ],
+            ),
+            patch.object(m, "generate_notes", return_value=GENERATED) as generate,
+            patch.object(
+                m, "command", side_effect=AssertionError("Preview must not mutate git")
+            ),
+            patch.object(sys, "stdout", new_callable=StringIO) as output,
+        ):
+            self.assertEqual(0, m.main())
+            generate.assert_called_once_with("1.1.3", "v1.1.2", "v1.1.3")
+            self.assertIn("### F-Droid", output.getvalue())
+            self.assertIn(NOTES["ru-RU"], output.getvalue())
+            self.assertIn(GENERATED["github"]["ru-RU"], output.getvalue())
 
     def test_repository_metadata_uses_canonical_url_without_trailing_slash(self):
         with (
@@ -192,11 +292,11 @@ class ReleaseTests(unittest.TestCase):
             "output": [
                 {
                     "type": "message",
-                    "content": [{"type": "output_text", "text": json.dumps(NOTES)}],
+                    "content": [{"type": "output_text", "text": json.dumps(GENERATED)}],
                 }
             ],
         }
-        self.assertEqual(NOTES, m.response_notes(good))
+        self.assertEqual(GENERATED, m.response_notes(good))
         for response in [
             dict(good, status="incomplete"),
             {
@@ -406,6 +506,23 @@ class ReleaseTests(unittest.TestCase):
                             "sha": git("rev-parse", "refs/heads/main", cwd=remote)
                         }
                     }
+                if path == "releases?per_page=100&page=1":
+                    return [
+                        {
+                            "tag_name": "v0.1.0",
+                            "draft": False,
+                            "prerelease": False,
+                            "assets": [
+                                {"name": name, "state": "uploaded", "size": 123}
+                                for name in (
+                                    "message487.apk",
+                                    "message487-0.1.0.apk",
+                                    "mapping.txt",
+                                    "SHA256SUMS",
+                                )
+                            ],
+                        }
+                    ]
                 if path == "pulls":
                     head = git("rev-parse", "HEAD")
                     git("push", "-q", "origin", f"{head}:refs/pull/7/head")
@@ -456,7 +573,7 @@ class ReleaseTests(unittest.TestCase):
             try:
                 with (
                     patch.object(m, "api", side_effect=fake_api),
-                    patch.object(m, "generate_notes", return_value=NOTES),
+                    patch.object(m, "generate_notes", return_value=GENERATED),
                     patch.object(m, "emit"),
                 ):
                     # ruby/setup-ruby creates these before release preparation.
@@ -488,14 +605,25 @@ class ReleaseTests(unittest.TestCase):
                     self.assertNotIn("pulls", calls)
                     self.assertNotIn("git/refs", calls)
                     self.assertFalse(any(p.exists() for p in m.notes_paths(6)))
+                    self.assertFalse((work / m.release_notes_path("0.1.2")).exists())
                     m.prepare("0.1.2")
+                    self.assertEqual(
+                        m.render_notes(GENERATED["github"]),
+                        (work / m.release_notes_path("0.1.2")).read_text(),
+                    )
                     head = pr["head"]["sha"]
                     self.assertEqual(
                         "Historical note\n",
                         (work / m.notes_paths(5)[0]).read_text(),
                     )
                     self.assertEqual(
-                        set([str(m.GRADLE), *map(str, m.notes_paths(6))]),
+                        set(
+                            [
+                                str(m.GRADLE),
+                                *map(str, m.notes_paths(6)),
+                                str(m.release_notes_path("0.1.2")),
+                            ]
+                        ),
                         set(git("diff", "--name-only", base, head).splitlines()),
                     )
                     for path in m.notes_paths(6):
@@ -503,6 +631,29 @@ class ReleaseTests(unittest.TestCase):
                             NOTES[path.parent.parent.name] + "\n",
                             (work / path).read_text(),
                         )
+                    original_command = m.command
+                    with (
+                        patch.object(
+                            m,
+                            "command",
+                            side_effect=lambda *args, **kwargs: (
+                                "## English\n\n- Missing translation."
+                                if args
+                                == (
+                                    "git",
+                                    "show",
+                                    f"{head}:{m.release_notes_path('0.1.2')}",
+                                )
+                                else original_command(*args, **kwargs)
+                            ),
+                        ),
+                        patch.object(m, "wait_ci") as ci,
+                        self.assertRaisesRegex(
+                            RuntimeError, "Missing Russian release notes"
+                        ),
+                    ):
+                        m.finish("0.1.2", 7, head)
+                    ci.assert_not_called()
                     # A failed CI gate must not merge or tag.
                     with (
                         patch.object(

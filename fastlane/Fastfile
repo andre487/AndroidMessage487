@@ -79,6 +79,15 @@ platform :android do
     end
   end
 
+  desc "Preview EN/RU GitHub and F-Droid notes without writing release files"
+  lane :release_notes_preview do |options|
+    arguments = ["preview", "--version", options.fetch(:version).to_s, "--ref", options.fetch(:ref).to_s]
+    arguments += ["--previous", options[:previous].to_s] if options[:previous]
+    Dir.chdir(project_root) do
+      sh(ENV.fetch("PYTHON", "python3"), "scripts/release_automation.py", *arguments)
+    end
+  end
+
   desc "Require full release PR CI, squash merge, and tag its verified merged commit"
   lane :release_finish do |options|
     version = options[:version] || ENV.fetch("RELEASE_VERSION")

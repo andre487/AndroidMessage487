@@ -63,6 +63,14 @@ Build, sign and verify release APK and checksums
 
 Generate EN/RU changelogs, bump the version, and create a release PR
 
+### android release_notes_preview
+
+```sh
+[bundle exec] fastlane android release_notes_preview
+```
+
+Preview EN/RU GitHub and F-Droid notes without writing release files
+
 ### android release_finish
 
 ```sh
