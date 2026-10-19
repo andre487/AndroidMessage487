@@ -1,3 +1,4 @@
+#!/usr/bin/env python3
 """Preview the adaptive artwork with an approximate Samsung-style mask."""
 
 import argparse
@@ -10,7 +11,7 @@ ROOT = Path(__file__).resolve().parents[1]
 SVG = 'http://www.w3.org/2000/svg'
 
 
-def preview_svg(source, bevel=0.18, effects=True):
+def preview_svg(source, bevel=0.18, effects=True, transparent=False):
     tree = ET.parse(source)
     root = tree.getroot()
     x, y, width, height = map(float, root.attrib['viewBox'].split())
@@ -97,6 +98,20 @@ def preview_svg(source, bevel=0.18, effects=True):
                 root.remove(child)
                 wrapper.append(child)
         root.append(wrapper)
+    if not transparent:
+        root.insert(
+            0,
+            ET.Element(
+                f'{{{SVG}}}rect',
+                {
+                    'x': str(x),
+                    'y': str(y),
+                    'width': str(width),
+                    'height': str(height),
+                    'fill': 'white',
+                },
+            ),
+        )
     ET.register_namespace('', SVG)
     return ET.tostring(tree.getroot(), encoding='unicode')
 
@@ -110,6 +125,9 @@ def main():
         help='Editable source SVG (default: assets/branding/icon.svg)',
     )
     parser.add_argument('--flat', action='store_true', help='Disable shadow and bevel')
+    parser.add_argument(
+        '--transparent', action='store_true', help='Disable the white background'
+    )
     parser.add_argument(
         '--bevel',
         type=float,
@@ -128,7 +146,12 @@ def main():
     if args.size <= 0:
         parser.error('--size must be positive')
     svg_root = ET.fromstring(
-        preview_svg(args.source, bevel=args.bevel, effects=not args.flat)
+        preview_svg(
+            args.source,
+            bevel=args.bevel,
+            effects=not args.flat,
+            transparent=args.transparent,
+        )
     )
     svg_root.set('width', str(args.size))
     svg_root.set('height', str(args.size))

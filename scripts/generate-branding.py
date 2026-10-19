@@ -1,6 +1,9 @@
-"""Export the separate branding SVG sources to PNG and Android vector resources."""
+#!/usr/bin/env python3
+"""Export branding.ai artboards to SVG, PNG and Android vector resources."""
 
 import argparse
+import copy
+import math
 import re
 import shutil
 import subprocess
@@ -13,137 +16,220 @@ BRANDING = ROOT / 'assets/branding'
 ANDROID = 'http://schemas.android.com/apk/res/android'
 AAPT = 'http://schemas.android.com/aapt'
 NS = {'s': 'http://www.w3.org/2000/svg'}
+DRAWABLES = {
+    'path',
+    'rect',
+    'circle',
+    'ellipse',
+    'polygon',
+    'polyline',
+    'line',
+    'text',
+    'image',
+    'use',
+}
 
 
-def color(value):
-    if value == 'none':
-        return '#00000000'
-    if value == 'white':
-        return '#FFFFFFFF'
-    if re.fullmatch(r'#[0-9a-fA-F]{3}', value):
-        return '#FF' + ''.join(c * 2 for c in value[1:])
-    if re.fullmatch(r'#[0-9a-fA-F]{6}', value):
-        return '#FF' + value[1:]
-    raise ValueError(f'Unsupported SVG color: {value}')
+def drawable_elements(root):
+    for element in root:
+        name = element.tag.rsplit('}', 1)[-1]
+        if name in ('defs', 'clipPath', 'mask', 'symbol'):
+            continue
+        if name in DRAWABLES:
+            yield element
+        else:
+            yield from drawable_elements(element)
 
 
-def vector(size, viewport):
-    return ET.Element(
-        'vector',
-        {
-            f'{{{ANDROID}}}width': f'{size}dp',
-            f'{{{ANDROID}}}height': f'{size}dp',
-            f'{{{ANDROID}}}viewportWidth': str(viewport),
-            f'{{{ANDROID}}}viewportHeight': str(viewport),
-        },
-    )
-
-
-def paths(parent, elements):
-    attributes = {
-        'd': 'pathData',
-        'fill': 'fillColor',
-        'fill-rule': 'fillType',
-        'stroke': 'strokeColor',
-        'stroke-width': 'strokeWidth',
-        'stroke-linecap': 'strokeLineCap',
-        'stroke-linejoin': 'strokeLineJoin',
-    }
-    # ponytail: handles our path-only artwork; reject new SVG features rather than silently dropping them.
-    for source in elements:
-        if (
-            source.tag != f"{{{NS['s']}}}path"
-            or source.attrib.keys() - attributes.keys()
-        ):
+def android_sources(branding=BRANDING):
+    """Split the first painted shape (background) from the remaining artwork."""
+    source = ET.parse(branding / 'icon.svg').getroot()
+    box = tuple(map(float, source.attrib['viewBox'].replace(',', ' ').split()))
+    if (
+        len(box) != 4
+        or not all(map(math.isfinite, box))
+        or box[2] <= 0
+        or box[2] != box[3]
+    ):
+        raise ValueError('icon.svg must have a positive square viewBox')
+    x, y, width, height = box
+    # Android expands adaptive layers by 1.5; the SVG artboard must remain the visible center.
+    expanded = (x - width / 4, y - height / 4, width * 1.5, height * 1.5)
+    result = {}
+    for background, name in [
+        (False, 'ic_launcher_foreground'),
+        (True, 'ic_launcher_background'),
+    ]:
+        root = copy.deepcopy(source)
+        shapes = list(drawable_elements(root))
+        if len(shapes) < 2:
             raise ValueError(
-                'Android export supports only paths with fill/stroke attributes'
+                'icon.svg needs a background shape followed by foreground artwork'
             )
-        target = ET.SubElement(parent, 'path')
-        target.set(f'{{{ANDROID}}}fillColor', '#FF000000')
-        for key, value in source.attrib.items():
-            if key in ('fill', 'stroke'):
-                value = color(value)
-            elif key == 'fill-rule':
-                value = {'evenodd': 'evenOdd', 'nonzero': 'nonZero'}[value]
-            target.set(f'{{{ANDROID}}}{attributes[key]}', value)
+        parents = {child: parent for parent in root.iter() for child in parent}
+        for shape in (shapes[1:] if background else shapes[:1]):
+            parents[shape].remove(shape)
+        # Illustrator may clip the whole artboard; extend only that rectangular clip for overscan.
+        for clip in root.findall('.//s:clipPath', NS):
+            if (
+                len(clip) != 1
+                or clip[0].tag != f"{{{NS['s']}}}rect"
+                or clip.get('clipPathUnits', 'userSpaceOnUse') != 'userSpaceOnUse'
+            ):
+                continue
+            rect = clip[0]
+            if (
+                'transform' in clip.attrib
+                or 'transform' in rect.attrib
+                or float(rect.get('rx', '0'))
+                or float(rect.get('ry', '0'))
+            ):
+                continue
+            bounds = tuple(
+                float(rect.get(key, '0')) for key in ('x', 'y', 'width', 'height')
+            )
+            if all(math.isclose(a, b) for a, b in zip(bounds, box)):
+                rect.attrib.update(
+                    {
+                        key: f'{value:g}'
+                        for key, value in zip(('x', 'y', 'width', 'height'), expanded)
+                    }
+                )
+        root.set('viewBox', ' '.join(f'{value:g}' for value in expanded))
+        root.set('width', '108')
+        root.set('height', '108')
+        result[name] = root
+    status = ET.parse(branding / 'status-icon.svg').getroot()
+    status.set('width', '24')
+    status.set('height', '24')
+    result['ic_notification'] = status
+    return result
 
 
-def android_vectors():
-    square_icon = ET.parse(BRANDING / 'icon.svg').getroot()
-    artwork = square_icon.find('s:g', NS)
-    transform = re.fullmatch(
-        r'translate\(([-\d.]+) ([-\d.]+)\) scale\(([-\d.]+)\)',
-        artwork.attrib['transform'],
-    )
-    if transform is None:
-        raise ValueError('Expected translate(x y) scale(s) on square icon artwork')
-    tx, ty, scale = transform.groups()
-    foreground = vector(108, 1254)
-    group = ET.SubElement(
-        foreground,
-        'group',
-        {
-            f'{{{ANDROID}}}translateX': tx,
-            f'{{{ANDROID}}}translateY': ty,
-            f'{{{ANDROID}}}scaleX': scale,
-            f'{{{ANDROID}}}scaleY': scale,
-        },
-    )
-    paths(group, artwork)
-    background = vector(108, 108)
-    path = ET.SubElement(
-        background, 'path', {f'{{{ANDROID}}}pathData': 'M0,0H108V108H0Z'}
-    )
-    attr = ET.SubElement(path, f'{{{AAPT}}}attr', {'name': 'android:fillColor'})
-    gradient = ET.SubElement(
-        attr,
-        'gradient',
-        {
-            f'{{{ANDROID}}}type': 'linear',
-            f'{{{ANDROID}}}startX': '0',
-            f'{{{ANDROID}}}startY': '0',
-            f'{{{ANDROID}}}endX': '108',
-            f'{{{ANDROID}}}endY': '108',
-        },
-    )
-    source_gradient = square_icon.find('s:defs/s:linearGradient', NS)
-    if source_gradient.attrib != {
-        'id': 'background',
-        'gradientUnits': 'userSpaceOnUse',
-        'x1': '0',
-        'y1': '0',
-        'x2': '1254',
-        'y2': '1254',
-    }:
-        raise ValueError(
-            'Android background expects the existing diagonal linear gradient'
+def android_vectors(branding=BRANDING):
+    ET.register_namespace('', NS['s'])
+    with tempfile.TemporaryDirectory(prefix='message487-vectors-') as temp:
+        directory = Path(temp)
+        sources = android_sources(branding)
+        offsets = {}
+        for name, root in sources.items():
+            x, y, width, height = root.get('viewBox').split()
+            offsets[name] = (-float(x), -float(y))
+            # Avoid the importer's path rewriting/rounding for a viewBox translation.
+            # Apply this translation as an Android group after conversion instead.
+            root.set('viewBox', f'0 0 {width} {height}')
+            ET.ElementTree(root).write(
+                directory / f'{name}.svg', encoding='utf-8', xml_declaration=True
+            )
+        subprocess.run(
+            [
+                'bash',
+                '-ec',
+                'source "$1"; shift; exec "$@"',
+                'branding',
+                str(ROOT / 'scripts/java-toolchain.sh'),
+                str(ROOT / 'gradlew'),
+                '--offline',
+                '--console=plain',
+                '-q',
+                'convertBrandingVectors',
+                f'-PbrandingVectorDir={directory}',
+            ],
+            check=True,
+            cwd=ROOT,
         )
-    for stop in source_gradient:
-        ET.SubElement(
-            gradient,
-            'item',
-            {
-                f'{{{ANDROID}}}offset': stop.get('offset', '0'),
-                f'{{{ANDROID}}}color': color(stop.attrib['stop-color']),
-            },
+        result = {}
+        for name in sources:
+            vector = ET.parse(directory / f'{name}.xml').getroot()
+            dx, dy = offsets[name]
+            if dx or dy:
+                group = ET.Element(
+                    'group',
+                    {
+                        f'{{{ANDROID}}}translateX': f'{dx:.15g}',
+                        f'{{{ANDROID}}}translateY': f'{dy:.15g}',
+                    },
+                )
+                for child in list(vector):
+                    vector.remove(child)
+                    group.append(child)
+                vector.append(group)
+            result[f'{name}.xml'] = vector
+        return result
+
+
+def export_illustrator(source, destination):
+    """Export a disk snapshot without modifying the user's open Illustrator document."""
+    if not shutil.which('osascript'):
+        raise RuntimeError('Illustrator export requires macOS and Adobe Illustrator')
+    with tempfile.TemporaryDirectory(prefix='message487-illustrator-') as temp:
+        directory = Path(temp)
+        snapshot = directory / 'source.ai'
+        shutil.copyfile(source, snapshot)
+        subprocess.run(
+            [
+                'osascript',
+                str(ROOT / 'scripts/export-branding.applescript'),
+                str(ROOT / 'scripts/export-branding.jsx'),
+                str(snapshot),
+                str(directory),
+            ],
+            check=True,
         )
-    status = ET.parse(BRANDING / 'status-icon.svg').getroot()
-    if status.attrib['viewBox'] != '0 0 24 24':
-        raise ValueError('Status icon must retain its 24×24 viewBox')
-    notification = vector(24, 24)
-    paths(notification, status)
-    return {
-        'ic_launcher_foreground.xml': foreground,
-        'ic_launcher_background.xml': background,
-        'ic_notification.xml': notification,
-    }
+        exports = {}
+        for name, size in [
+            ('icon', (512, 512)),
+            ('icon-round', (512, 512)),
+            ('status-icon', (24, 24)),
+            ('feature', (1024, 500)),
+        ]:
+            files = list((directory / name).glob('*.svg'))
+            if len(files) != 1:
+                raise ValueError(f'Expected one Illustrator SVG export for {name}')
+            root = ET.parse(files[0]).getroot()
+            box = tuple(map(float, root.attrib['viewBox'].split()))
+            if box != (0, 0, *size):
+                raise ValueError(f'Unexpected artboard bounds for {name}: {box}')
+            # Illustrator invents random ID suffixes on every export. Keep diffs stable.
+            ids = {}
+            counts = {}
+            for element in root.iter():
+                old = element.get('id')
+                if old is None:
+                    continue
+                base = re.sub(r'_\d{20,}_$', '', old)
+                if re.fullmatch(r'SVGID_\d+_', base):
+                    base = 'clip'
+                counts[base] = counts.get(base, 0) + 1
+                ids[old] = f'{base}-{counts[base]}'
+                element.set('id', ids[old])
+            for element in root.iter():
+                for key, value in list(element.attrib.items()):
+                    if key.endswith('}href') or key == 'href':
+                        if value.startswith('#') and value[1:] in ids:
+                            value = '#' + ids[value[1:]]
+                    value = re.sub(
+                        r'url\(#([^)]+)\)',
+                        lambda match: f'url(#{ids.get(match[1], match[1])})',
+                        value,
+                    )
+                    element.set(key, value)
+            ET.register_namespace('', NS['s'])
+            ET.register_namespace('xlink', 'http://www.w3.org/1999/xlink')
+            ET.indent(root, space='  ')
+            exports[name] = (
+                ET.tostring(root, encoding='utf-8', xml_declaration=True) + b'\n'
+            )
+        destination.mkdir(parents=True, exist_ok=True)
+        for name, data in exports.items():
+            (destination / f'{name}.svg').write_bytes(data)
 
 
-def generate(output_root):
+def generate(output_root, branding=BRANDING):
     for tool in ('rsvg-convert', 'magick'):
         if not shutil.which(tool):
             raise RuntimeError(f'Required tool is missing: {tool}')
-    vectors = android_vectors()
+    vectors = android_vectors(branding)
     ET.register_namespace('android', ANDROID)
     ET.register_namespace('aapt', AAPT)
 
@@ -152,7 +238,7 @@ def generate(output_root):
         destination.parent.mkdir(parents=True, exist_ok=True)
         with tempfile.TemporaryDirectory() as temp:
             raster = Path(temp) / 'render.png'
-            command = ['rsvg-convert', str(BRANDING / source), '-o', str(raster)]
+            command = ['rsvg-convert', str(branding / source), '-o', str(raster)]
             if size:
                 command += ['-w', str(size), '-h', str(size)]
             subprocess.run(command, check=True)
@@ -169,6 +255,8 @@ def generate(output_root):
                         'off',
                         '-type',
                         'TrueColor',
+                        '-define',
+                        'png:color-type=2',
                         '-strip',
                         str(destination),
                     ],
@@ -177,10 +265,15 @@ def generate(output_root):
             else:
                 shutil.copyfile(raster, destination)
 
-    for name in ('icon', 'icon-round', 'status-icon', 'feature'):
-        render(f'{name}.svg', f'assets/branding/{name}.png')
+    for name, size in [
+        ('icon', 512),
+        ('icon-round', 512),
+        ('status-icon', 24),
+        ('feature', None),
+    ]:
+        render(f'{name}.svg', f'assets/branding/{name}.png', size)
     store = 'fastlane/metadata/android/en-US/images'
-    render('icon.svg', f'{store}/icon.png', opaque=True)
+    render('icon.svg', f'{store}/icon.png', 512, opaque=True)
     render('feature.svg', f'{store}/featureGraphic.png', opaque=True)
     for density, size in [
         ('mdpi', 48),
@@ -209,4 +302,11 @@ if __name__ == '__main__':
         default=ROOT,
         help='Export root (default: repository)',
     )
-    generate(parser.parse_args().output_root)
+    args = parser.parse_args()
+    with tempfile.TemporaryDirectory(prefix='message487-branding-') as temp:
+        sources = Path(temp)
+        export_illustrator(BRANDING / 'branding.ai', sources)
+        generate(args.output_root, sources)
+        destination = args.output_root / 'assets/branding'
+        for source in sources.glob('*.svg'):
+            shutil.copyfile(source, destination / source.name)

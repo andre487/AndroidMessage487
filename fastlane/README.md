@@ -55,6 +55,14 @@ Run instrumentation tests on a disposable emulator (never a personal device)
 
 Build, sign and verify release APK and checksums
 
+### android virus_total
+
+```sh
+[bundle exec] fastlane android virus_total
+```
+
+Scan signed release APKs with VirusTotal before publication
+
 ### android release_prepare
 
 ```sh

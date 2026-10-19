@@ -1,3 +1,6 @@
-<svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24">
-  <path fill="white" fill-rule="evenodd" d="M3 3H19Q21 3 21 5V8H19V5H3V16H14V18H12V20H15V22H6V20H9V18H3Q1 18 1 16V5Q1 3 3 3Z M17 9H21Q23 9 23 11V20Q23 22 21 22H17Q15 22 15 20V11Q15 9 17 9Z M17 11V20H21V11Z"/>
+<?xml version='1.0' encoding='utf-8'?>
+<svg xmlns="http://www.w3.org/2000/svg" version="1.1" id="Layer_1-1" x="0px" y="0px" viewBox="0 0 24 24" enable-background="new 0 0 24 24" xml:space="preserve">
+  <g>
+    <path fill-rule="evenodd" clip-rule="evenodd" fill="#FFFFFF" d="M3.0132289,2.9379652h16c1.1045685,0,2,0.8954306,2,2.0000002v3   h-2v-3h-16v11h11v2h-2v2h3v2h-9v-2h3.0000005v-2H3.0132289c-1.1045694,0-1.9999999-0.8954315-1.9999999-2v-11   C1.013229,3.8333957,1.9086595,2.9379652,3.0132289,2.9379652z M17.0132294,8.9379654h4c1.1045685,0,2,0.8954306,2,2v9   c0,1.1045685-0.8954315,2-2,2h-4c-1.1045694,0-2-0.8954315-2-2v-9C15.0132294,9.833396,15.9086599,8.9379654,17.0132294,8.9379654z    M17.0132294,10.9379654v9h4v-9H17.0132294z" />
+  </g>
 </svg>
