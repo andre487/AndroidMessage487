@@ -1,23 +1,33 @@
-Read new SMS from your Android phone on your computer through your own n8n workflow. Message487 transfers incoming SMS text, sender and time to the HTTPS webhook you choose. This is one-way transfer of new messages: it does not import SMS history, send SMS or provide a two-way messaging inbox.
+Message487 connects selected Android notifications and new incoming SMS to your n8n workflows or another HTTPS webhook. Forward notification text and images, automate actions, or route messages to Telegram through your own workflow.
 
-HOW TO READ SMS ON YOUR COMPUTER
-1. Set up and publish an n8n webhook workflow with Bearer-token authentication.
-2. In Message487 Connection, save its HTTPS URL and token. In Sources, turn on Incoming SMS and grant the receive-SMS permission.
-3. Receive a new SMS on the phone. On your computer, open the workflow's Executions in n8n and view the received message text and sender. Compare the event ID with Message487 Journal.
-The Journal shows delivery status, not message contents. Notification access is not needed for SMS transfer. Without RECEIVE_SMS, Message487 cannot capture and transfer new incoming SMS; its separate notification feature can still be used.
+WHAT YOU CAN FORWARD
 
-You supply the n8n service or another compatible HTTPS receiver and token. Message487 does not include a hosted inbox or an n8n subscription. Another receiver does not require an n8n account.
+• Notifications from apps you select, including available titles, text and image attachments.
+• Optional sender avatars and source app icons. Choose JPEG or PNG, image quality and size limits.
+• New incoming SMS with text, sender and time. SMS forwarding is enabled separately and does not need notification access.
 
-OTHER FEATURES
+GET STARTED
 
-• Choose which applications can forward notifications, or select all visible launcher apps.
-• Authenticate requests with a Bearer token and optionally require an event acknowledgement.
-• Keep events in an encrypted local outbox and retry temporary delivery failures.
-• Pause forwarding, review delivery status, retry or delete queued events.
-• Identify your phone using a custom device code.
-• Use light or dark themes and English or Russian interfaces.
-• View rotating local diagnostics and optionally share a report by email.
+1. Prepare a published n8n webhook workflow or another HTTPS endpoint with Bearer-token authentication.
+2. In Connection, save the full webhook URL, token and your device code. Send a test event and check Journal and your receiver.
+3. In Sources, enable notification forwarding, grant Android notification access and select apps. You can select all visible launcher apps, add a package manually, or opt into selecting newly detected launcher apps automatically.
+4. If you also want SMS, enable Incoming SMS and grant the receive-SMS permission.
 
-Notification and SMS capture are off by default. Android notification access and SMS permission are requested for the corresponding features. Android may hide sensitive notification content. The app lists visible launcher apps rather than requesting access to the entire installed-app inventory.
+You supply the receiver and token. Message487 does not include a hosted inbox or an n8n subscription. A custom webhook does not require an n8n account. Telegram forwarding is configured in your workflow; the Android app does not depend on Telegram. Images are sent in the JSON event and need processing in the receiving workflow.
 
-You need your own HTTPS endpoint and token. The app has no advertising, analytics or automatic crash uploads. Your endpoint and downstream services receive forwarded message contents and apply their own retention policies. Retried requests can produce duplicates; configure deduplication on your server if needed.
+DELIVERY AND CONTROL
+
+• Save events in a private local outbox before sending and retry temporary delivery failures in the background.
+• Filter duplicate SMS and notifications independently, with a configurable time window.
+• Pause capture and queued delivery, check delivery status, and manually retry or delete events in Journal.
+• Identify your phone using a custom device code. Retries preserve the event ID so your receiver can deduplicate requests.
+• Use English or Russian interfaces and light or dark themes.
+• View local diagnostics and optionally share a report by email.
+
+Journal shows delivery metadata, not message contents or image previews. Webhook acceptance does not prove delivery to Telegram or another downstream service. Android battery and network restrictions can delay delivery, and lost responses can cause duplicate requests.
+
+PERMISSIONS AND PRIVACY
+
+Notification and SMS capture are off by default, with no apps selected. Each source needs its corresponding Android access or permission. Only new events are captured; existing notifications and SMS history are not imported. Message487 does not send SMS or reply to notifications. Android may hide sensitive notification content; only content exposed by the system can be forwarded.
+
+Queued message text and request credentials are encrypted on the device. Images are kept as private internal files without additional app-level encryption. Your endpoint and downstream services receive forwarded contents and apply their own retention policies. The app has no advertising, analytics or automatic crash uploads.

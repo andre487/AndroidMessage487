@@ -2,13 +2,14 @@
 
 [English](../en/project-context.md) | [Русский](../ru/project-context.md)
 
-Updated September 8, 2026.
+Updated October 19, 2026.
 
 ## Confirmed by the user
 
 - A new Android application replaces sms487 in a separate repository.
 - Package ID: `life.andre.message487`.
-- Primary positioning is n8n integration; arbitrary webhooks must also be supported.
+- Primary positioning is forwarding selected Android notifications, images and new incoming SMS
+  to n8n workflows; arbitrary HTTPS webhooks are also supported.
 - Project presentation, code style, privacy policy, documentation and CI follow
   [AndroidMegaProxy](https://github.com/andre487/AndroidMegaProxy).
 
@@ -45,13 +46,21 @@ Compatibility with that protocol was not agreed as a requirement for the new app
 ## Capture and delivery
 
 NotificationListenerService uses a package selection; SMS_RECEIVED uses RECEIVE_SMS and
-goAsync. Both sources default to off. Existing SMS history is not read. Duplicate SMS and notifications
-are suppressed by source package, exact original timestamp and text. The Sources switch is on
-by default and allows opting out. Group summaries, ongoing notifications
-and Message487's own notifications are excluded.
+goAsync. Both sources default to off, with no apps selected. Existing SMS history and existing
+notifications are not imported. Duplicate filters for SMS and notifications are independently
+on by default. Matching uses the source package, exact text, image checksum and original
+timestamps within a configurable inclusive time window (1 second by default). Titles and SMS
+senders are excluded from the key. Group summaries, ongoing notifications and Message487's
+own notifications are excluded.
 
-Events are persisted in SQLite before delivery; request bodies use AES-GCM with Android
-Keystore. WorkManager retries transient failures; a periodic recovery task restores scheduling.
+Notifications can include image attachments and optional avatars/app icons. JPEG/PNG, quality
+and output limits are configurable. See [README](../../README.md#delivery-and-data) for the
+payload contract, image handling and duplicate-filter details.
+
+Events are persisted before delivery. SQLite holds metadata and file references; request text
+and credentials are AES-GCM encrypted in private files with Android Keystore. Images are
+separate private files without additional app-level encryption.
+WorkManager retries transient failures; a periodic recovery task restores scheduling.
 Event ID, contents, URL and acknowledgement mode are captured together. Changing the connection
 does not redirect existing queued events. Invalid ACKs and permanent HTTP errors require manual
 retry. Unconfirmed events are not deleted by age; confirmed payloads are removed while a bounded
@@ -61,8 +70,7 @@ attempts; a running request may complete. Backup and device transfer exclude app
 Limitations: capture depends on Android, and the process may die before local persistence.
 WorkManager does not promise immediate delivery. Sensitive-notification restrictions are not
 bypassed. Physical erasure of SQLite pages is not guaranteed. Deduplication hashes persist until app data is cleared, independently of journal cleanup.
-The history starts with new captures after upgrading to database version 2. This does not replace
-server-side deduplication by event ID.
+This does not replace server-side deduplication by event ID.
 
 ## Product direction
 
@@ -79,8 +87,8 @@ viewing journal message contents are not implemented yet.
   journal with contents hidden by default and manual retry.
 - Webhook acceptance is distinct from delivery to Telegram or another downstream service.
   Unconfirmed events are not silently removed by age.
-- Diagnostics exclude secrets and message contents. Encryption, backup and retention requirements
-  must be decided before implementing storage.
+- Diagnostics exclude secrets and message contents. Current encryption, backup and retention
+  behavior is documented in the [privacy policy](../../PRIVACY.md).
 
 n8n has test and production URLs; persistent integrations use a published workflow's URL.
 `Immediately` acknowledges workflow startup, not completion of its actions. See the
