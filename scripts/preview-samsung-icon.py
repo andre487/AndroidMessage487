@@ -106,8 +106,8 @@ def main():
     parser.add_argument(
         '--source',
         type=Path,
-        default=ROOT / 'assets/branding/icon-round.svg',
-        help='Editable source SVG (default: assets/branding/icon-round.svg)',
+        default=ROOT / 'assets/branding/icon.svg',
+        help='Editable source SVG (default: assets/branding/icon.svg)',
     )
     parser.add_argument('--flat', action='store_true', help='Disable shadow and bevel')
     parser.add_argument(

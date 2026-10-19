@@ -20,8 +20,8 @@ Sizes: square/round icon 512×512, status icon 24×24, feature graphic 1024×500
 The round and status PNGs retain transparency; the white status mark needs a contrasting background.
 
 Android adaptive layers live in `app/src/main/res/drawable/ic_launcher_{background,foreground}.xml`.
-The adaptive foreground and round SVG use scale `0.65` about the center of their 1254-unit
-viewport for extra circular-mask padding. The square SVG retains scale `0.73`.
+The adaptive foreground follows the square SVG at scale `0.73` about the center of its
+1254-unit viewport. The separate round SVG retains scale `0.65` for extra circular-mask padding.
 Both SVGs share the Android paths and gradient, cropped to the central 836×836 viewport.
 The SVG files remain separate editable sources; regenerate derived files after editing them.
 The themed launcher and notification small icon share `ic_notification.xml`, the simplified
@@ -39,14 +39,14 @@ Use `--output-root /tmp/message487-branding` to inspect exports without overwrit
 
 | Source | Generated assets |
 | --- | --- |
-| `icon.svg` | Square branding PNG, opaque RGB store icon, square launcher PNGs |
-| `icon-round.svg` | Transparent round branding PNG, round launcher PNGs, adaptive foreground/background XML |
+| `icon.svg` | Square branding PNG, opaque RGB store icon, square launcher PNGs, adaptive foreground/background XML |
+| `icon-round.svg` | Transparent round branding PNG, round launcher PNGs |
 | `status-icon.svg` | Transparent 24×24 PNG and `ic_notification.xml` |
 | `feature.svg` | Branding banner PNG and opaque RGB store feature graphic |
 
 Launcher PNG sizes: mdpi 48, hdpi 72, xhdpi 96, xxhdpi 144, xxxhdpi 192.
 The script preserves each source's layout, including the square/round scale difference.
-The Android vector exporter supports the existing path fill/stroke attributes, the round
+The Android vector exporter supports the existing path fill/stroke attributes, the square
 artwork's `translate(x y) scale(s)` transform, and its diagonal background gradient.
 Unsupported path features or gradient changes cause an error instead of silently losing details.
 Adaptive-icon and monochrome-inset XML files only reference these generated drawables and
@@ -58,7 +58,7 @@ The feature graphic is promotional artwork, not an app screenshot.
 Preview the adaptive artwork with an approximate Samsung-style rounded-square mask:
 
 ```sh
-python3 scripts/preview-samsung-icon.py --source assets/branding/icon-round.svg /tmp/message487-samsung.png
+python3 scripts/preview-samsung-icon.py --source assets/branding/icon.svg /tmp/message487-samsung.png
 # Edit the source SVG, then rerun the same command to regenerate the PNG.
 # Use an .svg output path instead to generate a masked vector preview.
 ```
@@ -67,7 +67,7 @@ Output defaults to 140×140 pixels, approximately the icon size in the supplied 
 Use `--size 512` for a larger preview.
 SVG output uses only Python's standard library; PNG output also needs `rsvg-convert`.
 Use `--source` to choose another SVG; its `viewBox` defines the mask bounds.
-By default the preview reuses `icon-round.svg`, which shares the adaptive foreground's scale and
+By default the preview reuses `icon.svg`, which shares the adaptive foreground's scale and
 position. Keep it synchronized with the Android layers as described above. The mask
 approximates the supplied Samsung screenshot. Shadow radii (1/96 and 1/48 of icon size),
 alpha (41/255 and 26/255), and 0.96 artwork scale follow the published

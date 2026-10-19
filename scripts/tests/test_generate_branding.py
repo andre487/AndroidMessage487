@@ -17,10 +17,10 @@ class BrandingExportTest(unittest.TestCase):
         ns = GENERATOR['NS']
         android = GENERATOR['ANDROID']
         vectors = GENERATOR['android_vectors']()
-        source = ET.parse(ROOT / 'assets/branding/icon-round.svg').find('s:g/s:g', ns)
+        source = ET.parse(ROOT / 'assets/branding/icon.svg').find('s:g', ns)
         group = vectors['ic_launcher_foreground.xml'].find('group')
-        self.assertEqual(group.get(f'{{{android}}}scaleX'), '0.65')
-        self.assertEqual(group.get(f'{{{android}}}translateX'), '219.45')
+        self.assertEqual(group.get(f'{{{android}}}scaleX'), '0.73')
+        self.assertEqual(group.get(f'{{{android}}}translateX'), '169.29')
         self.assertEqual(
             [p.get(f'{{{android}}}pathData') for p in group],
             [p.get('d') for p in source],

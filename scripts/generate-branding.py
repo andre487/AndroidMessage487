@@ -69,14 +69,14 @@ def paths(parent, elements):
 
 
 def android_vectors():
-    round_icon = ET.parse(BRANDING / 'icon-round.svg').getroot()
-    artwork = round_icon.find('s:g/s:g', NS)
+    square_icon = ET.parse(BRANDING / 'icon.svg').getroot()
+    artwork = square_icon.find('s:g', NS)
     transform = re.fullmatch(
         r'translate\(([-\d.]+) ([-\d.]+)\) scale\(([-\d.]+)\)',
         artwork.attrib['transform'],
     )
     if transform is None:
-        raise ValueError('Expected translate(x y) scale(s) on round icon artwork')
+        raise ValueError('Expected translate(x y) scale(s) on square icon artwork')
     tx, ty, scale = transform.groups()
     foreground = vector(108, 1254)
     group = ET.SubElement(
@@ -106,7 +106,7 @@ def android_vectors():
             f'{{{ANDROID}}}endY': '108',
         },
     )
-    source_gradient = round_icon.find('s:defs/s:linearGradient', NS)
+    source_gradient = square_icon.find('s:defs/s:linearGradient', NS)
     if source_gradient.attrib != {
         'id': 'background',
         'gradientUnits': 'userSpaceOnUse',
