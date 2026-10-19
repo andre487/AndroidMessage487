@@ -10,8 +10,13 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.stringResource
+import androidx.compose.ui.text.LinkAnnotation
+import androidx.compose.ui.text.SpanStyle
+import androidx.compose.ui.text.TextLinkStyles
+import androidx.compose.ui.text.buildAnnotatedString
+import androidx.compose.ui.text.style.TextAlign
+import androidx.compose.ui.text.withLink
 
-@OptIn(ExperimentalLayoutApi::class)
 @Composable
 internal fun AppInfo() {
     val context = LocalContext.current
@@ -27,14 +32,20 @@ internal fun AppInfo() {
         }
     }
     Column(Modifier.fillMaxWidth(), horizontalAlignment = Alignment.CenterHorizontally) {
-        FlowRow(horizontalArrangement = Arrangement.Center) {
-            Text(stringResource(R.string.app_version, BuildConfig.VERSION_NAME, BuildConfig.GIT_COMMIT_HASH),
-                modifier = Modifier.align(Alignment.CenterVertically),
-                style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
-            TextButton(onClick = { openLink("https://github.com/andre487/AndroidMessage487") }) {
-                Text(stringResource(R.string.github), style = MaterialTheme.typography.bodySmall)
-            }
-        }
+        Text(
+            text = buildAnnotatedString {
+                append(stringResource(R.string.app_version, BuildConfig.VERSION_NAME, BuildConfig.GIT_COMMIT_HASH))
+                append(" · ")
+                val url = "https://github.com/andre487/AndroidMessage487"
+                withLink(LinkAnnotation.Url(url,
+                    styles = TextLinkStyles(style = SpanStyle(color = MaterialTheme.colorScheme.primary)),
+                    linkInteractionListener = { openLink(url) })) {
+                    append(stringResource(R.string.github))
+                }
+            },
+            modifier = Modifier.fillMaxWidth(), textAlign = TextAlign.Center,
+            style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant,
+        )
         TextButton(onClick = { openLink("https://github.com/andre487/AndroidMessage487/blob/main/PRIVACY.md") },
             modifier = Modifier.fillMaxWidth()) {
             Text(stringResource(R.string.privacy_policy))
