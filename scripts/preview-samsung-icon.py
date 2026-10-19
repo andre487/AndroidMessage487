@@ -1,6 +1,7 @@
 """Preview the adaptive artwork with an approximate Samsung-style mask."""
 
 import argparse
+import math
 import subprocess
 import xml.etree.ElementTree as ET
 from pathlib import Path
@@ -13,11 +14,33 @@ def preview_svg(source, bevel=0.18, effects=True):
     tree = ET.parse(source)
     root = tree.getroot()
     x, y, width, height = map(float, root.attrib['viewBox'].split())
-    clip = tree.find(f'.//{{{SVG}}}clipPath[@id="circle"]')
-    if clip is not None:
-        clip.clear()
-        clip.set('id', 'circle')
-    else:
+    clip = None
+    for candidate in root.iter(f'{{{SVG}}}clipPath'):
+        # Illustrator renames IDs and references clips through CSS classes.
+        # Replace only a full-artboard circle; preserve unrelated internal clipping.
+        if (
+            len(candidate) != 1
+            or candidate[0].tag != f'{{{SVG}}}circle'
+            or candidate.get('clipPathUnits', 'userSpaceOnUse') != 'userSpaceOnUse'
+            or 'transform' in candidate.attrib
+            or 'transform' in candidate[0].attrib
+        ):
+            continue
+        circle = candidate[0]
+        cx, cy, radius = (float(circle.get(key, '0')) for key in ('cx', 'cy', 'r'))
+        if all(
+            math.isclose(actual, expected)
+            for actual, expected in (
+                (cx, x + width / 2),
+                (cy, y + height / 2),
+                (radius, width / 2),
+                (radius, height / 2),
+            )
+        ):
+            clip = candidate
+            clip.remove(circle)
+            break
+    if clip is None:
         defs = ET.SubElement(root, f'{{{SVG}}}defs')
         clip = ET.SubElement(defs, f'{{{SVG}}}clipPath', {'id': 'samsung-preview-mask'})
         group = ET.Element(f'{{{SVG}}}g', {'clip-path': 'url(#samsung-preview-mask)'})

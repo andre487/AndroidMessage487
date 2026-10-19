@@ -1,6 +1,7 @@
 """Run with python3 -m unittest discover -s scripts/tests -p test_preview_samsung_icon.py."""
 
 import runpy
+import tempfile
 import unittest
 import xml.etree.ElementTree as ET
 from pathlib import Path
@@ -56,3 +57,23 @@ class SamsungPreviewTest(unittest.TestCase):
         self.assertEqual(
             preview.find('s:g', ns).attrib['filter'], 'url(#samsung-preview-effects)'
         )
+
+    def test_illustrator_css_clip_is_replaced_without_losing_internal_clip(self):
+        root = Path(__file__).resolve().parents[2]
+        script = runpy.run_path(str(root / 'scripts/preview-samsung-icon.py'))
+        source = '''<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512">
+          <defs><style>.cls-7 {clip-path: url(#clippath);}</style>
+            <clipPath id="internal"><circle cx="20" cy="20" r="10"/></clipPath>
+            <clipPath id="clippath"><circle cx="256" cy="256" r="256"/></clipPath>
+          </defs><g class="cls-7"><path fill="blue" d="M0 0H512V512H0Z"/></g>
+        </svg>'''
+        with tempfile.TemporaryDirectory() as temp:
+            path = Path(temp) / 'Artboard 1.svg'
+            path.write_text(source)
+            preview = ET.fromstring(script['preview_svg'](path, effects=False))
+        ns = {'s': 'http://www.w3.org/2000/svg'}
+        self.assertIsNotNone(preview.find('.//s:clipPath[@id="clippath"]/s:path', ns))
+        self.assertIsNotNone(preview.find('.//s:clipPath[@id="internal"]/s:circle', ns))
+        self.assertEqual(len(preview.findall('.//s:clipPath', ns)), 2)
+        self.assertEqual(preview.find('s:g', ns).get('class'), 'cls-7')
+        self.assertIn('url(#clippath)', preview.find('.//s:style', ns).text)
