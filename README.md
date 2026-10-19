@@ -105,9 +105,44 @@ journal persists across restarts and hides message contents. Tap an event for it
 retry and deletion controls. Confirmed payloads are removed;
 only a bounded recent history of delivery metadata remains. See [PRIVACY.md](PRIVACY.md).
 
+## Troubleshooting, preview and settings transfer
+
+On **Overview**, open **Why was a message not forwarded?** to check saved connection validity,
+source enablement, permissions, listener connectivity, selected apps, active network, background
+restrictions and queued delivery failures. The checks link to settings, reconnection and Journal.
+They distinguish authorization failures, invalid acknowledgements and automatic retry waits;
+network availability does not prove that the webhook is reachable.
+
+**Connection → Preview event** builds a test with the selected test-image options without saving
+or sending it. **Sources → Preview current notifications** lets you inspect up to 20 current
+notifications from selected apps and open one using the same text extraction and image conversion
+as capture. This requires notification access and a connected listener. Opening a preview does
+not replay notifications or enqueue anything. Automatic capture continues independently; pause
+first to inspect without automatic forwarding. Closing discards the temporary image files.
+**Send this event** explicitly queues the preview with its displayed destination and stable event ID;
+real-notification previews cannot be sent while paused. Explicit test sends (including preview tests)
+can be delivered while paused without resuming capture or the ordinary queue. Their background
+retries retain this exception. Notification previews still use the configured duplicate filter.
+The JSON view shows metadata; images are previewed separately and transmitted as Base64.
+
+**Connection → Import and export settings** uses Android's document picker. Export includes saved
+connection, selected sources, duplicate filters and graphics settings. **Include Bearer token in export**
+is on by default, with a prominent switch to opt out. The JSON file is not encrypted; the token and
+possibly secret webhook URL are readable by anyone who obtains it. Unsaved form edits are excluded.
+Import validates the whole file (version 1, at most 1 MiB) and shows a confirmation before replacing
+settings. A file without a token clears the existing token. Forwarding is paused after import so you
+can check the connection and resume explicitly. Android permissions, installation identity, queue,
+journal, diagnostic logs and update preferences are not transferred. Existing queued events retain
+their original destinations and credentials. New-app selection starts from the target device's
+current launcher-app inventory so importing does not immediately select all its existing apps.
+
 The JSON event carries `schema_version`, `event_id`, `device_id`, `device_code`, `message_type`,
 `occurred_at`, `source`, `source_name` and `text`. Notifications also carry `title`; SMS carry
-`sender`. `device_id` is a random installation identity; `device_code` is your editable label.
+`sender`. `channel_id` is a string: the Android channel ID for notifications, `sms` for
+incoming SMS and `test` for test events. Match it together with `source` when filtering on the
+server, because channel IDs belong to each source app. Notifications without a system channel ID
+omit the field. This is an additive field in `schema_version: 1`; existing queued events keep their
+original bodies and may not contain it. `device_id` is a random installation identity; `device_code` is your editable label.
 `source` is the originating package, with SMS using `android` for the system SMS broadcast.
 `source_name` is its PackageManager display label, falling back to the package when unavailable.
 Labels can change with language or app version; use `source` for matching rules.

@@ -14,6 +14,8 @@ data class CapturedNotification(
     val text: String,
     val postedAt: Long,
     val images: List<NotificationImage> = emptyList(),
+    val channelId: String? = null,
+    val imageWarning: Boolean = false,
 )
 
 object ListenerState {
@@ -23,6 +25,7 @@ object ListenerState {
 
 class NotificationCaptureService : NotificationListenerService() {
     override fun onListenerConnected() {
+        activeListener = java.lang.ref.WeakReference(this)
         MessageGraph.get(this).diagnostics.record(DiagnosticEvent.LISTENER_CONNECTED)
         ListenerState.mutableConnected.value = true
         val graph = MessageGraph.get(this)
@@ -32,11 +35,13 @@ class NotificationCaptureService : NotificationListenerService() {
     }
 
     override fun onListenerDisconnected() {
+        if (activeListener.get() === this) activeListener.clear()
         MessageGraph.get(this).diagnostics.record(DiagnosticEvent.LISTENER_DISCONNECTED)
         ListenerState.mutableConnected.value = false
     }
 
     override fun onDestroy() {
+        if (activeListener.get() === this) activeListener.clear()
         ListenerState.mutableConnected.value = false
         super.onDestroy()
     }
@@ -58,12 +63,9 @@ class NotificationCaptureService : NotificationListenerService() {
         if (!sbn.isClearable || sbn.notification.flags and Notification.FLAG_GROUP_SUMMARY != 0) return
         try {
             val extras = sbn.notification.extras
-            val title = extras.getCharSequence(Notification.EXTRA_TITLE)?.toString().orEmpty()
-            val text = extras.getCharSequence(Notification.EXTRA_BIG_TEXT)?.toString()
-                ?: extras.getCharSequence(Notification.EXTRA_TEXT)?.toString()
-                ?: extras.getCharSequenceArray(Notification.EXTRA_TEXT_LINES)?.joinToString("\n")
-                ?: ""
-            val captured = CapturedNotification(sbn.key, sbn.packageName, title, text, sbn.postTime)
+            val captured = notificationContent(sbn)
+            val title = captured.title
+            val text = captured.text
             val hasImages = config.forwardAvatars || config.forwardAppIcons || extras.containsKey(Notification.EXTRA_PICTURE) ||
                 extras.containsKey(Notification.EXTRA_MESSAGES) ||
                 (android.os.Build.VERSION.SDK_INT >= 31 && extras.containsKey(Notification.EXTRA_PICTURE_ICON))
@@ -95,4 +97,34 @@ class NotificationCaptureService : NotificationListenerService() {
         } catch (error: Exception) { graph.captureFailed(error) }
     }
 
+    companion object {
+        @Volatile private var activeListener = java.lang.ref.WeakReference<NotificationCaptureService>(null)
+
+        internal fun previewCandidates(packages: Set<String>): List<CapturedNotification> =
+            requireNotNull(activeListener.get()) { "Notification listener disconnected" }.activeNotifications
+                .filter { it.packageName in packages && it.isClearable &&
+                    it.notification.flags and Notification.FLAG_GROUP_SUMMARY == 0 }
+                .sortedByDescending { it.postTime }.take(20).map(::notificationContent)
+
+        internal fun preview(key: String, config: ForwardingSettings): CapturedNotification {
+            val listener = requireNotNull(activeListener.get()) { "Notification listener disconnected" }
+            val current = listener.getActiveNotifications(arrayOf(key)).firstOrNull()
+                ?: error("Notification is no longer available")
+            require(current.packageName in config.packages && current.packageName != listener.packageName)
+            var imageWarning = false
+            val images = notificationImages(listener, current.notification, config, current.packageName) { imageWarning = true }
+            return notificationContent(current).copy(images = images, imageWarning = imageWarning)
+        }
+    }
+
+}
+
+internal fun notificationContent(sbn: StatusBarNotification): CapturedNotification {
+    val extras = sbn.notification.extras
+    val text = extras.getCharSequence(Notification.EXTRA_BIG_TEXT)?.toString()
+        ?: extras.getCharSequence(Notification.EXTRA_TEXT)?.toString()
+        ?: extras.getCharSequenceArray(Notification.EXTRA_TEXT_LINES)?.joinToString("\n") ?: ""
+    return CapturedNotification(sbn.key, sbn.packageName,
+        extras.getCharSequence(Notification.EXTRA_TITLE)?.toString().orEmpty(), text, sbn.postTime,
+        channelId = sbn.notification.channelId)
 }

@@ -144,6 +144,7 @@ Example notification body:
 | `device_id` | Installation ID |
 | `device_code` | Editable device label |
 | `message_type` | `test`, `notification` or `sms` |
+| `channel_id` | String: Android notification channel ID, `sms` for SMS, `test` for tests; match with `source`. May be absent in older queued events or notifications without a channel ID. |
 | `occurred_at` | Event timestamp in ISO 8601 format |
 | `source` / `source_name` | Source package / app name; SMS uses source `android` |
 | `title` | Notification title; absent for SMS and tests |

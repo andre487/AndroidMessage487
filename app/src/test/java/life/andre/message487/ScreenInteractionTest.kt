@@ -296,4 +296,55 @@ class ScreenInteractionTest {
 
     private fun SemanticsNodeInteraction.isEnabled(): Boolean =
         !fetchSemanticsNode().config.contains(androidx.compose.ui.semantics.SemanticsProperties.Disabled)
+    @Test fun `delivery checks explain unconfigured capture and link to sources`() {
+        compose.onNode(hasScrollToIndexAction()).performScrollToNode(hasText(application.getString(R.string.delivery_checks)))
+        node(R.string.delivery_checks).performClick()
+        node(R.string.check_connection_missing).assertExists()
+        node(R.string.check_no_apps).assertDoesNotExist()
+        compose.onAllNodesWithText(compose.activity.getString(R.string.check_source_disabled))[0].assertExists()
+    }
+
+    @Test fun `export token is on by default and can be excluded and test preview does not enqueue`() {
+        node(R.string.connection_nav).performClick()
+        compose.onNode(hasScrollToIndexAction()).performScrollToNode(hasText(application.getString(R.string.export_include_token)))
+        node(R.string.export_include_token).assertIsOn().performClick()
+        node(R.string.export_include_token).assertIsOff()
+        node(R.string.export_without_token).assertExists()
+        compose.runOnIdle {
+            application.graph.settings.update { it.copy(paused = true) }
+            model.setUrl("https://example.test/receive")
+            model.setDeviceCode("preview-device")
+            model.setAuthToken("preview-token")
+        }
+        compose.onNode(hasScrollToIndexAction()).performScrollToNode(hasText(application.getString(R.string.preview_event)))
+        node(R.string.preview_event).performClick()
+        compose.waitUntil(10_000) { compose.waitForIdle(); model.preview.value != null && !model.state.value.busy }
+        node(R.string.preview_not_sent).assertExists()
+        node(R.string.preview_test_paused).assertExists()
+        node(R.string.send_preview).assertIsEnabled()
+        assertTrue(application.graph.settings.load().paused)
+        assertEquals(0, application.graph.outbox.pendingCount())
+        node(R.string.close).performClick()
+        assertNull(model.preview.value)
+    }
+
+    @Test fun `settings import requires confirmation then pauses and preserves local identity`() {
+        val settings = application.graph.settings
+        val original = settings.update { it.copy(deviceId = "target-installation", authToken = "old-token") }
+        val file = java.io.File(application.cacheDir, "import-settings.json")
+        file.writeText(exportSettings(original.copy(url = "https://new.example/receive", deviceCode = "imported-phone",
+            authToken = "new-token", notifications = true, packages = setOf("example.alpha")), includeToken = false))
+        compose.runOnIdle { model.importDocument(android.net.Uri.fromFile(file)) }
+        compose.waitUntil(10_000) { compose.waitForIdle(); model.pendingImport.value != null && !model.state.value.busy }
+        assertEquals(original, settings.load())
+        compose.runOnIdle { model.confirmImport() }
+        compose.waitUntil(10_000) { compose.waitForIdle(); model.pendingImport.value == null && !model.state.value.busy }
+        assertEquals("target-installation", settings.load().deviceId)
+        assertEquals("https://new.example/receive", settings.load().url)
+        assertEquals("", settings.load().authToken)
+        assertTrue(settings.load().paused)
+        assertEquals("imported-phone", model.state.value.deviceCode)
+        assertEquals(0, application.graph.outbox.pendingCount())
+    }
+
 }

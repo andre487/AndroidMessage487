@@ -108,7 +108,7 @@ internal fun OverviewScreen(settings: ForwardingSettings, permissions: Permissio
                         SupportingText(host.ifEmpty { stringResource(R.string.not_configured) })
                     }
                 }
-                Button(onClick = model::sendTest, enabled = !busy && settings.ready() && !settings.paused,
+                Button(onClick = model::sendTest, enabled = !busy && settings.ready(),
                     modifier = Modifier.fillMaxWidth().heightIn(min = 48.dp)) {
                     Icon(Icons.AutoMirrored.Outlined.Send, null, Modifier.size(18.dp))
                     Spacer(Modifier.width(8.dp))
@@ -116,6 +116,7 @@ internal fun OverviewScreen(settings: ForwardingSettings, permissions: Permissio
                 }
             }
         }
+        item { DeliveryChecks(settings, permissions, connected, queue, model, busy, onConnection, onSources, onJournal) }
         item { AppInfo() }
     }
 }

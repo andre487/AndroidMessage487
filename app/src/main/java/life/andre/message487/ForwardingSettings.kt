@@ -109,16 +109,18 @@ class SettingsStore(
     }
 
     @Synchronized
-    fun update(transform: (ForwardingSettings) -> ForwardingSettings): ForwardingSettings {
+    fun update(clearToken: Boolean = false, transform: (ForwardingSettings) -> ForwardingSettings): ForwardingSettings {
         load()
         val next = transform(mutableState.value).let {
             if (it.deviceId.isBlank()) it.copy(deviceId = UUID.randomUUID().toString()) else it
         }
-        if (next == mutableState.value) return next
+        if (next == mutableState.value && !clearToken) return next
         val editor = preferences.edit()
-        if (next.authToken != mutableState.value.authToken) {
-            require(validAuthToken(next.authToken))
-            editor.putString("auth_token_encrypted", android.util.Base64.encodeToString(
+        if (next.authToken != mutableState.value.authToken || clearToken) {
+            require(!clearToken || next.authToken.isEmpty())
+            require(next.authToken.isEmpty() || validAuthToken(next.authToken))
+            if (next.authToken.isEmpty()) editor.remove("auth_token_encrypted")
+            else editor.putString("auth_token_encrypted", android.util.Base64.encodeToString(
                 cipher.encrypt(next.authToken), android.util.Base64.NO_WRAP))
         }
         if (!editor

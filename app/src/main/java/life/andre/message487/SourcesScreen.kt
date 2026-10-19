@@ -80,6 +80,16 @@ internal fun SourcesScreen(settings: ForwardingSettings, permissions: Permission
         }
         item {
             Panel {
+                SectionTitle(stringResource(R.string.preview_notifications))
+                SupportingText(stringResource(R.string.preview_capture_hint))
+                OutlinedButton(onClick = model::listNotificationPreviews,
+                    enabled = !busy && permissions.notifications && connected && settings.packages.isNotEmpty()) {
+                    Text(stringResource(R.string.preview_notifications))
+                }
+            }
+        }
+        item {
+            Panel {
                 SourceSwitch(Icons.Outlined.Sms, R.string.sms_enabled, R.string.sms_hint, settings.sms, !busy) {
                     if (it && !permissions.sms) smsPermission.launch(Manifest.permission.RECEIVE_SMS) else model.sms(it)
                 }

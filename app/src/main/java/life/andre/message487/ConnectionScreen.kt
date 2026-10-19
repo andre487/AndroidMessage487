@@ -83,6 +83,10 @@ internal fun ConnectionScreen(state: ConnectionState, model: ConnectionViewModel
                 TestImageOption(R.string.test_app_icon, state.testOptions.appIcon, !state.busy) {
                     model.setTestOptions(state.testOptions.copy(appIcon = it))
                 }
+                OutlinedButton(onClick = model::previewTest, enabled = !state.busy,
+                    modifier = Modifier.fillMaxWidth().heightIn(min = 48.dp)) {
+                    Text(stringResource(R.string.preview_event))
+                }
                 OutlinedButton(onClick = { model.save(true) }, enabled = !state.busy,
                     modifier = Modifier.fillMaxWidth().heightIn(min = 48.dp)) {
                     Text(stringResource(R.string.send_test))
@@ -90,6 +94,7 @@ internal fun ConnectionScreen(state: ConnectionState, model: ConnectionViewModel
             }
         }
         item { SupportingText(stringResource(R.string.destination_note)) }
+        item { SettingsTransferPanel(model, state.busy) }
         item { AppInfo() }
     }
 }

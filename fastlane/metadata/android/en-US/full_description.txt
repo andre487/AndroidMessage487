@@ -22,6 +22,9 @@ DELIVERY AND CONTROL
 • Pause capture and queued delivery, check delivery status, and manually retry or delete events in Journal.
 • Identify your phone using a custom device code. Retries preserve the event ID so your receiver can deduplicate requests.
 • Use English or Russian interfaces and light or dark themes.
+• Check capture permissions, listener connectivity, network and delivery failures in one place.
+• Preview test events or current notifications and images without sending them.
+• Import and export settings. The unencrypted export includes the token by default, with a visible switch to exclude it.
 • View local diagnostics and optionally share a report by email.
 
 Journal shows delivery metadata, not message contents or image previews. Webhook acceptance does not prove delivery to Telegram or another downstream service. Android battery and network restrictions can delay delivery, and lost responses can cause duplicate requests.

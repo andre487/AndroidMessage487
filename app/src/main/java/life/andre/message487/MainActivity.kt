@@ -160,6 +160,7 @@ internal fun MessageScreen(model: ConnectionViewModel = viewModel(), checkReques
             }
         }
     }
+    EventPreviewDialogs(model, state.busy, settings.paused)
     if (crash) AlertDialog(onDismissRequest = { dismissCrash() },
         icon = { Icon(Icons.Outlined.BugReport, null) },
         title = { Text(stringResource(R.string.crash_title)) },
