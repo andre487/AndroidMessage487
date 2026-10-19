@@ -1,6 +1,8 @@
 """Check vector conversion and the full export without modifying repository assets."""
 
 import runpy
+import re
+import os
 import shutil
 import struct
 import tempfile
@@ -13,6 +15,55 @@ GENERATOR = runpy.run_path(str(ROOT / 'scripts/generate-branding.py'))
 
 
 class BrandingExportTest(unittest.TestCase):
+    @unittest.skipUnless(
+        os.environ.get('MESSAGE487_TEST_ILLUSTRATOR') == '1',
+        'Set MESSAGE487_TEST_ILLUSTRATOR=1 on a Mac with Illustrator',
+    )
+    def test_illustrator_exports_all_artboards_reproducibly_without_changing_source(
+        self,
+    ):
+        source = ROOT / 'assets/branding/branding.ai'
+        before = source.read_bytes()
+        with tempfile.TemporaryDirectory() as temp:
+            output = Path(temp)
+            GENERATOR['export_illustrator'](source, output)
+            first = {p.name: p.read_bytes() for p in output.glob('*.svg')}
+            self.assertEqual(
+                set(first),
+                {'icon.svg', 'icon-round.svg', 'status-icon.svg', 'feature.svg'},
+            )
+            for path in output.glob('*.svg'):
+                self.assertTrue(
+                    list(GENERATOR['drawable_elements'](ET.parse(path).getroot()))
+                )
+            GENERATOR['export_illustrator'](source, output)
+            self.assertEqual(
+                first, {p.name: p.read_bytes() for p in output.glob('*.svg')}
+            )
+            GENERATOR['generate'](output, output)
+        self.assertEqual(before, source.read_bytes())
+
+    def test_viewport_translation_preserves_fractional_path_coordinates(self):
+        path = 'M113.43 106.12h256.15v90.57h-30Z'
+        svg = f'''<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512">
+          <path fill="#302f5e" d="M0 0h512v512H0z"/>
+          <path fill="#fff" d="{path}"/></svg>'''
+        with tempfile.TemporaryDirectory() as temp:
+            source = Path(temp)
+            (source / 'icon.svg').write_text(svg)
+            shutil.copy(
+                ROOT / 'assets/branding/status-icon.svg', source / 'status-icon.svg'
+            )
+            foreground = GENERATOR['android_vectors'](source)[
+                'ic_launcher_foreground.xml'
+            ]
+        android = '{' + GENERATOR['ANDROID'] + '}'
+        tokens = r'[a-zA-Z]|[-+]?(?:\d*\.\d+|\d+\.?\d*)(?:[eE][-+]?\d+)?'
+        self.assertEqual(
+            re.findall(tokens, next(foreground.iter('path')).get(android + 'pathData')),
+            re.findall(tokens, path),
+        )
+
     def test_layers_follow_the_current_svg_without_requiring_ids_or_transforms(self):
         ns = GENERATOR['NS']
         sources = GENERATOR['android_sources']()
@@ -137,6 +188,14 @@ class BrandingExportTest(unittest.TestCase):
                 * 1.5,
             )
             self.assertTrue(list(foreground.iter('path')))
+            x, y, _, _ = map(
+                float,
+                GENERATOR['android_sources']()['ic_launcher_foreground']
+                .get('viewBox')
+                .split(),
+            )
+            self.assertEqual(float(foreground[0].get(android + 'translateX')), -x)
+            self.assertEqual(float(foreground[0].get(android + 'translateY')), -y)
 
             first = {
                 p.relative_to(output): p.read_bytes()

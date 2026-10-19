@@ -26,12 +26,15 @@ class SamsungPreviewTest(unittest.TestCase):
     def test_mask_preserves_adaptive_artwork(self):
         root = Path(__file__).resolve().parents[2]
         script = runpy.run_path(str(root / 'scripts/preview-samsung-icon.py'))
-        preview = ET.fromstring(
-            script['preview_svg'](
-                root / 'assets/branding/icon-round.svg', effects=False
-            )
-        )
-        source = ET.parse(root / 'assets/branding/icon-round.svg').getroot()
+        svg = '''<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512">
+          <defs><clipPath id="circle"><circle cx="256" cy="256" r="256"/></clipPath></defs>
+          <g clip-path="url(#circle)"><path fill="blue" d="M0 0h512v512H0z"/></g>
+        </svg>'''
+        with tempfile.TemporaryDirectory() as temp:
+            path = Path(temp) / 'round.svg'
+            path.write_text(svg)
+            preview = ET.fromstring(script['preview_svg'](path, effects=False))
+        source = ET.fromstring(svg)
         ns = {'s': 'http://www.w3.org/2000/svg'}
         self.assertEqual(preview.attrib, source.attrib)
         self.assertEqual(
