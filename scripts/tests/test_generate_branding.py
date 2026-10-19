@@ -1,8 +1,8 @@
 """Check vector conversion and the full export without modifying repository assets."""
 
-import runpy
-import re
 import os
+import re
+import runpy
 import shutil
 import struct
 import tempfile
@@ -12,6 +12,10 @@ from pathlib import Path
 
 ROOT = Path(__file__).resolve().parents[2]
 GENERATOR = runpy.run_path(str(ROOT / 'scripts/generate-branding.py'))
+ANDROID_VECTORS = (
+    os.environ.get('MESSAGE487_TEST_ANDROID_VECTORS') == '1'
+    or os.environ.get('MESSAGE487_TEST_ILLUSTRATOR') == '1'
+)
 
 
 class BrandingExportTest(unittest.TestCase):
@@ -43,6 +47,10 @@ class BrandingExportTest(unittest.TestCase):
             GENERATOR['generate'](output, output)
         self.assertEqual(before, source.read_bytes())
 
+    @unittest.skipUnless(
+        ANDROID_VECTORS,
+        'Set MESSAGE487_TEST_ANDROID_VECTORS=1 with Android build tools',
+    )
     def test_viewport_translation_preserves_fractional_path_coordinates(self):
         path = 'M113.43 106.12h256.15v90.57h-30Z'
         svg = f'''<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512">
@@ -141,7 +149,8 @@ class BrandingExportTest(unittest.TestCase):
         )
 
     @unittest.skipUnless(
-        shutil.which('rsvg-convert') and shutil.which('magick'), 'Export tools required'
+        ANDROID_VECTORS and shutil.which('rsvg-convert') and shutil.which('magick'),
+        'Set MESSAGE487_TEST_ANDROID_VECTORS=1 with Android and PNG export tools',
     )
     def test_export_sizes_and_store_opacity(self):
         with tempfile.TemporaryDirectory() as temp:

@@ -141,8 +141,18 @@ python3 -m unittest discover -s scripts/tests -p test_generate_branding.py
 python3 -m unittest discover -s scripts/tests -p test_preview_samsung_icon.py
 ```
 
-The generator tests exercise SVG conversion without opening Illustrator. To also verify
-real Illustrator export, repeatability and preservation of the master file on macOS, use:
+The default generator tests check SVG layer preparation without Android build tools or
+Illustrator. To also check Android conversion and PNG exports, prepare the generation
+dependencies above and run:
+
+```sh
+MESSAGE487_TEST_ANDROID_VECTORS=1 python3 -m unittest discover -s scripts/tests -p test_generate_branding.py
+```
+
+CI runs Android conversion checks in the Android job after the build has populated the
+Gradle cache. PNG export checks additionally require `rsvg-convert` and `magick`.
+To also verify real Illustrator export, repeatability and preservation of the master
+file on macOS, use:
 
 ```sh
 MESSAGE487_TEST_ILLUSTRATOR=1 python3 -m unittest discover -s scripts/tests -p test_generate_branding.py
