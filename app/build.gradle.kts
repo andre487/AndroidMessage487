@@ -32,8 +32,8 @@ android {
         minSdk = 26
         targetSdk = 36
         testInstrumentationRunner = "life.andre.message487.DeviceTestRunner"
-        versionCode = 8
-        versionName = "1.1.0"
+        versionCode = 9
+        versionName = "1.2.0"
         buildConfigField("String", "GIT_COMMIT_HASH", "\"$gitCommitHash\"")
     }
     signingConfigs {

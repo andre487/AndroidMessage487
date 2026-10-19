@@ -1,0 +1,3 @@
+- Added delivery checks for connection settings, permissions, network, background restrictions and queued failures.
+- Preview test events and current notifications with images without sending them; automatic capture continues independently.
+- Import and export settings as unencrypted JSON, with the token included by default unless excluded; imports require confirmation and pause forwarding.
