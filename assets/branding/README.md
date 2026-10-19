@@ -10,11 +10,10 @@
 | [featureGraphic.png](../../fastlane/metadata/android/en-US/images/featureGraphic.png) | Store feature graphic, 1024×500 opaque RGB PNG; shared by both locales |
 | `fastlane/metadata/android/{en-US,ru-RU}/images/phoneScreenshots/` | Actual phone screenshots in English and Russian, 1080×1920 |
 
-The selected design shows an open envelope on a monitor and a closed envelope on a phone,
-with a cyan/blue/violet/magenta gradient inspired by AndroidMegaProxy. The initial concepts
-were created with the built-in `image_gen` tool, then reconstructed as native vectors.
-The final design prompt was: “Monitor with a small open envelope and phone with a small closed
-envelope on a cyan/blue/violet/magenta gradient; preserve generous margins in a circular crop.”
+The current launcher artwork shows an open envelope on a monitor and a closed envelope
+on a phone, in white on a dark purple background. The editable Illustrator documents are
+`icon.ai` and `icon-round.ai`; export them to their corresponding SVG files before generation.
+The generator reads SVG files, not Illustrator documents. The store banner is a separate design.
 Each SVG has a matching PNG beside it for sharing where SVG is unsupported.
 Sizes: square/round icon 512×512, status icon 24×24, feature graphic 1024×500.
 The round and status PNGs retain transparency; the white status mark needs a contrasting background.
@@ -33,6 +32,16 @@ Generate all derived assets from the **separate** SVG sources:
 ```sh
 python3 scripts/generate-branding.py
 ```
+
+After editing artwork, export the affected SVGs, run the generator, then build/install:
+
+```sh
+./scripts/generate-branding.py
+./scripts/run-without-debugging.sh
+```
+
+`run-without-debugging.sh` builds and installs the existing resources; it does not regenerate
+them from SVG. Commit the edited sources and generated PNG/XML files together.
 
 Requires `rsvg-convert`, ImageMagick's `magick`, JDK 21 and the project's Gradle dependencies
 (already downloaded by a normal Android build). Run from any directory.
@@ -53,6 +62,9 @@ clipping paths and transforms are handled by that importer; unsupported SVG feat
 before repository outputs are written. No specific layer names or ID values are required.
 The first drawable shape in `icon.svg` is the background; the remaining shapes form the
 foreground. Keep the background as a single full-artboard shape, behind the artwork.
+The square SVG must have a positive square `viewBox`; it determines the visible icon area.
+Transparent margins inside that artboard are preserved, so a smaller clipping rectangle
+does not automatically crop the export or remove padding.
 Full-artboard rectangular clipping paths are expanded for adaptive-icon overscan; internal
 clipping paths are retained. The SVG source files themselves are never rewritten.
 
@@ -69,6 +81,7 @@ Preview the adaptive artwork with an approximate Samsung-style rounded-square ma
 
 ```sh
 python3 scripts/preview-samsung-icon.py --source assets/branding/icon.svg /tmp/message487-samsung.png
+python3 scripts/preview-samsung-icon.py --transparent /tmp/message487-samsung-transparent.png
 # Edit the source SVG, then rerun the same command to regenerate the PNG.
 # Use an .svg output path instead to generate a masked vector preview.
 ```
