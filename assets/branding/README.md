@@ -44,6 +44,34 @@ Sizes by density: mdpi 48, hdpi 72, xhdpi 96, xxhdpi 144, xxxhdpi 192.
 SVGs are self-contained: no external images, fonts, scripts or raster embeddings.
 The feature graphic is promotional artwork, not an app screenshot.
 
+Preview the adaptive artwork with an approximate Samsung-style rounded-square mask:
+
+```sh
+python3 scripts/preview-samsung-icon.py --source assets/branding/icon-round.svg /tmp/message487-samsung.png
+# Edit the source SVG, then rerun the same command to regenerate the PNG.
+# Use an .svg output path instead to generate a masked vector preview.
+```
+
+Output defaults to 140×140 pixels, approximately the icon size in the supplied screenshot.
+Use `--size 512` for a larger preview.
+SVG output uses only Python's standard library; PNG output also needs `rsvg-convert`.
+Use `--source` to choose another SVG; its `viewBox` defines the mask bounds.
+By default the preview reuses `icon-round.svg`, which shares the adaptive foreground's scale and
+position. Keep it synchronized with the Android layers as described above. The mask
+approximates the supplied Samsung screenshot. Shadow radii (1/96 and 1/48 of icon size),
+alpha (41/255 and 26/255), and 0.96 artwork scale follow the published
+[SemAppIconSolution implementation](https://github.com/488315/samsung_framework/blob/master/framework/sources/android/app/SemAppIconSolution.java).
+SVG Gaussian blur is not identical to Android's Skia shadow rendering. The inner highlight
+and shade are a visual approximation, not a recovered Samsung bevel algorithm.
+Use `--bevel 0.3` to adjust edge strength (0–1), or `--flat` for the mask alone.
+Themes, night-mode tint and animations are not reproduced.
+
+For a device-rendered reference, [One UI Icon Extractor](https://github.com/Palmoe/OneUI-Icon-Extractor)
+uses Samsung's `semGetApplicationIconForIconTray` / `semGetActivityIconForIconTray` APIs
+on a Samsung device, retaining One UI effects. Compare its export from the target phone
+with this preview before claiming an exact match. This is a preview, not another Android
+launcher resource.
+
 Earlier artwork originated from
 [andre487/sms487](https://github.com/andre487/sms487/tree/d4aca0724c4d8c8cfcfe128c6df6cc93f64625f2/client/app/src/main)
 under the [sms487 MIT license](sms487-LICENSE); the original license is retained.
