@@ -1,20 +1,25 @@
-<svg xmlns="http://www.w3.org/2000/svg" width="512" height="512" viewBox="209 209 836 836">
+<?xml version="1.0" encoding="UTF-8"?>
+<svg id="Icon" xmlns="http://www.w3.org/2000/svg" xmlns:xlink="http://www.w3.org/1999/xlink" viewBox="0 0 512 512">
   <defs>
-    <linearGradient id="background" gradientUnits="userSpaceOnUse" x1="0" y1="0" x2="1254" y2="1254">
-      <stop stop-color="#00C9EF" />
-      <stop offset=".35" stop-color="#0754F5" />
-      <stop offset=".65" stop-color="#6500ED" />
-      <stop offset="1" stop-color="#FF1AB9" />
-    </linearGradient>
-    <clipPath id="circle"><circle cx="627" cy="627" r="418" /></clipPath>
+    <clipPath id="clippath">
+      <circle id="Clipping_Mask" data-name="Clipping Mask" cx="256" cy="256" r="256" fill="none"/>
+    </clipPath>
+    <clipPath id="clippath-1">
+      <rect width="512" height="512" fill="none"/>
+    </clipPath>
+    <clipPath id="clippath-2">
+      <rect width="512" height="512" fill="none"/>
+    </clipPath>
   </defs>
-  <g clip-path="url(#circle)">
-  <path fill="url(#background)" d="M0 0H1254V1254H0Z" />
-  <g transform="translate(219.45 219.45) scale(0.65)">
-    <path d="M313,298H877Q942,298 942,363V563H878V377Q878,361 862,361H329Q313,361 313,377V711Q313,727 329,727H764V790H313Q248,790 248,725V363Q248,298 313,298Z M544,790H642V857H698Q730,857 730,887Q730,917 698,917H488Q456,917 456,887Q456,857 488,857H544Z" fill="#fff" />
-    <path d="M819,563H960Q1015,563 1015,618V887Q1015,942 960,942H819Q764,942 764,887V618Q764,563 819,563Z M831,616Q813,616 813,634V870Q813,888 831,888H948Q966,888 966,870V634Q966,616 948,616Z" fill="#fff" fill-rule="evenodd" />
-    <path d="M508,522L590,465L672,522V611H508Z M508,522L546,547H634L672,522" fill="none" stroke="#fff" stroke-width="17" stroke-linejoin="round" stroke-linecap="round" />
-    <path d="M855,725H923Q929,725 929,731V783Q929,789 923,789H855Q849,789 849,783V731Q849,725 855,725Z M850,731L889,761L928,731" fill="none" stroke="#fff" stroke-width="11" stroke-linejoin="round" stroke-linecap="round" />
-  </g>
+  <g clip-path="url(#clippath)">
+    <g clip-path="url(#clippath-1)">
+      <rect width="512" height="512" fill="#302f5e"/>
+      <g clip-path="url(#clippath-2)">
+        <path d="M113.43,106h256.15c16.25,0,29.43,13.17,29.43,29.43v90.57h-30v-83.76c0-4-3.24-7.24-7.24-7.24H120.24c-4,0-7.24,3.24-7.24,7.24v151.51c0,4,3.24,7.24,7.24,7.24h197.76v28H113.43c-16.25,0-29.43-13.18-29.43-29.43v-164.15c0-16.25,13.18-29.43,29.43-29.43M218,329h45v30h25.2c9.6,0,14.4,4.5,14.4,13.5s-4.8,13.5-14.4,13.5h-94.5c-9.6,0-14.4-4.5-14.4-13.5s4.8-13.5,14.4-13.5h24.3v-30Z" fill="#fff"/>
+        <path d="M341.9,226h64.2c13.75,0,24.9,11.15,24.9,24.9v122.2c0,13.75-11.15,24.9-24.9,24.9h-64.2c-13.75,0-24.9-11.15-24.9-24.9v-122.2c0-13.75,11.15-24.9,24.9-24.9M339,258.15v106.7c0,4.5,3.65,8.15,8.15,8.15h52.7c4.5,0,8.15-3.65,8.15-8.15v-106.7c0-4.5-3.65-8.15-8.15-8.15h-52.7c-4.5,0-8.15,3.65-8.15,8.15" fill="#fff" fill-rule="evenodd"/>
+        <path d="M203,207.71l37-25.81,37,25.81v40.29h-74v-40.29ZM202.05,207.68l17.2,11.32h39.84l17.2-11.32" fill="none" stroke="#fff" stroke-linecap="round" stroke-linejoin="round" stroke-width="7.6"/>
+        <path d="M359.22,298.5h31.57c1.5,0,2.72,1.22,2.72,2.72v24.57c0,1.5-1.22,2.72-2.72,2.72h-31.57c-1.5,0-2.72-1.22-2.72-2.72v-24.57c0-1.5,1.22-2.72,2.72-2.72ZM356.89,302.12l17.66,13.58,17.66-13.58" fill="none" stroke="#fff" stroke-linecap="round" stroke-linejoin="round" stroke-width="4.92"/>
+      </g>
+    </g>
   </g>
 </svg>

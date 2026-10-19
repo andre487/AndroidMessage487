@@ -20,9 +20,9 @@ Sizes: square/round icon 512×512, status icon 24×24, feature graphic 1024×500
 The round and status PNGs retain transparency; the white status mark needs a contrasting background.
 
 Android adaptive layers live in `app/src/main/res/drawable/ic_launcher_{background,foreground}.xml`.
-The adaptive foreground follows the square SVG at scale `0.73` about the center of its
-1254-unit viewport. The separate round SVG retains scale `0.65` for extra circular-mask padding.
-Both SVGs share the Android paths and gradient, cropped to the central 836×836 viewport.
+The adaptive foreground and background are derived from the square SVG. Its artboard is
+kept as the visible icon area; a 1.5× viewport provides Android adaptive-icon overscan.
+The round SVG remains a separate source, with its own layout and clipping.
 The SVG files remain separate editable sources; regenerate derived files after editing them.
 The themed launcher and notification small icon share `ic_notification.xml`, the simplified
 white monitor/phone silhouette without envelopes or gradient. Update notifications use this
@@ -34,7 +34,8 @@ Generate all derived assets from the **separate** SVG sources:
 python3 scripts/generate-branding.py
 ```
 
-Requires `rsvg-convert` and ImageMagick's `magick`. Run from any directory.
+Requires `rsvg-convert`, ImageMagick's `magick`, JDK 21 and the project's Gradle dependencies
+(already downloaded by a normal Android build). Run from any directory.
 Use `--output-root /tmp/message487-branding` to inspect exports without overwriting repository files.
 
 | Source | Generated assets |
@@ -46,9 +47,18 @@ Use `--output-root /tmp/message487-branding` to inspect exports without overwrit
 
 Launcher PNG sizes: mdpi 48, hdpi 72, xhdpi 96, xxhdpi 144, xxxhdpi 192.
 The script preserves each source's layout, including the square/round scale difference.
-The Android vector exporter supports the existing path fill/stroke attributes, the square
-artwork's `translate(x y) scale(s)` transform, and its diagonal background gradient.
-Unsupported path features or gradient changes cause an error instead of silently losing details.
+Android XML is converted by the SVG importer bundled with the Android Gradle Plugin,
+through `convertBrandingVectors` (offline). Nested groups, arbitrary IDs, solid backgrounds,
+clipping paths and transforms are handled by that importer; unsupported SVG features fail
+before repository outputs are written. No specific layer names or ID values are required.
+The first drawable shape in `icon.svg` is the background; the remaining shapes form the
+foreground. Keep the background as a single full-artboard shape, behind the artwork.
+Full-artboard rectangular clipping paths are expanded for adaptive-icon overscan; internal
+clipping paths are retained. The SVG source files themselves are never rewritten.
+
+In Illustrator, use **Styling → Presentation Attributes** when exporting for Android.
+**Object IDs → Layer Names** makes IDs readable, but Minimal and Unique work as well.
+See [Adobe's SVG export options](https://helpx.adobe.com/illustrator/using/exporting-artwork.html).
 Adaptive-icon and monochrome-inset XML files only reference these generated drawables and
 remain static. Samsung previews are optional and use the separate command below.
 

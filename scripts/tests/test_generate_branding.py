@@ -13,25 +13,81 @@ GENERATOR = runpy.run_path(str(ROOT / 'scripts/generate-branding.py'))
 
 
 class BrandingExportTest(unittest.TestCase):
-    def test_android_paths_and_transform_follow_separate_sources(self):
+    def test_layers_follow_the_current_svg_without_requiring_ids_or_transforms(self):
         ns = GENERATOR['NS']
-        android = GENERATOR['ANDROID']
-        vectors = GENERATOR['android_vectors']()
-        source = ET.parse(ROOT / 'assets/branding/icon.svg').find('s:g', ns)
-        group = vectors['ic_launcher_foreground.xml'].find('group')
-        self.assertEqual(group.get(f'{{{android}}}scaleX'), '0.73')
-        self.assertEqual(group.get(f'{{{android}}}translateX'), '169.29')
+        sources = GENERATOR['android_sources']()
+        original = ET.parse(ROOT / 'assets/branding/icon.svg').getroot()
+        shapes = list(GENERATOR['drawable_elements'](original))
+        foreground = sources['ic_launcher_foreground']
+        background = sources['ic_launcher_background']
         self.assertEqual(
-            [p.get(f'{{{android}}}pathData') for p in group],
-            [p.get('d') for p in source],
+            [p.attrib for p in GENERATOR['drawable_elements'](foreground)],
+            [p.attrib for p in shapes[1:]],
         )
-        status = ET.parse(ROOT / 'assets/branding/status-icon.svg').getroot()
         self.assertEqual(
-            vectors['ic_notification.xml'][0].get(f'{{{android}}}pathData'),
-            status[0].get('d'),
+            [p.attrib for p in GENERATOR['drawable_elements'](background)],
+            [shapes[0].attrib],
         )
-        with self.assertRaises(ValueError):
-            GENERATOR['paths'](ET.Element('group'), [ET.Element('rect')])
+        x, y, width, height = map(float, original.attrib['viewBox'].split())
+        self.assertEqual(
+            tuple(map(float, foreground.attrib['viewBox'].split())),
+            (x - width / 4, y - height / 4, width * 1.5, height * 1.5),
+        )
+        self.assertEqual(foreground.get('width'), '108')
+        self.assertEqual(sources['ic_notification'].get('viewBox'), '0 0 24 24')
+
+    def test_nested_illustrator_groups_and_arbitrary_clip_ids(self):
+        svg = '''<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512">
+          <defs><clipPath id="random-export-id"><rect width="512" height="512" fill="none"/></clipPath>
+            <clipPath id="internal"><rect x="100" y="100" width="20" height="20"/></clipPath></defs>
+          <g clip-path="url(#random-export-id)"><g><path id="random-background" fill="#302f5e" d="M-128-128h768v768H-128z"/>
+            <g id="random-artwork"><path fill="#fff" d="M100 100h200v200H100z"/></g></g></g>
+        </svg>'''
+        with tempfile.TemporaryDirectory() as temp:
+            source = Path(temp)
+            (source / 'icon.svg').write_text(svg)
+            shutil.copy(
+                ROOT / 'assets/branding/status-icon.svg', source / 'status-icon.svg'
+            )
+            layers = GENERATOR['android_sources'](source)
+        ns = GENERATOR['NS']
+        layer = layers['ic_launcher_foreground']
+        self.assertIsNotNone(layer.find('.//s:g[@id="random-artwork"]/s:path', ns))
+        self.assertEqual(
+            layer.find('.//s:g', ns).get('clip-path'), 'url(#random-export-id)'
+        )
+        clip = layer.find('.//s:clipPath[@id="random-export-id"]/s:rect', ns)
+        self.assertEqual(clip.get('x'), '-128')
+        self.assertEqual(clip.get('width'), '768')
+        self.assertEqual(
+            layer.find('.//s:clipPath[@id="internal"]/s:rect', ns).get('width'), '20'
+        )
+
+    def test_legacy_gradient_and_transformed_group_remain_supported(self):
+        svg = '''<svg xmlns="http://www.w3.org/2000/svg" viewBox="209 209 836 836">
+          <defs><linearGradient id="any-name"><stop stop-color="#00c9ef"/><stop offset="1" stop-color="#ff1ab9"/></linearGradient></defs>
+          <path fill="url(#any-name)" d="M0 0h1254v1254H0z"/>
+          <g transform="translate(169.29 169.29) scale(0.73)"><path fill="#fff" d="M300 300h600v600H300z"/></g>
+        </svg>'''
+        with tempfile.TemporaryDirectory() as temp:
+            source = Path(temp)
+            (source / 'icon.svg').write_text(svg)
+            shutil.copy(
+                ROOT / 'assets/branding/status-icon.svg', source / 'status-icon.svg'
+            )
+            layers = GENERATOR['android_sources'](source)
+        ns = GENERATOR['NS']
+        self.assertEqual(
+            layers['ic_launcher_foreground'].get('viewBox'), '0 0 1254 1254'
+        )
+        self.assertEqual(
+            layers['ic_launcher_foreground'].find('s:g', ns).get('transform'),
+            'translate(169.29 169.29) scale(0.73)',
+        )
+        self.assertEqual(
+            layers['ic_launcher_background'].find('s:path', ns).get('fill'),
+            'url(#any-name)',
+        )
 
     @unittest.skipUnless(
         shutil.which('rsvg-convert') and shutil.which('magick'), 'Export tools required'
@@ -65,6 +121,23 @@ class BrandingExportTest(unittest.TestCase):
                 if 'fastlane' in str(png):
                     self.assertEqual(data[25], 2)  # PNG RGB, without an alpha channel.
             self.assertEqual(len(list(output.rglob('*.xml'))), 3)
+            android = '{' + GENERATOR['ANDROID'] + '}'
+            foreground = ET.parse(
+                output / 'app/src/main/res/drawable/ic_launcher_foreground.xml'
+            ).getroot()
+            self.assertEqual(foreground.get(android + 'width'), '108dp')
+            self.assertEqual(
+                float(foreground.get(android + 'viewportWidth')),
+                float(
+                    ET.parse(ROOT / 'assets/branding/icon.svg')
+                    .getroot()
+                    .get('viewBox')
+                    .split()[2]
+                )
+                * 1.5,
+            )
+            self.assertTrue(list(foreground.iter('path')))
+
             first = {
                 p.relative_to(output): p.read_bytes()
                 for p in output.rglob('*')

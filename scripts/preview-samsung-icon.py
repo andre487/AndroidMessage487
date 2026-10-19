@@ -1,3 +1,4 @@
+#!/usr/bin/env python3
 """Preview the adaptive artwork with an approximate Samsung-style mask."""
 
 import argparse
