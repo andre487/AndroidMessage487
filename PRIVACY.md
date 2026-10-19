@@ -4,7 +4,8 @@ Last updated: October 19, 2026.
 
 Message487 forwards selected notifications and new incoming SMS to a webhook you configure.
 Notification events can include titles, text, image attachments and optional avatars or app icons.
-SMS events include text, sender and time. Your n8n workflow or another HTTPS receiver decides
+SMS events include text, sender and time. Events also include a string channel identifier: the
+Android notification channel ID, `sms` for SMS, or `test` for test events. Your n8n workflow or another HTTPS receiver decides
 how to process or forward these events; the app does not depend on Telegram.
 Both capture sources are off by default. Notifications require Android notification access and
 selection of source apps. Optional automatic selection of newly detected launcher apps is off by default;
@@ -42,6 +43,31 @@ The journal shows delivery metadata and does not display message contents or ima
 their request and image files removed; only recent delivery metadata is retained. Undelivered payloads are not automatically deleted by age. Abandoned temporary files are cleaned during recovery after a grace period. File and database
 deletion do not guarantee forensic erasure of previously allocated storage.
 Message bodies, image data and server response bodies are not written to diagnostic logs by the app.
+
+## Event preview and settings files
+
+Event previews are opened only by an explicit user action. They show test events or the contents
+of currently active notifications from selected apps, including text, source package, channel ID
+and available images. They use the same image conversion and limits as capture. Opening a preview
+makes no webhook request and does not stop automatic capture; use Pause first if needed. Preview
+images are temporary private files, removed when the preview is closed or its screen model is
+cleared; abandoned files are handled by the existing recovery cleanup. Sending a preview requires
+an explicit action and uses the normal local queue. Explicitly sent tests and their automatic retries
+can be delivered during Pause; capture and delivery of ordinary messages remain paused.
+The journal continues to hide message contents.
+
+Settings export writes an unencrypted JSON file to a location you choose in Android's document
+picker. It contains saved webhook URL, device code, selected source packages, capture preferences,
+duplicate-filter preferences and image settings. The Bearer token is **included by default**;
+a prominent switch lets you exclude it before export. A webhook URL can also contain a secret.
+Anyone with access to the exported file or its storage provider can read these values. The app
+does not encrypt the export, upload it separately or delete copies from your chosen provider.
+
+Import reads a selected settings file and shows a confirmation before applying it. If the file
+has no token, the previous token is cleared. Imported preferences are stored with the protections
+described above, and forwarding is paused until explicitly resumed. Installation ID, Android
+permissions, queue, journal, diagnostics and update preferences are not included in the file.
+Settings import/export does not transfer or delete message payloads or queued credentials.
 
 ## Diagnostics and voluntary email reports
 

@@ -35,7 +35,8 @@ data class ConnectionState(
 }
 
 data class QueueSnapshot(val entries: List<QueueEntry> = emptyList(), val pending: Int = 0)
-data class PermissionState(val notifications: Boolean = false, val sms: Boolean = false)
+data class PermissionState(val notifications: Boolean = false, val sms: Boolean = false,
+    val network: Boolean = true, val backgroundRestricted: Boolean = false)
 
 class ConnectionViewModel @JvmOverloads constructor(application: Application,
     private val readSettings: () -> ForwardingSettings = { MessageGraph.get(application).settings.load() },
@@ -55,6 +56,100 @@ class ConnectionViewModel @JvmOverloads constructor(application: Application,
     private val mutableApps = MutableStateFlow<List<AppSource>>(emptyList())
     val apps = mutableApps.asStateFlow()
     private var refreshingApps = false
+    private val mutableImport = MutableStateFlow<ForwardingSettings?>(null)
+    val pendingImport = mutableImport.asStateFlow()
+    private val mutablePreview = MutableStateFlow<EventPreview?>(null)
+    internal val preview = mutablePreview.asStateFlow()
+    private val mutableCandidates = MutableStateFlow<List<CapturedNotification>?>(null)
+    internal val previewCandidates = mutableCandidates.asStateFlow()
+    private var previewClosed = false
+
+    fun exportDocument(uri: android.net.Uri, includeToken: Boolean) = action(R.string.settings_exported) {
+        val json = exportSettings(graph.settings.load(), includeToken)
+        require(json.toByteArray(Charsets.UTF_8).size <= MAX_SETTINGS_FILE_BYTES)
+        requireNotNull(getApplication<Application>().contentResolver.openOutputStream(uri, "wt")).use {
+            it.write(json.toByteArray(Charsets.UTF_8))
+        }
+    }
+
+    fun importDocument(uri: android.net.Uri) = action(failureNotice = R.string.invalid_settings_file) {
+        try {
+            val text = requireNotNull(getApplication<Application>().contentResolver.openInputStream(uri)).use(::readSettingsFile)
+            mutableImport.value = importSettings(text, graph.settings.load())
+        } catch (error: Exception) {
+            // Parser/provider errors can include file contents or credentials. Do not log them.
+            throw java.io.IOException("Settings file could not be imported")
+        }
+    }
+
+    fun cancelImport() { mutableImport.value = null }
+
+    fun confirmImport() = action(R.string.settings_imported) {
+        val imported = requireNotNull(mutableImport.value)
+        val baseline = installedApps().map { it.packageName }.toSet()
+        val saved = graph.settings.update(clearToken = imported.authToken.isEmpty()) { current -> imported.copy(
+            deviceId = current.deviceId, captureFailed = current.captureFailed,
+            knownPackages = current.knownPackages + baseline + imported.packages,
+        ) }
+        mutableState.value = state.value.copy(url = saved.url, deviceCode = saved.deviceCode,
+            authToken = saved.authToken, requireAck = saved.requireAck,
+            invalidUrl = false, invalidToken = false, invalidDeviceCode = false)
+        mutableImport.value = null
+        refreshPermissions()
+    }
+
+    internal fun previewTest() {
+        val draft = state.value
+        if (!validWebhookUrl(draft.url.trim(), BuildConfig.DEBUG)) { mutableState.value = draft.copy(invalidUrl = true); return }
+        if (!validAuthToken(draft.authToken)) { mutableState.value = draft.copy(invalidToken = true); return }
+        if (draft.deviceCode.isBlank()) { mutableState.value = draft.copy(invalidDeviceCode = true); return }
+        val config = settings.value.copy(url = draft.url.trim(), deviceCode = draft.deviceCode.trim(),
+            authToken = draft.authToken, requireAck = draft.requireAck)
+        action { replacePreview(EventPreview(graph.previewTest(config, draft.testOptions), config)) }
+    }
+
+    internal fun listNotificationPreviews() = action {
+        mutableCandidates.value = NotificationCaptureService.previewCandidates(settings.value.packages)
+    }
+
+    internal fun previewNotification(key: String) = action {
+        val config = graph.settings.load()
+        val notification = NotificationCaptureService.preview(key, config)
+        try { replacePreview(EventPreview(graph.notificationEvent(notification, config), config, notification.imageWarning)) }
+        catch (error: Exception) { discardImages(notification.images); throw error }
+        mutableCandidates.value = null
+    }
+
+    internal fun dismissCandidates() { mutableCandidates.value = null }
+
+    @Synchronized private fun replacePreview(value: EventPreview) {
+        if (previewClosed) { discardImages(value.event.images); return }
+        clearPreview()
+        graph.outbox.previewDirectories.addAll(value.event.images.mapNotNull { it.file.parentFile })
+        mutablePreview.value = value
+    }
+
+    @Synchronized internal fun clearPreview() {
+        val images = mutablePreview.value?.event?.images.orEmpty()
+        mutablePreview.value = null
+        val cleanup = {
+            discardImages(images)
+            graph.outbox.previewDirectories.removeAll(images.mapNotNull { it.file.parentFile }.toSet())
+        }
+        if (!getApplication<MessageApplication>().backgroundExecutor.submitSafely({}) { cleanup() }) cleanup()
+    }
+
+    internal fun sendPreview() = action() {
+        val value = requireNotNull(mutablePreview.value)
+        val queued = graph.sendPreview(value.event, value.settings)
+        mutableState.value = state.value.copy(notice = if (queued) R.string.event_queued else R.string.preview_duplicate)
+        clearPreview()
+    }
+
+    override fun onCleared() {
+        synchronized(this) { previewClosed = true; clearPreview() }
+        super.onCleared()
+    }
 
     private var permissionRefresh: kotlinx.coroutines.Job? = null
     private var settingsLoad: kotlinx.coroutines.Job? = null
@@ -133,6 +228,9 @@ class ConnectionViewModel @JvmOverloads constructor(application: Application,
                     PermissionState(
                         notifications = app.packageName in NotificationManagerCompat.getEnabledListenerPackages(app),
                         sms = ContextCompat.checkSelfPermission(app, Manifest.permission.RECEIVE_SMS) == PackageManager.PERMISSION_GRANTED,
+                        network = app.getSystemService(android.net.ConnectivityManager::class.java).activeNetwork != null,
+                        backgroundRestricted = android.os.Build.VERSION.SDK_INT >= 28 &&
+                            app.getSystemService(android.app.ActivityManager::class.java).isBackgroundRestricted,
                     )
                 }
             } catch (error: Exception) {
@@ -227,18 +325,18 @@ class ConnectionViewModel @JvmOverloads constructor(application: Application,
     }
     fun showSettingsError() { mutableState.value = state.value.copy(notice = R.string.settings_unavailable) }
 
-    private fun action(notice: Int? = null, block: () -> Unit) {
+    private fun action(notice: Int? = null, failureNotice: Int = R.string.local_error, block: () -> Unit) {
         if (state.value.busy || !graph.settings.loaded.value) return
         mutableState.value = state.value.copy(busy = true, notice = null)
         viewModelScope.launch {
             val result = try {
                 withContext(Dispatchers.IO) { block() }
-                notice
+                notice ?: state.value.notice
             } catch (cancelled: kotlinx.coroutines.CancellationException) {
                 throw cancelled
             } catch (error: Exception) {
                     graph.diagnostics.record(DiagnosticEvent.LOCAL_OPERATION_FAILED, error = error)
-                R.string.local_error
+                failureNotice
             }
             mutableState.value = state.value.copy(busy = false, notice = result)
         }

@@ -52,6 +52,7 @@ fun deliveryQueueState(result: DeliveryResult): QueueState = when (result.status
 
 class Outbox(context: Context, private val cipher: PayloadCipher) : SQLiteOpenHelper(context, "outbox.db", null, 4) {
     internal val files by lazy { File(context.noBackupFilesDir, "outbox").apply { mkdirs() } }
+    internal val previewDirectories: MutableSet<File> = java.util.concurrent.ConcurrentHashMap.newKeySet()
     private val mutableRevision = MutableStateFlow(0L)
     val revision = mutableRevision.asStateFlow()
 
@@ -352,7 +353,7 @@ class Outbox(context: Context, private val cipher: PayloadCipher) : SQLiteOpenHe
             buildSet { while (it.moveToNext()) add(it.getString(0)) }
         }
         val cutoff = System.currentTimeMillis() - TimeUnit.MINUTES.toMillis(5)
-        files.listFiles()?.filter { it.isDirectory && it.name !in referenced && it.lastModified() < cutoff }
+        files.listFiles()?.filter { it.isDirectory && it.name !in referenced && it !in previewDirectories && it.lastModified() < cutoff }
             ?.forEach { it.deleteRecursively() }
     }
 

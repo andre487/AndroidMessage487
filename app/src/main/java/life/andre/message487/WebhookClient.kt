@@ -34,6 +34,7 @@ data class MessageEvent(
     val title: String? = null,
     val sender: String? = null,
     val images: List<NotificationImage> = emptyList(),
+    val channelId: String? = null,
 ) {
     /** Image bytes are appended separately by QueuedRequest.writeTo to keep the body streaming. */
     fun toJson(): String = JSONObject()
@@ -48,6 +49,7 @@ data class MessageEvent(
         .put("text", text)
         .put("title", title)
         .put("sender", sender)
+        .put("channel_id", when (messageType) { "sms" -> "sms"; "test" -> "test"; else -> channelId })
         .toString()
 }
 

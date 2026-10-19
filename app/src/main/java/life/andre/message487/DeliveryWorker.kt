@@ -19,12 +19,14 @@ import kotlinx.coroutines.withContext
 import kotlinx.coroutines.ensureActive
 import java.util.concurrent.TimeUnit
 
+internal fun pauseBlocksDelivery(paused: Boolean, manualTest: Boolean): Boolean = paused && !manualTest
+
 class DeliveryScheduler(context: Context) {
     private val manager = WorkManager.getInstance(context)
 
-    fun schedule(id: String, replace: Boolean = false): androidx.work.Operation {
+    fun schedule(id: String, replace: Boolean = false, manualTest: Boolean = false): androidx.work.Operation {
         val work = OneTimeWorkRequestBuilder<DeliveryWorker>()
-            .setInputData(workDataOf("event_id" to id))
+            .setInputData(workDataOf("event_id" to id, "manual_test" to manualTest))
             .setConstraints(Constraints.Builder().setRequiredNetworkType(NetworkType.CONNECTED).build())
             .setBackoffCriteria(BackoffPolicy.EXPONENTIAL, 30, TimeUnit.SECONDS)
             .build()
@@ -42,7 +44,7 @@ class DeliveryWorker(context: Context, parameters: WorkerParameters) : Coroutine
         val graph = MessageGraph.get(applicationContext)
         val id = inputData.getString("event_id") ?: return@withContext Result.failure()
         try {
-            if (graph.settings.load().paused) return@withContext Result.retry()
+            if (pauseBlocksDelivery(graph.settings.load().paused, inputData.getBoolean("manual_test", false))) return@withContext Result.retry()
             val attempt = try {
                 graph.outbox.beginAttempt(id)
             } catch (databaseError: android.database.SQLException) {

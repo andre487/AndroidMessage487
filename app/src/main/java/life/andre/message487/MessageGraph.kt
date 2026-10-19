@@ -77,18 +77,31 @@ class MessageGraph internal constructor(private val context: Application) {
         val images = try { testMessageImages(context, config, options) }
             catch (error: ImageMemoryException) { captureFailed(error); emptyList() }
         val event = MessageEvent(config.deviceId, config.deviceCode, sources.resolve(context.packageName), images = images)
-        try { enqueue(event, config) } finally { discardImages(images) }
+        try { enqueue(event, config, manualTest = true) } finally { discardImages(images) }
     }
 
     fun captureNotification(notification: CapturedNotification) {
         val config = settings.load()
         if (!config.acceptsPackage(notification.packageName, context.packageName)) return
-        val event = MessageEvent(
-            config.deviceId, config.deviceCode, sources.resolve(notification.packageName),
-            occurredAt = Instant.ofEpochMilli(notification.postedAt).toString(),
-            messageType = "notification", text = notification.text, title = notification.title, images = notification.images,
-        )
-        enqueue(event, config)
+        enqueue(notificationEvent(notification, config), config)
+    }
+
+    internal fun notificationEvent(notification: CapturedNotification, config: ForwardingSettings) = MessageEvent(
+        config.deviceId, config.deviceCode, sources.resolve(notification.packageName),
+        occurredAt = Instant.ofEpochMilli(notification.postedAt).toString(),
+        messageType = "notification", text = notification.text, title = notification.title,
+        images = notification.images, channelId = notification.channelId,
+    )
+
+    internal fun previewTest(config: ForwardingSettings, options: TestMessageOptions) = MessageEvent(
+        config.deviceId, config.deviceCode, sources.resolve(context.packageName),
+        images = testMessageImages(context, config, options),
+    )
+
+    internal fun sendPreview(event: MessageEvent, config: ForwardingSettings): Boolean {
+        val manualTest = event.messageType == "test"
+        require(config.ready() && !pauseBlocksDelivery(settings.load().paused, manualTest))
+        return enqueue(event, config, manualTest = manualTest)
     }
 
     fun captureSms(sender: String, text: String, timestamp: Long) {
@@ -102,11 +115,13 @@ class MessageGraph internal constructor(private val context: Application) {
         enqueue(event, config)
     }
 
-    private fun enqueue(event: MessageEvent, config: ForwardingSettings) {
-        if (outbox.enqueue(event, config)) {
+    private fun enqueue(event: MessageEvent, config: ForwardingSettings, manualTest: Boolean = false): Boolean {
+        val queued = outbox.enqueue(event, config)
+        if (queued) {
             diagnostics.record(DiagnosticEvent.EVENT_QUEUED, type = event.messageType)
-            scheduler.schedule(event.eventId).result.get(30, java.util.concurrent.TimeUnit.SECONDS)
+            scheduler.schedule(event.eventId, manualTest = manualTest).result.get(30, java.util.concurrent.TimeUnit.SECONDS)
         } else diagnostics.record(DiagnosticEvent.DUPLICATE_SKIPPED, type = event.messageType)
+        return queued
     }
 
     private val failurePending = java.util.concurrent.atomic.AtomicBoolean()

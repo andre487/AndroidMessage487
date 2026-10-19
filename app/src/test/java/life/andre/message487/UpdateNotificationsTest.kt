@@ -57,7 +57,8 @@ class UpdateNotificationsTest {
         assertEquals(OPEN_UPDATES_ACTION, open.action)
         assertEquals(MainActivity::class.java.name, open.component!!.className)
         UpdateActionReceiver().onReceive(app, shadowOf(notification.actions[1].actionIntent).savedIntent)
-        await { !UpdatePreferences(app).shouldNotify(update, UPDATE_REMINDER_INTERVAL * 2) }
+        await { !UpdatePreferences(app).shouldNotify(update, UPDATE_REMINDER_INTERVAL * 2) &&
+            shadowOf(notifications).getNotification(UPDATE_NOTIFICATION_ID) == null }
         assertNull(shadowOf(notifications).getNotification(UPDATE_NOTIFICATION_ID))
         assertFalse(UpdatePreferences(app).shouldNotify(update, UPDATE_REMINDER_INTERVAL * 2))
         assertTrue(UpdatePreferences(app).shouldNotify(update.copy(version = "0.1.3"), 1001))
