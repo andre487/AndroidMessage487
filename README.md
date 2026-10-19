@@ -10,8 +10,9 @@
 </p>
 
 Message487 connects selected Android notifications and incoming SMS to your n8n workflows.
-A custom webhook is also supported. Telegram forwarding is one possible workflow; the Android
-app does not depend on Telegram.
+Forward notification text and images, with optional sender avatars and app icons, or enable SMS
+forwarding separately. A custom HTTPS webhook is also supported. Telegram forwarding is one
+possible workflow; the Android app does not depend on Telegram.
 
 **Status:** development preview with notification/SMS capture, a persistent private outbox,
 background delivery, automatic retries and a delivery journal. Webhook requests require a Bearer token, stored encrypted on the device. Signed APK release automation is configured; see [Releases](docs/en/releases.md) and [release automation](docs/en/release-automation.md), and [release testing](docs/en/release-testing.md).
@@ -193,7 +194,9 @@ PR CI has no release signing credentials. It runs JVM/lint checks and instrument
 on disposable API 26 and API 35 emulators. JUnit results appear in GitHub Checks; debug and
 unsigned release APK links are kept in the PR description. See [testing](docs/en/testing.md).
 For signed APK releases, see [Releases](docs/en/releases.md) and [release automation](docs/en/release-automation.md), and [release testing](docs/en/release-testing.md).
-Store graphics and their provenance are documented in [Branding](assets/branding/README.md).
+English and Russian store descriptions for F-Droid and Google Play share the canonical
+[Fastlane metadata](fastlane/metadata/android). Store graphics and their provenance are documented
+in [Branding](assets/branding/README.md).
 
 See the [project context](docs/en/project-context.md) for remaining product decisions.
 This project succeeds [sms487](https://github.com/andre487/sms487).

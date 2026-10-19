@@ -20,29 +20,68 @@ Sizes: square/round icon 512×512, status icon 24×24, feature graphic 1024×500
 The round and status PNGs retain transparency; the white status mark needs a contrasting background.
 
 Android adaptive layers live in `app/src/main/res/drawable/ic_launcher_{background,foreground}.xml`.
-The adaptive foreground and round SVG use scale `0.65` about the center of their 1254-unit
-viewport for extra circular-mask padding. The square SVG retains scale `0.73`.
+The adaptive foreground follows the square SVG at scale `0.73` about the center of its
+1254-unit viewport. The separate round SVG retains scale `0.65` for extra circular-mask padding.
 Both SVGs share the Android paths and gradient, cropped to the central 836×836 viewport.
-Keep these sources synchronized when changing the artwork.
+The SVG files remain separate editable sources; regenerate derived files after editing them.
 The themed launcher and notification small icon share `ic_notification.xml`, the simplified
 white monitor/phone silhouette without envelopes or gradient. Update notifications use this
 small icon. The app UI retains its purple Material theme and standard Material icons.
 
-Export PNGs with the installed `rsvg-convert` utility:
+Generate all derived assets from the **separate** SVG sources:
 
 ```sh
-for name in icon icon-round status-icon feature; do
-  rsvg-convert "assets/branding/$name.svg" -o "assets/branding/$name.png"
-done
-rsvg-convert assets/branding/icon.svg -o fastlane/metadata/android/en-US/images/icon.png
-rsvg-convert assets/branding/feature.svg -o /tmp/message487-feature.png
-magick /tmp/message487-feature.png -background white -alpha remove -alpha off -type TrueColor fastlane/metadata/android/en-US/images/featureGraphic.png
+python3 scripts/generate-branding.py
 ```
 
-For launcher PNGs use `rsvg-convert -w SIZE -h SIZE` with `icon.svg` or `icon-round.svg`.
-Sizes by density: mdpi 48, hdpi 72, xhdpi 96, xxhdpi 144, xxxhdpi 192.
+Requires `rsvg-convert` and ImageMagick's `magick`. Run from any directory.
+Use `--output-root /tmp/message487-branding` to inspect exports without overwriting repository files.
+
+| Source | Generated assets |
+| --- | --- |
+| `icon.svg` | Square branding PNG, opaque RGB store icon, square launcher PNGs, adaptive foreground/background XML |
+| `icon-round.svg` | Transparent round branding PNG, round launcher PNGs |
+| `status-icon.svg` | Transparent 24×24 PNG and `ic_notification.xml` |
+| `feature.svg` | Branding banner PNG and opaque RGB store feature graphic |
+
+Launcher PNG sizes: mdpi 48, hdpi 72, xhdpi 96, xxhdpi 144, xxxhdpi 192.
+The script preserves each source's layout, including the square/round scale difference.
+The Android vector exporter supports the existing path fill/stroke attributes, the square
+artwork's `translate(x y) scale(s)` transform, and its diagonal background gradient.
+Unsupported path features or gradient changes cause an error instead of silently losing details.
+Adaptive-icon and monochrome-inset XML files only reference these generated drawables and
+remain static. Samsung previews are optional and use the separate command below.
+
 SVGs are self-contained: no external images, fonts, scripts or raster embeddings.
 The feature graphic is promotional artwork, not an app screenshot.
+
+Preview the adaptive artwork with an approximate Samsung-style rounded-square mask:
+
+```sh
+python3 scripts/preview-samsung-icon.py --source assets/branding/icon.svg /tmp/message487-samsung.png
+# Edit the source SVG, then rerun the same command to regenerate the PNG.
+# Use an .svg output path instead to generate a masked vector preview.
+```
+
+Output defaults to 140×140 pixels, approximately the icon size in the supplied screenshot.
+Use `--size 512` for a larger preview.
+SVG output uses only Python's standard library; PNG output also needs `rsvg-convert`.
+Use `--source` to choose another SVG; its `viewBox` defines the mask bounds.
+By default the preview reuses `icon.svg`, which shares the adaptive foreground's scale and
+position. Keep it synchronized with the Android layers as described above. The mask
+approximates the supplied Samsung screenshot. Shadow radii (1/96 and 1/48 of icon size),
+alpha (41/255 and 26/255), and 0.96 artwork scale follow the published
+[SemAppIconSolution implementation](https://github.com/488315/samsung_framework/blob/master/framework/sources/android/app/SemAppIconSolution.java).
+SVG Gaussian blur is not identical to Android's Skia shadow rendering. The inner highlight
+and shade are a visual approximation, not a recovered Samsung bevel algorithm.
+Use `--bevel 0.3` to adjust edge strength (0–1), or `--flat` for the mask alone.
+Themes, night-mode tint and animations are not reproduced.
+
+For a device-rendered reference, [One UI Icon Extractor](https://github.com/Palmoe/OneUI-Icon-Extractor)
+uses Samsung's `semGetApplicationIconForIconTray` / `semGetActivityIconForIconTray` APIs
+on a Samsung device, retaining One UI effects. Compare its export from the target phone
+with this preview before claiming an exact match. This is a preview, not another Android
+launcher resource.
 
 Earlier artwork originated from
 [andre487/sms487](https://github.com/andre487/sms487/tree/d4aca0724c4d8c8cfcfe128c6df6cc93f64625f2/client/app/src/main)

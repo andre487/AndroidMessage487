@@ -1,10 +1,11 @@
 # Privacy Policy
 
-Last updated: October 15, 2026.
+Last updated: October 19, 2026.
 
 Message487 forwards selected notifications and new incoming SMS to a webhook you configure.
-Its core SMS feature transfers new incoming SMS from Android to your n8n workflow so you can
-view them on a computer.
+Notification events can include titles, text, image attachments and optional avatars or app icons.
+SMS events include text, sender and time. Your n8n workflow or another HTTPS receiver decides
+how to process or forward these events; the app does not depend on Telegram.
 Both capture sources are off by default. Notifications require Android notification access and
 selection of source apps. Optional automatic selection of newly detected launcher apps is off by default;
 when enabled, it runs when you open or return to Message487 and preserves manual exclusions.
