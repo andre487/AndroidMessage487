@@ -30,6 +30,44 @@ GENERATED = {
 
 
 class ReleaseTests(unittest.TestCase):
+    def test_release_diff_treats_illustrator_documents_as_binary(self):
+        with tempfile.TemporaryDirectory() as temp:
+            root = Path(temp)
+            (root / '.gitattributes').write_bytes(
+                (Path(__file__).parents[2] / '.gitattributes').read_bytes()
+            )
+            artwork = root / 'branding.ai'
+            artwork.write_bytes(b'%PDF-1.6\noriginal artwork\n')
+            svg = root / 'icon.svg'
+            svg.write_text('<svg fill="white"/>\n')
+
+            def git(*args):
+                return m.command('git', '-C', str(root), *args)
+
+            git('init', '-q')
+            git('add', '.')
+            git(
+                '-c',
+                'user.name=Test',
+                '-c',
+                'user.email=test@example.invalid',
+                '-c',
+                'commit.gpgsign=false',
+                'commit',
+                '-qm',
+                'Initial artwork',
+            )
+            # No NUL bytes: Git's automatic detection otherwise considers this text.
+            artwork.write_bytes(b'%PDF-1.6\nupdated artwork\xff\xfe\n')
+            svg.write_text('<svg fill="black"/>\n')
+            with patch.dict(os.environ, {'LC_ALL': 'C'}):
+                diff = git(
+                    'diff', '--no-ext-diff', '--no-textconv', '--unified=3', 'HEAD'
+                )
+            self.assertIn('Binary files a/branding.ai and b/branding.ai differ', diff)
+            self.assertIn('+<svg fill="black"/>', diff)
+            self.assertNotIn('updated artwork', diff)
+
     def test_generator_retries_only_length_errors_and_stops_after_three_attempts(self):
         def response(notes, status='completed'):
             return io.BytesIO(
