@@ -4,6 +4,9 @@ import android.os.StrictMode
 import androidx.activity.ComponentActivity
 import androidx.compose.ui.test.*
 import androidx.compose.ui.test.junit4.createAndroidComposeRule
+import androidx.core.view.ViewCompat
+import androidx.core.view.WindowCompat
+import androidx.core.view.WindowInsetsCompat
 import androidx.test.ext.junit.runners.AndroidJUnit4
 import androidx.test.platform.app.InstrumentationRegistry
 import org.junit.After
@@ -109,8 +112,20 @@ class UiThreadDeviceTest {
             model.settings.value.imageMaxEdge == 2048 && !model.state.value.busy
         }
         node(R.string.image_max_edge).assertIsEnabled()
+        // Finish editing before navigation moves as the IME closes.
+        compose.runOnUiThread {
+            val window = compose.activity.window
+            WindowCompat.getInsetsController(window, window.decorView).hide(WindowInsetsCompat.Type.ime())
+        }
+        compose.waitUntil(10_000) {
+            compose.runOnIdle {
+                ViewCompat.getRootWindowInsets(compose.activity.window.decorView)
+                    ?.isVisible(WindowInsetsCompat.Type.ime()) != true
+            }
+        }
         icon(R.string.back).performClick()
-        node(R.string.journal).performClick()
+        compose.onNode(hasText(app.getString(R.string.journal)) and hasClickAction())
+            .performClick().assertIsSelected()
         icon(R.string.back).performClick()
         icon(R.string.diagnostics).performClick()
         node(R.string.refresh_log).performClick()
