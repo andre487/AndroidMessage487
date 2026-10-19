@@ -75,6 +75,7 @@ python3 scripts/preview-samsung-icon.py --source assets/branding/icon.svg /tmp/m
 
 Output defaults to 140×140 pixels, approximately the icon size in the supplied screenshot.
 Use `--size 512` for a larger preview.
+The preview has a white background by default; use `--transparent` to disable it.
 SVG output uses only Python's standard library; PNG output also needs `rsvg-convert`.
 Use `--source` to choose another SVG; its `viewBox` defines the mask bounds.
 By default the preview reuses `icon.svg`, which shares the adaptive foreground's scale and
