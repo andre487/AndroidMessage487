@@ -98,8 +98,11 @@ class ScreenInteractionTest {
         for (connection in listOf(false, true)) {
             if (connection) compose.onNode(hasText(application.getString(R.string.connection_nav)) and hasClickAction()).performClick()
             compose.onNode(hasScrollToIndexAction()).performScrollToNode(hasText(application.getString(R.string.privacy_policy)))
-            compose.onNodeWithText(application.getString(R.string.app_version, BuildConfig.VERSION_NAME, BuildConfig.GIT_COMMIT_HASH)).assertIsDisplayed()
-            node(R.string.github).performClick()
+            val github = application.getString(R.string.github)
+            val footerText = application.getString(R.string.app_version, BuildConfig.VERSION_NAME, BuildConfig.GIT_COMMIT_HASH) + " · " + github
+            val footer = compose.onNodeWithText(footerText).assertIsDisplayed()
+            footer.onChildren().filter(hasClickAction()).assertCountEquals(1).onFirst()
+                .performSemanticsAction(androidx.compose.ui.semantics.SemanticsActions.OnClick) { it() }
             compose.runOnIdle {
                 val intent = org.robolectric.Shadows.shadowOf(compose.activity).nextStartedActivity
                 assertNotNull(intent)
