@@ -9,6 +9,17 @@ then signs and publishes the APK. Merging the implementation does not itself rel
 
 This flow does not replace [device release acceptance](release-testing.md).
 
+## VirusTotal check
+
+Tag publication (`v*`) requires the Actions secret `VIRUSTOTAL_API_KEY`.
+After signing, the workflow runs `bundle exec fastlane android virus_total`.
+It waits for completed analyses; malicious/suspicious detections, API errors,
+timeouts and a missing key block publication. `VIRUSTOTAL.md` and
+`VIRUSTOTAL.json` are saved in Actions and attached to the release;
+SHA-256 report links appear in the release notes and Actions summary.
+Both APK filenames are checked. Manual runs and `release-check/*` do not upload APKs.
+PR CI never receives the key. Results are a point-in-time check, not a safety guarantee.
+
 ## One-time manual setup
 
 In [Settings → Secrets and variables → Actions](https://github.com/andre487/AndroidMessage487/settings/secrets/actions), add:

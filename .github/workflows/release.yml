@@ -18,7 +18,7 @@ jobs:
   release:
     name: Build and verify signed APK
     runs-on: ubuntu-latest
-    timeout-minutes: 40
+    timeout-minutes: 75
     steps:
       - uses: actions/checkout@v6
         with:
@@ -65,6 +65,20 @@ jobs:
       - name: Remove signing files
         if: always()
         run: rm -f "$RUNNER_TEMP/message487-release.p12" "$RUNNER_TEMP/message487-keystore-password"
+      - name: Scan signed APKs with VirusTotal
+        if: startsWith(github.ref, 'refs/tags/v') && github.event_name == 'push'
+        timeout-minutes: 35
+        env:
+          VIRUSTOTAL_API_KEY: ${{ secrets.VIRUSTOTAL_API_KEY }}
+        run: bundle exec fastlane android virus_total
+      - name: Preserve VirusTotal reports
+        if: always()
+        uses: actions/upload-artifact@v7
+        with:
+          name: virustotal-${{ github.run_id }}
+          path: dist/release/VIRUSTOTAL.*
+          retention-days: 30
+          if-no-files-found: warn
       - uses: actions/upload-artifact@v7
         with:
           name: message487-signed-release
@@ -129,8 +143,10 @@ jobs:
           committed_notes="release-notes/${GITHUB_REF_NAME#v}.md"
           test -s "$committed_notes"
           cp "$committed_notes" "$notes"
+          printf '\n\n' >> "$notes"
+          cat dist/release/VIRUSTOTAL.md >> "$notes"
           cd dist/release
           sha256sum -c SHA256SUMS
-          gh release create "$GITHUB_REF_NAME" ./*.apk mapping.txt SHA256SUMS \
+          gh release create "$GITHUB_REF_NAME" ./*.apk mapping.txt SHA256SUMS VIRUSTOTAL.md VIRUSTOTAL.json \
             --repo "$GITHUB_REPOSITORY" --verify-tag --notes-file "$notes" \
             --title "Message487 $GITHUB_REF_NAME"

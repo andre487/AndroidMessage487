@@ -9,6 +9,17 @@
 
 Этот флоу не заменяет [приёмку релиза на устройствах](release-testing.md).
 
+## Проверка VirusTotal
+
+Для публикации по тегу `v*` нужен Actions secret `VIRUSTOTAL_API_KEY`.
+После подписи APK workflow запускает `bundle exec fastlane android virus_total`.
+Он ждёт завершения анализа; обнаружения malicious/suspicious, ошибки API,
+таймауты и отсутствие ключа блокируют публикацию. `VIRUSTOTAL.md` и
+`VIRUSTOTAL.json` сохраняются в Actions и прикладываются к релизу;
+ссылки по SHA-256 добавляются в описание релиза и Actions summary.
+Оба имени APK проверяются. Ручной запуск и `release-check/*` не отправляют APK.
+PR CI не получает ключ. Результат — проверка на момент анализа, не гарантия безопасности.
+
 ## Что настроить вручную один раз
 
 1. В [Settings → Secrets and variables → Actions](https://github.com/andre487/AndroidMessage487/settings/secrets/actions)
