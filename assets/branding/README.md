@@ -23,24 +23,35 @@ Android adaptive layers live in `app/src/main/res/drawable/ic_launcher_{backgrou
 The adaptive foreground and round SVG use scale `0.65` about the center of their 1254-unit
 viewport for extra circular-mask padding. The square SVG retains scale `0.73`.
 Both SVGs share the Android paths and gradient, cropped to the central 836×836 viewport.
-Keep these sources synchronized when changing the artwork.
+The SVG files remain separate editable sources; regenerate derived files after editing them.
 The themed launcher and notification small icon share `ic_notification.xml`, the simplified
 white monitor/phone silhouette without envelopes or gradient. Update notifications use this
 small icon. The app UI retains its purple Material theme and standard Material icons.
 
-Export PNGs with the installed `rsvg-convert` utility:
+Generate all derived assets from the **separate** SVG sources:
 
 ```sh
-for name in icon icon-round status-icon feature; do
-  rsvg-convert "assets/branding/$name.svg" -o "assets/branding/$name.png"
-done
-rsvg-convert assets/branding/icon.svg -o fastlane/metadata/android/en-US/images/icon.png
-rsvg-convert assets/branding/feature.svg -o /tmp/message487-feature.png
-magick /tmp/message487-feature.png -background white -alpha remove -alpha off -type TrueColor fastlane/metadata/android/en-US/images/featureGraphic.png
+python3 scripts/generate-branding.py
 ```
 
-For launcher PNGs use `rsvg-convert -w SIZE -h SIZE` with `icon.svg` or `icon-round.svg`.
-Sizes by density: mdpi 48, hdpi 72, xhdpi 96, xxhdpi 144, xxxhdpi 192.
+Requires `rsvg-convert` and ImageMagick's `magick`. Run from any directory.
+Use `--output-root /tmp/message487-branding` to inspect exports without overwriting repository files.
+
+| Source | Generated assets |
+| --- | --- |
+| `icon.svg` | Square branding PNG, opaque RGB store icon, square launcher PNGs |
+| `icon-round.svg` | Transparent round branding PNG, round launcher PNGs, adaptive foreground/background XML |
+| `status-icon.svg` | Transparent 24×24 PNG and `ic_notification.xml` |
+| `feature.svg` | Branding banner PNG and opaque RGB store feature graphic |
+
+Launcher PNG sizes: mdpi 48, hdpi 72, xhdpi 96, xxhdpi 144, xxxhdpi 192.
+The script preserves each source's layout, including the square/round scale difference.
+The Android vector exporter supports the existing path fill/stroke attributes, the round
+artwork's `translate(x y) scale(s)` transform, and its diagonal background gradient.
+Unsupported path features or gradient changes cause an error instead of silently losing details.
+Adaptive-icon and monochrome-inset XML files only reference these generated drawables and
+remain static. Samsung previews are optional and use the separate command below.
+
 SVGs are self-contained: no external images, fonts, scripts or raster embeddings.
 The feature graphic is promotional artwork, not an app screenshot.
 
