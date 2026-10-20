@@ -22,13 +22,13 @@ Android adaptive layers live in `app/src/main/res/drawable/ic_launcher_{backgrou
 The adaptive foreground and background are derived from the square SVG. Its artboard is
 kept as the visible icon area; a 1.5× viewport provides Android adaptive-icon overscan.
 The round artboard has its own layout and clipping and is exported to a separate SVG.
-The SVG files remain separate exports; edit the Illustrator master and regenerate them.
+The SVG files are the inputs for resource generation. Edit them directly, or refresh them
+from the saved Illustrator master using one of the explicit export commands below.
 The themed launcher and notification small icon share `ic_notification.xml`, the simplified
 white monitor/phone silhouette without envelopes or gradient. Update notifications use this
 small icon. The app UI retains its purple Material theme and standard Material icons.
 
-Save your edits in **branding.ai**, then generate all SVG, PNG and Android XML assets
-from the repository root:
+Generate PNG and Android XML assets from the existing SVG files, from the repository root:
 
 ```sh
 ./scripts/generate-branding.py
@@ -40,22 +40,43 @@ To install the regenerated resources on the development emulator afterwards:
 ./scripts/run-without-debugging.sh
 ```
 
-Generation requires macOS, Adobe Illustrator, Python 3, `rsvg-convert`, ImageMagick's
-`magick`, JDK 21 and the project's Gradle dependencies (downloaded by a normal Android
-build). The Android SDK must be configured as for a normal build. Allow macOS Automation
-access to Illustrator when prompted on the first run. The exporter reads the saved file,
-not unsaved editor changes. It configures SVG export options automatically.
+Generation requires Python 3, `rsvg-convert`, ImageMagick's `magick`, JDK 21 and the
+project's Gradle dependencies (downloaded by a normal Android build). Configure the
+Android SDK as for a normal build. The default command reads the existing SVGs and
+leaves both them and `branding.ai` unchanged; it does not launch an editor.
 
-To inspect all exports without overwriting repository assets:
+After editing **branding.ai**, explicitly refresh SVGs and generate the remaining assets:
 
 ```sh
-./scripts/generate-branding.py --output-root /tmp/message487-branding
+./scripts/generate-branding.py --pdf
+# Alternatively, use Illustrator's own SVG exporter on macOS:
+./scripts/generate-branding.py --illustrator
+```
+
+PDF extraction requires Poppler's `pdfinfo` and `pdftocairo` on `PATH` (`brew install poppler`
+on macOS, `apt install poppler-utils` on Debian/Ubuntu). If Xpdf is already installed,
+install Poppler with `brew install --skip-link poppler` and prepend
+`$(brew --prefix poppler)/bin` to `PATH` to avoid replacing Xpdf commands.
+Save the AI file with PDF compatibility enabled. PDF pages are mapped by order to the
+artboards listed below; preserve that order and their dimensions. Names are checked only
+by the Illustrator exporter. The PDF representation can differ from Illustrator's SVG
+export, including envelope stroke thickness; compare the generated assets after switching.
+PDF extraction rejects raster images rather than silently embedding them in SVG.
+
+Illustrator export additionally requires macOS and Adobe Illustrator. Allow macOS
+Automation access when prompted on the first run. Both exporters read the saved file,
+not unsaved editor changes, and preserve the master. See `--help` for command options.
+
+To inspect a PDF export and generated assets without overwriting repository assets:
+
+```sh
+./scripts/generate-branding.py --pdf --output-root /tmp/message487-branding
 ```
 
 The script resolves the master and build tools relative to the repository, so it can also
 be invoked by its absolute path from another directory.
 
-The master must contain exactly one artboard with each of these names and dimensions:
+For AI export, keep the master artboards in this order with these names and dimensions:
 
 | Artboard | Size |
 | --- | --- |
@@ -64,18 +85,21 @@ The master must contain exactly one artboard with each of these names and dimens
 | `status-icon` | 24×24 |
 | `feature` | 1024×500 |
 
-The exporter works on a temporary disk copy, exports each artboard independently, and
+The Illustrator exporter works on a temporary disk copy, exports each artboard independently, and
 expands symbols only in temporary export documents. The master and its symbol links remain
 unchanged. Keep intended artwork visible and unlocked so Illustrator can select it.
 SVG export uses presentation attributes, outlined text and seven decimal places; random
 Illustrator IDs are normalized for repeatable exports. Artboard positions and padding are
 preserved without snapping. SVGs are refreshed alongside the generated PNG/XML assets.
-Asset generation always uses Illustrator. CI and ordinary Android builds use the committed
-generated resources and do not require Illustrator or run the asset generator.
+Default asset generation uses existing SVGs; neither PDF extraction nor default generation
+requires Illustrator. CI and ordinary Android builds use the committed generated resources
+and do not run the asset generator.
 
 `run-without-debugging.sh` builds and installs the existing resources; it does not regenerate
-them from the Illustrator master. Commit `branding.ai` and all generated SVG, PNG and XML
-files together. Screenshots are captured separately and are not generated by this script.
+them from the Illustrator master. Commit edited sources and all corresponding generated
+SVG, PNG and XML files together. An AI export replaces the SVG files, so save direct SVG
+edits before exporting from the master. Screenshots are captured separately and are not
+generated by this script.
 
 | Master artboard | Exported SVG | Other generated assets |
 | --- | --- | --- |
@@ -115,7 +139,7 @@ Preview the adaptive artwork with an approximate Samsung-style rounded-square ma
 ```sh
 python3 scripts/preview-samsung-icon.py --source assets/branding/icon.svg /tmp/message487-samsung.png
 python3 scripts/preview-samsung-icon.py --transparent /tmp/message487-samsung-transparent.png
-# After editing branding.ai, run generate-branding.py, then rerun the preview.
+# After editing branding.ai, run generate-branding.py --pdf, then rerun the preview.
 # Use an .svg output path instead to generate a masked vector preview.
 ```
 
@@ -141,9 +165,10 @@ python3 -m unittest discover -s scripts/tests -p test_generate_branding.py
 python3 -m unittest discover -s scripts/tests -p test_preview_samsung_icon.py
 ```
 
-The default generator tests check SVG layer preparation without Android build tools or
-Illustrator. To also check Android conversion and PNG exports, prepare the generation
-dependencies above and run:
+The default generator tests check SVG layer preparation and command routing without Android
+build tools or Illustrator. When Poppler is available, they also check real PDF extraction,
+repeatability, page dimensions and preservation of the master. To also check Android
+conversion and PNG exports, prepare the generation dependencies above and run:
 
 ```sh
 MESSAGE487_TEST_ANDROID_VECTORS=1 python3 -m unittest discover -s scripts/tests -p test_generate_branding.py

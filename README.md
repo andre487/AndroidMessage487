@@ -231,9 +231,10 @@ unsigned release APK links are kept in the PR description. See [testing](docs/en
 For signed APK releases, see [Releases](docs/en/releases.md) and [release automation](docs/en/release-automation.md), and [release testing](docs/en/release-testing.md).
 English and Russian store descriptions for F-Droid and Google Play share the canonical
 [Fastlane metadata](fastlane/metadata/android). Store graphics and their provenance are documented
-in [Branding](assets/branding/README.md). Edit `assets/branding/branding.ai` and run
-`./scripts/generate-branding.py` on macOS with Illustrator to regenerate SVG, PNG and Android
-icon resources. Ordinary builds use the committed resources and do not require Illustrator.
+in [Branding](assets/branding/README.md). Run `./scripts/generate-branding.py` to generate PNG
+and Android icon resources from the existing SVGs. After editing `assets/branding/branding.ai`,
+use `--pdf` to refresh SVGs through Poppler, or `--illustrator` to export through Illustrator
+on macOS. Ordinary builds use the committed resources and do not require either exporter.
 
 See the [project context](docs/en/project-context.md) for remaining product decisions.
 This project succeeds [sms487](https://github.com/andre487/sms487).

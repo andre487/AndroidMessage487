@@ -9,6 +9,7 @@ import tempfile
 import unittest
 import xml.etree.ElementTree as ET
 from pathlib import Path
+from unittest import mock
 
 ROOT = Path(__file__).resolve().parents[2]
 GENERATOR = runpy.run_path(str(ROOT / 'scripts/generate-branding.py'))
@@ -19,6 +20,68 @@ ANDROID_VECTORS = (
 
 
 class BrandingExportTest(unittest.TestCase):
+    def test_cli_selects_existing_svg_illustrator_or_pdf(self):
+        main = GENERATOR['main']
+        for flag, selected in [
+            (None, None),
+            ('--illustrator', 'export_illustrator'),
+            ('--pdf', 'export_pdf'),
+        ]:
+            with self.subTest(flag=flag), tempfile.TemporaryDirectory() as temp:
+                output = Path(temp)
+
+                def export(source, destination):
+                    for name in GENERATOR['ARTBOARDS']:
+                        shutil.copyfile(
+                            ROOT / f'assets/branding/{name}.svg',
+                            destination / f'{name}.svg',
+                        )
+
+                def generate(destination, sources):
+                    self.assertEqual(destination, output)
+                    self.assertEqual(
+                        {p.stem for p in sources.glob('*.svg')},
+                        set(GENERATOR['ARTBOARDS']),
+                    )
+
+                exporters = {
+                    name: mock.Mock(side_effect=export)
+                    for name in ('export_pdf', 'export_illustrator')
+                }
+                with mock.patch.dict(main.__globals__, generate=generate, **exporters):
+                    main(['--output-root', str(output)] + ([flag] if flag else []))
+                for name, exporter in exporters.items():
+                    self.assertEqual(exporter.call_count, int(name == selected))
+                self.assertEqual(len(list(output.rglob('*.svg'))), 4 if selected else 0)
+        with self.assertRaises(SystemExit), mock.patch('sys.stderr'):
+            main(['--pdf', '--illustrator'])
+
+    @unittest.skipUnless(
+        shutil.which('pdftocairo') and shutil.which('pdfinfo'),
+        'Install Poppler to check real PDF export',
+    )
+    def test_pdf_export_is_vector_only_repeatable_and_preserves_source(self):
+        source = ROOT / 'assets/branding/branding.ai'
+        before = source.read_bytes()
+        with tempfile.TemporaryDirectory() as temp:
+            output = Path(temp)
+            GENERATOR['export_pdf'](source, output)
+            first = {p.name: p.read_bytes() for p in output.glob('*.svg')}
+            self.assertEqual(set(first), {f'{n}.svg' for n in GENERATOR['ARTBOARDS']})
+            for name, size in GENERATOR['ARTBOARDS'].items():
+                root = ET.parse(output / f'{name}.svg').getroot()
+                self.assertEqual(root.get('viewBox'), f'0 0 {size[0]} {size[1]}')
+                self.assertEqual(root.get('width'), str(size[0]))
+                self.assertIsNone(root.find('.//s:image', GENERATOR['NS']))
+                self.assertTrue(list(GENERATOR['drawable_elements'](root)))
+            GENERATOR['export_pdf'](source, output)
+            self.assertEqual(
+                first, {p.name: p.read_bytes() for p in output.glob('*.svg')}
+            )
+            if ANDROID_VECTORS:
+                GENERATOR['generate'](output, output)
+        self.assertEqual(source.read_bytes(), before)
+
     @unittest.skipUnless(
         os.environ.get('MESSAGE487_TEST_ILLUSTRATOR') == '1',
         'Set MESSAGE487_TEST_ILLUSTRATOR=1 on a Mac with Illustrator',
