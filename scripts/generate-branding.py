@@ -1,12 +1,13 @@
 #!/usr/bin/env python3
-"""Export branding.ai artboards to SVG, PNG and Android vector resources."""
+"""Generate branding PNG and Android resources from SVG; optionally export AI first."""
 
 import argparse
 import copy
 import math
+import os
 import re
 import shutil
-import subprocess
+import subprocess as sp
 import tempfile
 import xml.etree.ElementTree as ET
 from pathlib import Path
@@ -16,6 +17,12 @@ BRANDING = ROOT / 'assets/branding'
 ANDROID = 'http://schemas.android.com/apk/res/android'
 AAPT = 'http://schemas.android.com/aapt'
 NS = {'s': 'http://www.w3.org/2000/svg'}
+ARTBOARDS = {
+    'icon': (512, 512),
+    'icon-round': (512, 512),
+    'status-icon': (24, 24),
+    'feature': (1024, 500),
+}
 DRAWABLES = {
     'path',
     'rect',
@@ -121,7 +128,7 @@ def android_vectors(branding=BRANDING):
             ET.ElementTree(root).write(
                 directory / f'{name}.svg', encoding='utf-8', xml_declaration=True
             )
-        subprocess.run(
+        sp.run(
             [
                 'bash',
                 '-ec',
@@ -158,6 +165,44 @@ def android_vectors(branding=BRANDING):
         return result
 
 
+def export_pdf(source, destination):
+    """Read the PDF-compatible AI pages in the project's artboard order."""
+    for tool in ('pdfinfo', 'pdftocairo'):
+        if not shutil.which(tool):
+            raise RuntimeError(f'Required tool is missing: {tool} (install Poppler)')
+    info = sp.run(
+        ['pdfinfo', str(source)], check=True, capture_output=True,
+        text=True, env={**os.environ, 'LC_ALL': 'C'},
+    ).stdout
+    if not re.search(rf'^Pages:\s+{len(ARTBOARDS)}\s*$', info, re.MULTILINE):
+        raise ValueError('Expected four PDF pages in branding.ai; save with PDF compatibility')
+    with tempfile.TemporaryDirectory(prefix='message487-pdf-') as temp:
+        directory = Path(temp)
+        for page, (name, size) in enumerate(ARTBOARDS.items(), 1):
+            target = directory / f'{name}.svg'
+            sp.run(
+                ['pdftocairo', '-svg', '-f', str(page), '-l', str(page),
+                 str(source), str(target)],
+                check=True,
+            )
+            root = ET.parse(target).getroot()
+            box = tuple(map(float, root.attrib['viewBox'].split()))
+            if box != (0, 0, *size):
+                raise ValueError(f'Unexpected PDF page bounds for {name}: {box}')
+            if root.find('.//s:image', NS) is not None:
+                raise ValueError(f'PDF page for {name} contains raster images')
+            # PDF points and CSS pixels differ; keep the project's artboard pixel sizes.
+            root.set('width', str(size[0]))
+            root.set('height', str(size[1]))
+            ET.register_namespace('', NS['s'])
+            ET.register_namespace('xlink', 'http://www.w3.org/1999/xlink')
+            ET.indent(root, space='  ')
+            ET.ElementTree(root).write(target, encoding='utf-8', xml_declaration=True)
+        destination.mkdir(parents=True, exist_ok=True)
+        for target in directory.glob('*.svg'):
+            shutil.copyfile(target, destination / target.name)
+
+
 def export_illustrator(source, destination):
     """Export a disk snapshot without modifying the user's open Illustrator document."""
     if not shutil.which('osascript'):
@@ -166,7 +211,7 @@ def export_illustrator(source, destination):
         directory = Path(temp)
         snapshot = directory / 'source.ai'
         shutil.copyfile(source, snapshot)
-        subprocess.run(
+        sp.run(
             [
                 'osascript',
                 str(ROOT / 'scripts/export-branding.applescript'),
@@ -177,12 +222,7 @@ def export_illustrator(source, destination):
             check=True,
         )
         exports = {}
-        for name, size in [
-            ('icon', (512, 512)),
-            ('icon-round', (512, 512)),
-            ('status-icon', (24, 24)),
-            ('feature', (1024, 500)),
-        ]:
+        for name, size in ARTBOARDS.items():
             files = list((directory / name).glob('*.svg'))
             if len(files) != 1:
                 raise ValueError(f'Expected one Illustrator SVG export for {name}')
@@ -241,9 +281,9 @@ def generate(output_root, branding=BRANDING):
             command = ['rsvg-convert', str(branding / source), '-o', str(raster)]
             if size:
                 command += ['-w', str(size), '-h', str(size)]
-            subprocess.run(command, check=True)
+            sp.run(command, check=True)
             if opaque:
-                subprocess.run(
+                sp.run(
                     [
                         'magick',
                         str(raster),
@@ -294,7 +334,7 @@ def generate(output_root, branding=BRANDING):
         destination.write_text(ET.tostring(tree, encoding='unicode') + '\n')
 
 
-if __name__ == '__main__':
+def main(argv=None):
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument(
         '--output-root',
@@ -302,11 +342,27 @@ if __name__ == '__main__':
         default=ROOT,
         help='Export root (default: repository)',
     )
-    args = parser.parse_args()
+    mode = parser.add_mutually_exclusive_group()
+    mode.add_argument('--illustrator', action='store_true',
+                      help='Export AI artboards through Illustrator (macOS) before generating assets')
+    mode.add_argument('--pdf', action='store_true',
+                      help='Export PDF-compatible AI pages through Poppler before generating assets')
+    args = parser.parse_args(argv)
     with tempfile.TemporaryDirectory(prefix='message487-branding-') as temp:
         sources = Path(temp)
-        export_illustrator(BRANDING / 'branding.ai', sources)
+        if not (args.illustrator or args.pdf):
+            for name in ARTBOARDS:
+                shutil.copyfile(BRANDING / f'{name}.svg', sources / f'{name}.svg')
+        else:
+            exporter = export_illustrator if args.illustrator else export_pdf
+            exporter(BRANDING / 'branding.ai', sources)
         generate(args.output_root, sources)
         destination = args.output_root / 'assets/branding'
-        for source in sources.glob('*.svg'):
-            shutil.copyfile(source, destination / source.name)
+        if args.illustrator or args.pdf:
+            destination.mkdir(parents=True, exist_ok=True)
+            for source in sources.glob('*.svg'):
+                shutil.copyfile(source, destination / source.name)
+
+
+if __name__ == '__main__':
+    main()
