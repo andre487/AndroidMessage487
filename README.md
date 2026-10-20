@@ -14,8 +14,8 @@ Forward notification text and images, with optional sender avatars and app icons
 forwarding separately. A custom HTTPS webhook is also supported. Telegram forwarding is one
 possible workflow; the Android app does not depend on Telegram.
 
-**Status:** development preview with notification/SMS capture, a persistent private outbox,
-background delivery, automatic retries and a delivery journal. Webhook requests require a Bearer token, stored encrypted on the device. Signed APK release automation is configured; see [Releases](docs/en/releases.md) and [release automation](docs/en/release-automation.md), and [release testing](docs/en/release-testing.md).
+Notification and SMS forwarding are opt-in. Events are saved locally and delivered in the
+background with retries and a delivery journal. Webhooks require a Bearer token.
 
 ## n8n workflow examples
 
@@ -38,167 +38,62 @@ Levels 1–4 require only built-in n8n nodes. Import instructions include synthe
 
 **[Download the latest signed APK](https://github.com/andre487/AndroidMessage487/releases/latest/download/message487.apk)**
 
-Message487 is also available from [F-Droid](https://f-droid.org/packages/life.andre.message487/).
-Open **App updates** using the update icon in the top bar. The source follows the installer:
-F-Droid clients use F-Droid, other named installers use GitHub. Unknown installers require a
-manual choice. Daily checks can be disabled; downloads and installation require separate actions.
-
-The stable link follows the latest published release; it does not point to development builds.
-Read the [release notes](https://github.com/andre487/AndroidMessage487/releases/latest) for supported features.
-Release 0.0.1 predates Bearer authentication.
+Also available from [F-Droid](https://f-droid.org/packages/life.andre.message487/).
+Use **App updates** for updates; see the [installation guide](docs/en/apk-installation.md)
+for permissions, installer restrictions and update sources.
 
 Guides: [Install from APK](docs/en/apk-installation.md) · [n8n Cloud](docs/en/n8n-cloud.md) · [Self-hosted n8n](docs/en/n8n-self-hosted.md) · [Telegram forwarding](docs/en/n8n-telegram.md).
 На русском: [Установка из APK](docs/ru/apk-installation.md) · [n8n Cloud](docs/ru/n8n-cloud.md) · [Свой сервер n8n](docs/ru/n8n-self-hosted.md) · [Пересылка в Telegram](docs/ru/n8n-telegram.md).
 
-1. Save the full published webhook URL, a Bearer token and a device code in **Connection**. Send a test event.
+1. In **Connection**, save the published webhook URL, Bearer token and device code. Send a test.
 2. Check **Journal** and find the same event ID in n8n **Executions**.
-3. In **Sources**, enable notification forwarding, grant notification access in Android settings,
-   and select applications. Add a package manually if it has no launcher icon.
-   **Select all applications** selects the entire available list, regardless of the search filter;
-   manually added selections are preserved. Newly installed apps must be selected separately unless
-   you enable **Automatically select new apps** (off by default). It selects newly detected launcher apps when you open or return to Message487,
-   preserving existing choices and manual exclusions. Apps without a launcher icon still require manual selection.
-4. Enable SMS forwarding separately and grant SMS permission. Only new incoming SMS are read;
-   existing history is not imported. Multipart SMS are combined into one event.
+3. In **Sources**, enable notifications, grant notification access and select applications.
+   Apps without a launcher icon can be added by package name.
+4. Enable SMS separately and grant SMS permission. Only new incoming messages are captured.
 
-Both capture sources are off by default, and no applications are selected. Message487 excludes
-its own notifications, ongoing notifications and group summaries. An unchanged update of the
-same notification is suppressed; changed content creates another event. Existing notifications
-are not replayed when access is enabled. Avoid selecting applications that receive the forwarded
-messages, or the workflow can create a feedback loop. Selecting your SMS app as a notification
-source may forward the same message as both SMS and a notification.
-
-**Pause forwarding** stops capture and queued delivery. A request already running may finish.
-Events arriving while capture is disabled or paused are not saved for later. Background delivery
-uses Android WorkManager: Doze, battery restrictions and network availability can delay it.
-After a force-stop, open the app again. Android may hide sensitive notification content; Message487
-forwards only the content the system exposes.
+Both sources start disabled. Avoid selecting apps that receive the forwarded messages: this
+can create a feedback loop. Selecting your SMS app can forward the same message through both sources.
+**Pause forwarding** stops capture and queued delivery; an in-flight request may finish.
+Events received while paused are not saved. Android battery restrictions can delay background
+delivery; after a force-stop, reopen the app. Sensitive notification content may be hidden by Android.
 
 ## Delivery and data
 
-**Skip duplicate SMS** and **Skip duplicate notifications** in **Sources** are independently
-enabled by default and share the time window. SMS and notifications are
-compared by source package, exact text (including whitespace) and an order-independent SHA-256
-checksum of the image collection (including image roles and repeated entries), with original timestamps
-inside the configured ± time window. Set the window in seconds in Sources; 0 requires exact timestamps.
-Titles and SMS senders are not part of this key. SMS uses the system source `android`.
-Messages outside the inclusive window count as new. Identical genuine messages inside it are also skipped. Turn the corresponding switch off
-to forward repeated captures. Manual connection tests are exempt; network retries keep their event ID.
-Deduplication hashes and original timestamps survive restarts, delivery and journal deletion until app data is cleared.
-They are recorded even while the corresponding switch is off so re-enabling it covers those captures too.
-Existing queued events are preserved on upgrade. Older exact-timestamp hashes still suppress exact matches;
-time-window matching applies to captures recorded by the new filter.
+Duplicate SMS and notification filters are enabled independently by default. They compare source
+package, exact text and images within the time window set in **Sources**; titles and senders are
+excluded. Identical genuine messages within that window are also skipped. Set the window to zero
+for exact timestamps, or disable the corresponding filter to forward repeated captures.
 
-The n8n confirmation mode requires JSON with `status: "accepted"` and the matching `event_id`.
-This is our fixture contract, not a built-in n8n response. Turn off **n8n confirmation** for a
-custom webhook that acknowledges with HTTP 2xx. Neither response proves delivery to a downstream
-service such as Telegram.
+In n8n confirmation mode, return `{"status":"accepted","event_id":"<received ID>"}`.
+For a custom webhook, disable confirmation to accept HTTP 2xx. Neither response proves downstream
+delivery. Retries keep the same event ID and body; workflows should deduplicate by `event_id`.
+Connection failures and transient HTTP errors retry automatically; other failures require a manual
+retry from **Journal** after fixing the cause.
 
-Events are saved locally before transmission. Retries preserve the event ID and body. Timeouts,
-connection failures and transient HTTP errors retry with backoff; other HTTP failures and invalid
-confirmations need a manual retry from **Journal** after fixing the server. A lost response can
-cause duplicate delivery: downstream workflows should deduplicate using `event_id`.
+Queued events retain their original destination and credentials when settings change. Undelivered
+events remain until confirmed or deleted. Confirmed payloads are removed; the journal keeps bounded
+metadata without message contents. See [Privacy](PRIVACY.md).
 
-Queued events retain the URL, token and confirmation mode from capture time. Changing the connection
-does not reroute them. Undelivered events remain until confirmed or explicitly deleted. The
-journal persists across restarts and hides message contents. Tap an event for its ID, HTTP result,
-retry and deletion controls. Confirmed payloads are removed;
-only a bounded recent history of delivery metadata remains. See [PRIVACY.md](PRIVACY.md).
+Text and optional JPEG/PNG images are sent as JSON. **Sources → Graphics** controls image format,
+limits, avatars and app icons. See the [payload format](docs/en/n8n-self-hosted.md#4-inspect-received-data)
+and [image workflow guide](docs/en/n8n-examples.md#android-image-features-and-contract) for integration details.
 
 ## Troubleshooting, preview and settings transfer
 
-On **Overview**, open **Why was a message not forwarded?** to check saved connection validity,
-source enablement, permissions, listener connectivity, selected apps, active network, background
-restrictions and queued delivery failures. The checks link to settings, reconnection and Journal.
-They distinguish authorization failures, invalid acknowledgements and automatic retry waits;
-network availability does not prove that the webhook is reachable.
+- **Overview → Why was a message not forwarded?** checks connection settings, permissions,
+  selected apps and delivery failures. Inspect **Journal** for individual attempts.
+- **Connection → Preview event** and **Sources → Preview current notifications** show events
+  without sending them. **Send this event** explicitly queues a preview; test events can be
+  sent while paused. Automatic capture continues unless paused.
+- **Connection → Import and export settings** transfers saved settings as JSON.
+  **Exports include the Bearer token by default and are not encrypted.** Import requires
+  confirmation, pauses forwarding, and clears the saved token if the file omits it.
+  Permissions, queued events and journal history are not transferred.
 
-**Connection → Preview event** builds a test with the selected test-image options without saving
-or sending it. **Sources → Preview current notifications** lets you inspect up to 20 current
-notifications from selected apps and open one using the same text extraction and image conversion
-as capture. This requires notification access and a connected listener. Opening a preview does
-not replay notifications or enqueue anything. Automatic capture continues independently; pause
-first to inspect without automatic forwarding. Closing discards the temporary image files.
-**Send this event** explicitly queues the preview with its displayed destination and stable event ID;
-real-notification previews cannot be sent while paused. Explicit test sends (including preview tests)
-can be delivered while paused without resuming capture or the ordinary queue. Their background
-retries retain this exception. Notification previews still use the configured duplicate filter.
-The JSON view shows metadata; images are previewed separately and transmitted as Base64.
-
-**Connection → Import and export settings** uses Android's document picker. Export includes saved
-connection, selected sources, duplicate filters and graphics settings. **Include Bearer token in export**
-is on by default, with a prominent switch to opt out. The JSON file is not encrypted; the token and
-possibly secret webhook URL are readable by anyone who obtains it. Unsaved form edits are excluded.
-Import validates the whole file (version 1, at most 1 MiB) and shows a confirmation before replacing
-settings. A file without a token clears the existing token. Forwarding is paused after import so you
-can check the connection and resume explicitly. Android permissions, installation identity, queue,
-journal, diagnostic logs and update preferences are not transferred. Existing queued events retain
-their original destinations and credentials. New-app selection starts from the target device's
-current launcher-app inventory so importing does not immediately select all its existing apps.
-
-The JSON event carries `schema_version`, `event_id`, `device_id`, `device_code`, `message_type`,
-`occurred_at`, `source`, `source_name` and `text`. Notifications also carry `title`; SMS carry
-`sender`. `channel_id` is a string: the Android channel ID for notifications, `sms` for
-incoming SMS and `test` for test events. Match it together with `source` when filtering on the
-server, because channel IDs belong to each source app. Notifications without a system channel ID
-omit the field. This is an additive field in `schema_version: 1`; existing queued events keep their
-original bodies and may not contain it. `device_id` is a random installation identity; `device_code` is your editable label.
-`source` is the originating package, with SMS using `android` for the system SMS broadcast.
-`source_name` is its PackageManager display label, falling back to the package when unavailable.
-Labels can change with language or app version; use `source` for matching rules.
-
-Notification image attachments are forwarded as an optional `images` array in the same JSON
-(`schema_version: 1`). Each image has `mime_type` (`image/jpeg` or `image/png`), `width`, `height`,
-`kind` (`attachment`, `avatar`, or `app_icon`), and `data_base64` (standard Base64 without a data-URL prefix). `presentation` (`big_picture`, `gallery`, or `file`) preserves the notification image presentation. Text-only events omit `images`.
-Choose JPEG or PNG in **Sources → Graphics**; defaults are JPEG and quality 80%.
-JPEG quality is adjustable from 0 to 100; PNG ignores that setting and preserves transparency.
-Transparent areas become white in JPEG. Settings changes apply only to new captures; queued
-images retain their original bytes across retries. The overview test button sends text only. **Connection → Test message** independently selects
-Big Picture, a two-image gallery, avatar and app icon. These test-only selections do not change
-notification capture settings; image format, quality and limits still apply. Avatar and app-icon
-test images use the Message487 logo.
-
-The app reads BigPicture content and image attachments in MessagingStyle. Avatars and app
-icons have independent switches in Sources, both off by default. When enabled, one latest
-available sender avatar (falling back to the notification large icon) and one source app icon
-are included, using the same format and quality. Image-only notifications can be forwarded.
-In **Sources → Graphics**, configure the attachment count, maximum side length, per-image size,
-and combined size before Base64. Defaults are 3 attachments, 1024 pixels, 256 KiB per image,
-and 512 KiB combined. The count excludes the optional avatar and app icon; all images share
-the size budget. Attachments prioritize the big picture and then the latest messaging images,
-with a stable content-hash tie-breaker. Duplicates within a role are removed before applying limits.
-Turn off **Limit images** to send all available attachments without output size limits or
-resizing. Saved limits are retained for re-enabling. Format conversion and JPEG quality still apply.
-Input decoding safeguards remain in both modes: content URI input is at most 8 MiB and decoded
-bitmaps at most 16 megapixels, with a lower working-memory ceiling on smaller heaps.
-EXIF rotations and mirrors are applied before encoding. URI inputs must be readable `content://` URIs;
-remote URLs and private file paths are not fetched. Unreadable/invalid images are skipped and
-reported as capture errors; available text and other readable images still proceed.
-Images are private files under `noBackupFilesDir`, without additional app-level encryption.
-The request description, text and token are AES-GCM encrypted in a separate file; SQLite holds
-queue metadata and a file reference. Base64 JSON is streamed over HTTP using chunked transfer
-for image-bearing events, so proxies must accept chunked request bodies. Retries keep the same
-files and bytes. Successful delivery or deletion removes the files; recovery cleans abandoned
-temporary files. Older database payloads migrate on their next attempt.
-Image capture has its own bounded queue and a 10-second deadline; queued tasks retain only
-notification metadata and fetch the current notification when processing starts. Superseded,
-expired or overflowed image jobs still forward available text. SMS uses a separate executor.
-The existing JSON webhook accepts the added field; downstream workflows must explicitly
-convert/process `images` to display or forward photos. Use the [importable example levels](docs/en/n8n-examples.md)
-for webhook binary files, standard Telegram images or Rich Messages with all attachments.
-
-The manifest declares launcher-app visibility rather than `QUERY_ALL_PACKAGES`. The app requests
-notification listener access and `RECEIVE_SMS` only for the features you enable. It does not request
-SMS history access or become the default SMS app.
+For diagnostic logs and crash reports, use the top-bar bug icon and follow the
+[diagnostics guide](docs/en/diagnostics.md). Sending a report requires action in your email app.
 
 ## Local development
-
-Start the [development server](DevServer/README.md), which provisions n8n and published test workflows:
-
-```sh
-docker compose -f DevServer/compose.yaml up -d --wait
-bundle exec fastlane android server_tests
-```
 
 Build with JDK 21, Ruby/Bundler and the Android SDK; the emulator launcher also uses Python 3.
 Use `ANDROID_HOME` or an untracked
@@ -211,43 +106,17 @@ bundle exec fastlane android checks
 scripts/run-without-debugging.sh
 ```
 
-The run script starts the development emulator if necessary, waits for Android, builds and installs
-the debug APK, then launches the app without waiting for a debugger. Existing app data is preserved.
-In VS Code, select **Run Message487 on Emulator** and **Run Without Debugging**, or run the task
-**Android: Run on emulator**. To start only the emulator, use `scripts/emulator.sh`.
+The run script starts the development emulator, installs the debug APK and launches the app,
+preserving its data. In VS Code, use **Run Message487 on Emulator → Run Without Debugging**.
+For the local n8n endpoint and its test dependencies, follow [DevServer setup](DevServer/README.md).
+Release builds require HTTPS. Test with synthetic data.
 
-The debug app starts with the local n8n receive endpoint configured. Follow the capture checks in
-[DevServer/README.md](DevServer/README.md) using synthetic data only. Release builds require HTTPS.
-UI strings are supplied in English and Russian. The interface supports light/dark themes,
-bottom navigation on phones and rail navigation on wider windows. See the [design notes](docs/en/design.md)
-for the visual conventions and references.
+See [Testing](docs/en/testing.md) for CI and device checks, [Releases](docs/en/releases.md)
+for signed builds, and [release automation](docs/en/release-automation.md) and
+[release testing](docs/en/release-testing.md) for publication.
+[Branding](assets/branding/README.md) covers artwork and resource generation;
+[design](docs/en/design.md) and [project context](docs/en/project-context.md) cover conventions.
 
-Fastlane's `debug_artifact` lane builds only the debug APK. `checks` runs JVM/Robolectric tests,
-debug/release lint, and builds debug and unsigned release APKs under `app/build/outputs/apk/`.
-
-PR CI has no release signing credentials. It runs JVM/lint checks and instrumentation tests
-on disposable API 26 and API 35 emulators. JUnit results appear in GitHub Checks; debug and
-unsigned release APK links are kept in the PR description. See [testing](docs/en/testing.md).
-For signed APK releases, see [Releases](docs/en/releases.md) and [release automation](docs/en/release-automation.md), and [release testing](docs/en/release-testing.md).
-English and Russian store descriptions for F-Droid and Google Play share the canonical
-[Fastlane metadata](fastlane/metadata/android). Store graphics and their provenance are documented
-in [Branding](assets/branding/README.md). Run `./scripts/generate-branding.py` to generate PNG
-and Android icon resources from the existing SVGs. After editing `assets/branding/branding.ai`,
-use `--pdf` to refresh SVGs through Poppler, or `--illustrator` to export through Illustrator
-on macOS. Ordinary builds use the committed resources and do not require either exporter.
-
-See the [project context](docs/en/project-context.md) for remaining product decisions.
-This project succeeds [sms487](https://github.com/andre487/sms487).
-[AndroidMegaProxy](https://github.com/andre487/AndroidMegaProxy) is the reference for project conventions.
-
+This project succeeds [sms487](https://github.com/andre487/sms487) and follows
+[AndroidMegaProxy](https://github.com/andre487/AndroidMegaProxy) conventions.
 Licensed under the [MIT License](LICENSE).
-
-## Diagnostics
-
-Open the bug icon in the top bar to view or clear local diagnostic logs and prepare an email to
-`der-morgenstern@yandex.ru`. A ZIP contains rotating logs, the last crash and device/app information;
-message content and connection secrets are excluded. Sending requires action in your email app.
-After an unhandled crash the next launch offers to review the report.
-See [diagnostic behavior and development checks](docs/en/diagnostics.md) and [privacy details](PRIVACY.md).
-
-Test categories, local commands, CI jobs and device-only limitations: [Testing](docs/en/testing.md).

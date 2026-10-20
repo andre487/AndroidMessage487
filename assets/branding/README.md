@@ -1,203 +1,114 @@
 # Message487 branding
 
-| Asset | Use |
-| --- | --- |
-| [branding.ai](branding.ai) | Editable Illustrator master for all four artboards |
-| [icon.svg](icon.svg) · [PNG](icon.png) | Exported square artwork for web and launcher/store resources |
-| [icon-round.svg](icon-round.svg) · [PNG](icon-round.png) | Circular artwork used in the project README and round launcher PNGs |
-| [status-icon.svg](status-icon.svg) · [PNG](status-icon.png) | Simplified monochrome monitor/phone mark for small sizes |
-| [feature.svg](feature.svg) · [PNG](feature.png) | Exported store banner artwork, 1024×500 |
-| [icon.png](../../fastlane/metadata/android/en-US/images/icon.png) | Store app icon, 512×512 RGB PNG |
-| [featureGraphic.png](../../fastlane/metadata/android/en-US/images/featureGraphic.png) | Store feature graphic, 1024×500 opaque RGB PNG; shared by both locales |
-| `fastlane/metadata/android/{en-US,ru-RU}/images/phoneScreenshots/` | Actual phone screenshots in English and Russian, 1080×1920 |
+[`branding.ai`](branding.ai) is the editable Illustrator master. Resource generation reads the
+SVGs below; each has a matching PNG for sharing. The artwork is white monitor/phone silhouettes
+on dark purple, with envelopes omitted from the monochrome status mark.
 
-The current launcher artwork shows an open envelope on a monitor and a closed envelope
-on a phone, in white on a dark purple background. The editable master is
-[`branding.ai`](branding.ai), containing the square, round, status and banner artwork.
-Each SVG has a matching PNG beside it for sharing where SVG is unsupported.
-Sizes: square/round icon 512×512, status icon 24×24, feature graphic 1024×500.
-The round and status PNGs retain transparency; the white status mark needs a contrasting background.
+| Artboard / SVG | Size | Generated resources |
+| --- | --- | --- |
+| [icon](icon.svg) | 512×512 | Branding/store icon, launcher PNGs, adaptive foreground/background XML |
+| [icon-round](icon-round.svg) | 512×512 | Transparent branding and round launcher PNGs |
+| [status-icon](status-icon.svg) | 24×24 | Transparent PNG and `ic_notification.xml`, shared by themed launcher and update notifications |
+| [feature](feature.svg) | 1024×500 | Branding banner and opaque RGB store feature graphic |
 
-Android adaptive layers live in `app/src/main/res/drawable/ic_launcher_{background,foreground}.xml`.
-The adaptive foreground and background are derived from the square SVG. Its artboard is
-kept as the visible icon area; a 1.5× viewport provides Android adaptive-icon overscan.
-The round artboard has its own layout and clipping and is exported to a separate SVG.
-The SVG files are the inputs for resource generation. Edit them directly, or refresh them
-from the saved Illustrator master using one of the explicit export commands below.
-The themed launcher and notification small icon share `ic_notification.xml`, the simplified
-white monitor/phone silhouette without envelopes or gradient. Update notifications use this
-small icon. The app UI retains its purple Material theme and standard Material icons.
+## Generate assets
 
-Generate PNG and Android XML assets from the existing SVG files, from the repository root:
+From the repository root:
 
 ```sh
 ./scripts/generate-branding.py
-```
-
-To install the regenerated resources on the development emulator afterwards:
-
-```sh
-./scripts/run-without-debugging.sh
-```
-
-Generation requires Python 3, `rsvg-convert`, ImageMagick's `magick`, JDK 21 and the
-project's Gradle dependencies (downloaded by a normal Android build). Configure the
-Android SDK as for a normal build. The default command reads the existing SVGs and
-leaves both them and `branding.ai` unchanged; it does not launch an editor.
-
-After editing **branding.ai**, explicitly refresh SVGs and generate the remaining assets:
-
-```sh
+# After editing the AI master, refresh SVGs before generating:
 ./scripts/generate-branding.py --pdf
-# Alternatively, use Illustrator's own SVG exporter on macOS:
+# Alternatively, use Illustrator's SVG exporter on macOS:
 ./scripts/generate-branding.py --illustrator
 ```
 
-PDF extraction requires Poppler's `pdfinfo` and `pdftocairo` on `PATH` (`brew install poppler`
-on macOS, `apt install poppler-utils` on Debian/Ubuntu). If Xpdf is already installed,
-install Poppler with `brew install --skip-link poppler` and prepend
-`$(brew --prefix poppler)/bin` to `PATH` to avoid replacing Xpdf commands.
-Save the AI file with PDF compatibility enabled. PDF pages are mapped by order to the
-artboards listed below; preserve that order and their dimensions. Names are checked only
-by the Illustrator exporter. The PDF representation can differ from Illustrator's SVG
-export, including envelope stroke thickness; compare the generated assets after switching.
-PDF extraction rejects raster images rather than silently embedding them in SVG.
+The default uses existing SVGs without modifying them or launching an editor. Both AI exporters
+read saved changes and preserve the master; they replace SVGs, so save direct SVG edits first.
+Commit edited sources and generated SVG/PNG/XML together. Ordinary Android builds and CI use
+committed resources without running this generator. To install afterwards, run
+`./scripts/run-without-debugging.sh`; installation alone does not regenerate artwork.
 
-Illustrator export additionally requires macOS and Adobe Illustrator. Allow macOS
-Automation access when prompted on the first run. Both exporters read the saved file,
-not unsaved editor changes, and preserve the master. See `--help` for command options.
+Generation needs Python 3, `rsvg-convert`, ImageMagick's `magick`, JDK 21, a configured Android SDK
+and Gradle dependencies cached by a normal build. Android SVG conversion runs offline.
+PDF extraction additionally needs Poppler's `pdfinfo` and `pdftocairo` on `PATH`
+(`brew install poppler` or `apt install poppler-utils`). With Xpdf installed, use
+`brew install --skip-link poppler` and prepend `$(brew --prefix poppler)/bin` to `PATH`.
+Illustrator export requires macOS, Illustrator and Automation access when prompted.
+See `--help` for options; paths resolve relative to the repository, not the calling directory.
 
-To inspect a PDF export and generated assets without overwriting repository assets:
+Inspect output without overwriting repository assets:
 
 ```sh
 ./scripts/generate-branding.py --pdf --output-root /tmp/message487-branding
 ```
 
-The script resolves the master and build tools relative to the repository, so it can also
-be invoked by its absolute path from another directory.
+## Artwork requirements
 
-For AI export, keep the master artboards in this order with these names and dimensions:
+- Keep AI artboards in the table's order and dimensions. PDF import maps by page order;
+  Illustrator export checks names. Enable PDF compatibility when saving AI. Keep Illustrator
+  artwork visible/unlocked; symbols are expanded only in temporary export documents.
+- SVGs must be self-contained vectors, without external images/fonts/scripts or embedded rasters.
+  PDF extraction rejects raster images. Android's SVG importer rejects unsupported features
+  before repository outputs are written. Layer names and IDs are unrestricted.
+- In `icon.svg`, the first painted shape is the background; keep it as a single full-artboard
+  shape behind the foreground. Its positive square `viewBox` defines the visible icon area.
+  Round artwork has independent layout/clipping; transparent margins are preserved.
+- Adaptive layers use a 1.5× viewport. Full-artboard rectangular clips expand for overscan;
+  internal clips remain. Viewport translations preserve fractional paths, but source transforms
+  can introduce Android-importer rounding. PNGs render directly at each target size without
+  intermediate resizing. Geometry is not snapped to pixels; SVG/Android antialiasing can differ.
+- PDF and Illustrator SVG exports can differ, including envelope stroke thickness. Compare
+  outputs after switching. Illustrator exports outline text, use presentation attributes and
+  normalize random IDs for repeatable diffs; export details live in
+  [the generator](../../scripts/generate-branding.py) and [JSX](../../scripts/export-branding.jsx).
 
-| Artboard | Size |
-| --- | --- |
-| `icon` | 512×512 |
-| `icon-round` | 512×512 |
-| `status-icon` | 24×24 |
-| `feature` | 1024×500 |
+Generated Android layers are in `app/src/main/res/drawable/`; adaptive-icon and monochrome-inset
+XML references stay static. Launcher density sizes are defined by the generator. Round/status
+PNGs retain transparency; the white status mark needs a contrasting background.
 
-The Illustrator exporter works on a temporary disk copy, exports each artboard independently, and
-expands symbols only in temporary export documents. The master and its symbol links remain
-unchanged. Keep intended artwork visible and unlocked so Illustrator can select it.
-SVG export uses presentation attributes, outlined text and seven decimal places; random
-Illustrator IDs are normalized for repeatable exports. Artboard positions and padding are
-preserved without snapping. SVGs are refreshed alongside the generated PNG/XML assets.
-Default asset generation uses existing SVGs; neither PDF extraction nor default generation
-requires Illustrator. CI and ordinary Android builds use the committed generated resources
-and do not run the asset generator.
-
-`run-without-debugging.sh` builds and installs the existing resources; it does not regenerate
-them from the Illustrator master. Commit edited sources and all corresponding generated
-SVG, PNG and XML files together. An AI export replaces the SVG files, so save direct SVG
-edits before exporting from the master. Screenshots are captured separately and are not
-generated by this script.
-
-| Master artboard | Exported SVG | Other generated assets |
-| --- | --- | --- |
-| `icon` | `icon.svg` | Square branding PNG, opaque RGB store icon, square launcher PNGs, adaptive foreground/background XML |
-| `icon-round` | `icon-round.svg` | Transparent round branding PNG, round launcher PNGs |
-| `status-icon` | `status-icon.svg` | Transparent 24×24 PNG and `ic_notification.xml` |
-| `feature` | `feature.svg` | Branding banner PNG and opaque RGB store feature graphic |
-
-Launcher PNG sizes: mdpi 48, hdpi 72, xhdpi 96, xxhdpi 144, xxxhdpi 192.
-The script preserves each artboard's layout, including any square/round scale differences.
-Each PNG is rasterized directly at its target resolution, without resizing another PNG.
-Adaptive viewport offsets are applied as Android group translations to avoid rounding
-path coordinates just to reposition the artwork. Explicit transforms inside the source
-are still handled by the Android importer and may introduce coordinate rounding.
-This preserves geometry; it does not snap curves or strokes to the pixel grid, and
-anti-aliasing can differ between SVG renderers and Android launchers.
-Android XML is converted by the SVG importer bundled with the Android Gradle Plugin,
-through `convertBrandingVectors` (offline). Nested groups, arbitrary IDs, solid backgrounds,
-clipping paths and transforms are handled by that importer; unsupported SVG features fail
-before repository outputs are written. No specific layer names or ID values are required.
-The first drawable shape in `icon.svg` is the background; the remaining shapes form the
-foreground. Keep the background as a single full-artboard shape, behind the artwork.
-The square SVG must have a positive square `viewBox`; it determines the visible icon area.
-Transparent margins inside that artboard are preserved, so a smaller clipping rectangle
-does not automatically crop the export or remove padding.
-Full-artboard rectangular clipping paths are expanded for adaptive-icon overscan; internal
-clipping paths are retained. Each generation refreshes the exported SVG files as well.
-
-Adaptive-icon and monochrome-inset XML files only reference these generated drawables and
-remain static. Samsung previews are optional and use the separate command below.
-
-SVGs are self-contained: no external images, fonts, scripts or raster embeddings.
-The feature graphic is promotional artwork, not an app screenshot.
-
-Preview the adaptive artwork with an approximate Samsung-style rounded-square mask:
+## Samsung preview
 
 ```sh
 python3 scripts/preview-samsung-icon.py --source assets/branding/icon.svg /tmp/message487-samsung.png
 python3 scripts/preview-samsung-icon.py --transparent /tmp/message487-samsung-transparent.png
-# After editing branding.ai, run generate-branding.py --pdf, then rerun the preview.
-# Use an .svg output path instead to generate a masked vector preview.
 ```
 
-Output defaults to 140×140 pixels, approximately the icon size in the supplied screenshot.
-Use `--size 512` for a larger preview.
-The preview has a white background by default; use `--transparent` to disable it.
-SVG output uses only Python's standard library; PNG output also needs `rsvg-convert`.
-Use `--source` to choose another SVG; its `viewBox` defines the mask bounds.
-By default the preview reuses `icon.svg`, which shares the adaptive foreground's scale and
-position. Keep it synchronized with the Android layers as described above. The mask
-approximates the supplied Samsung screenshot. Shadow radii (1/96 and 1/48 of icon size),
-alpha (41/255 and 26/255), and 0.96 artwork scale follow the published
-[SemAppIconSolution implementation](https://github.com/488315/samsung_framework/blob/master/framework/sources/android/app/SemAppIconSolution.java).
-SVG Gaussian blur is not identical to Android's Skia shadow rendering. The inner highlight
-and shade are a visual approximation, not a recovered Samsung bevel algorithm.
-Use `--bevel 0.3` to adjust edge strength (0–1), or `--flat` for the mask alone.
-Themes, night-mode tint and animations are not reproduced.
+Regenerate after AI edits before previewing. Use an `.svg` output for a vector preview;
+PNG output needs `rsvg-convert`. For size, background and bevel controls, see `--help`.
+The source `viewBox` defines mask bounds; the default source shares the adaptive foreground scale.
 
-Check the generator and preview with:
+The rounded-square mask, shadow and artwork scale approximate the supplied Samsung reference,
+using [SemAppIconSolution](https://github.com/488315/samsung_framework/blob/master/framework/sources/android/app/SemAppIconSolution.java).
+SVG blur and the bevel are approximations; themes, night tint and animations are excluded.
+For an exact-device comparison, use [One UI Icon Extractor](https://github.com/Palmoe/OneUI-Icon-Extractor)
+on the target Samsung device. The preview is not a launcher resource or proof of an exact match.
+
+## Verification
 
 ```sh
 python3 -m unittest discover -s scripts/tests -p test_generate_branding.py
 python3 -m unittest discover -s scripts/tests -p test_preview_samsung_icon.py
 ```
 
-The default generator tests check SVG layer preparation and command routing without Android
-build tools or Illustrator. When Poppler is available, they also check real PDF extraction,
-repeatability, page dimensions and preservation of the master. To also check Android
-conversion and PNG exports, prepare the generation dependencies above and run:
+Default checks cover SVG preparation, command routing and, when Poppler is available, real PDF
+extraction, page sizes, repeatability and master preservation. Enable Android/PNG checks with:
 
 ```sh
 MESSAGE487_TEST_ANDROID_VECTORS=1 python3 -m unittest discover -s scripts/tests -p test_generate_branding.py
 ```
 
-CI runs Android conversion checks in the Android job after the build has populated the
-Gradle cache. PNG export checks additionally require `rsvg-convert` and `magick`.
-To also verify real Illustrator export, repeatability and preservation of the master
-file on macOS, use:
+CI enables Android conversion after populating the Gradle cache; PNG checks also need the raster
+tools above. To exercise live Illustrator export and master preservation on macOS, use
+`MESSAGE487_TEST_ILLUSTRATOR=1` with the same test command.
 
-```sh
-MESSAGE487_TEST_ILLUSTRATOR=1 python3 -m unittest discover -s scripts/tests -p test_generate_branding.py
-```
+## Store listing
 
-For a device-rendered reference, [One UI Icon Extractor](https://github.com/Palmoe/OneUI-Icon-Extractor)
-uses Samsung's `semGetApplicationIconForIconTray` / `semGetActivityIconForIconTray` APIs
-on a Samsung device, retaining One UI effects. Compare its export from the target phone
-with this preview before claiming an exact match. This is a preview, not another Android
-launcher resource.
+[Fastlane metadata](../../fastlane/metadata/android) is the canonical store content for both locales,
+shared by F-Droid and Google Play. Upload [icon.png](../../fastlane/metadata/android/en-US/images/icon.png)
+and [featureGraphic.png](../../fastlane/metadata/android/en-US/images/featureGraphic.png) for Play.
 
-Earlier artwork originated from
-[andre487/sms487](https://github.com/andre487/sms487/tree/d4aca0724c4d8c8cfcfe128c6df6cc93f64625f2/client/app/src/main)
-under the [sms487 MIT license](sms487-LICENSE); the original license is retained.
-Store graphics and localized descriptions have one canonical location under
-[fastlane/metadata/android](../../fastlane/metadata/android), shared by F-Droid and Google Play.
-
-## Google Play store settings
-
-These settings are maintained manually in Google Play Console:
+Maintain these settings manually in Google Play Console:
 
 | Setting | Value |
 | --- | --- |
@@ -206,9 +117,7 @@ These settings are maintained manually in Google Play Console:
 | Tags | Home automation (Автоматизация дома), Tools (Инструменты) |
 | Phone screenshot order, both locales | `1.png`, `2.png`, `3.png` |
 
-For a Play listing, upload [icon.png](../../fastlane/metadata/android/en-US/images/icon.png)
-and [featureGraphic.png](../../fastlane/metadata/android/en-US/images/featureGraphic.png).
-The screenshots were captured from the debug app on the API 35 emulator with synthetic
-local data, using Android app locales and a 1080×1920 display. Refresh them from the release
-being submitted whenever its UI changes; do not use generated illustrations as screenshots.
-Follow the current [Google Play asset requirements](https://support.google.com/googleplay/android-developer/answer/9866151?hl=en).
+Screenshots in `fastlane/metadata/android/{en-US,ru-RU}/images/phoneScreenshots/` are separate
+1080×1920 captures from the API 35 debug emulator with synthetic data and app locales.
+Refresh them from the submitted release when UI changes; generated illustrations and the feature
+banner are not app screenshots. Follow [Google Play asset requirements](https://support.google.com/googleplay/android-developer/answer/9866151?hl=en).

@@ -135,7 +135,7 @@ JPEG uses white for transparent areas. Default limits are 3 attachments, 1024 px
 512 KiB combined, before Base64. Avatars and app icons have independent opt-ins, off by default;
 they do not consume attachment count but share the byte budget. Disabling output limits keeps
 format conversion and input/working-memory safeguards. Sources can opt in to discovering and
-selecting new applications automatically. See [capture behavior](../../README.md#delivery-and-data)
+selecting new applications automatically. See [capture setup](../../README.md#getting-started)
 and the Sources UI for details.
 
 Each `images` entry has `mime_type`, `width`, `height`, `data_base64`, `kind` (`attachment`,

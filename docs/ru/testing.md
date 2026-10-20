@@ -2,64 +2,53 @@
 
 [English](../en/testing.md) | [Русский](../ru/testing.md)
 
-Локально и в GitHub Actions используются одинаковые команды:
-
-| Набор | Команда | Что проверяется |
+| Набор | Команда | Покрытие |
 | --- | --- | --- |
-| Android | `bundle exec fastlane android checks` | JVM-логика, HTTP через MockWebServer, БД/настройки/provider через Robolectric, Compose UI, локализация, манифест, контраст обеих тем, debug/release lint и сборки, отсутствие release-подписи |
-| Эмулятор | `ANDROID_HOME=/path/to/sdk ANDROID_SERIAL=emulator-5554 bundle exec fastlane android device_tests` | Настоящий Keystore, шифрование настроек/SQLite-очереди, сохранность при повторе, HTTP/ACK/redirect и границы доступа FileProvider на API 26/35 |
-| Python | `PYTHON=.venv/bin/python bundle exec fastlane android python_checks` | HTTP-клиент тестового сервера на локальном HTTP-стенде, релизная автоматизация с mock API и локальным Git, форматирование закреплёнными Black/isort |
-| n8n | `bundle exec fastlane android server_tests` | Приём test/notification/SMS, валидация, HTTP-ошибка, неверный ACK и таймаут на живом сервере |
+| Android | `bundle exec fastlane android checks` | JVM/MockWebServer, Robolectric БД/provider, Compose, локализация/безопасность/контраст, debug/release lint, debug и неподписанный release APK |
+| Эмулятор | `ANDROID_SERIAL=emulator-5554 bundle exec fastlane android device_tests` | Настоящий Keystore, зашифрованные настройки/очередь, HTTP/ACK/redirect/отмена, восстановление изображений и FileProvider на API 26/35 |
+| Python | `PYTHON=.venv/bin/python bundle exec fastlane android python_checks` | Локальный HTTP-клиент, релизная автоматизация с mock API/локальным Git, брендинг, Black/isort |
+| n8n | `PYTHON=.venv/bin/python bundle exec fastlane android server_tests` | Живая валидация text/image/test/SMS, маршрутизация/ключи прогресса, HTTP-ошибки, неверный ACK и таймаут |
 
-Для Python создайте `.venv` командой `python3 -m venv .venv` и установите
-`requirements-dev.txt`. Для n8n сначала выполните
+Нужны JDK 21, Ruby/Bundler и Android SDK (`ANDROID_HOME`). Для Python/server lane:
+
+```sh
+bundle install
+python3 -m venv .venv
+.venv/bin/python -m pip install -r requirements-dev.txt
+```
+
+Перед server tests запустите [DevServer](../../DevServer/README.md):
 `docker compose -f DevServer/compose.yaml up -d --wait --wait-timeout 300`.
-Серверные проверки используют синтетические данные и сохраняют их в истории execution.
+Используйте синтетические данные: n8n сохраняет тела запросов в истории execution.
 
-`.github/workflows/ci.yml` запускает Android, Python, n8n и отдельные job эмуляторов API 26/35 на PR, push в main и вручную.
-При ручном запуске с `release_dry_run_version` выполняется только dry-run релиза;
-основные наборы в этом режиме пропускаются.
-XML/HTML-отчёты Android-тестов и lint загружаются и при ошибках. Успешный Android-job
-также публикует отдельные артефакты debug APK и неподписанного release APK на 14 дней.
-Доверенный `pr-artifacts-description.yml` обновляет ссылки в отмеченном блоке описания PR,
-сохраняет авторский текст и отвергает старые head/run. Он не исполняет код PR и не создаёт
-комментарии; начинает работать после слияния в основную ветку. Подпись release в этих проверках
-не используется. Локальный успех не подтверждает результат GitHub для неотправленных изменений.
+## CI и отчёты
 
-## Сравнение с MegaProxy
+[ci.yml](../../.github/workflows/ci.yml) запускает наборы на PR, push в main и вручную;
+`release_dry_run_version` оставляет только dry-run релиза. PR-проверки отвергают signing-переменные.
+[Подписанные сборки](releases.md) отдельно запускают Android-тесты/lint с параметрами подписи.
 
-Совпадают применимые категории: JVM-логика, Android-интеграция, Compose через Robolectric,
-контракты ресурсов/безопасности/UI, Python и форматирование, lint и сборки. Message487
-дополнительно проверяет живой Docker/n8n. Go race-тесты и необязательный fuzz-lane
-MegaProxy относятся к его Go/JNI-коду; здесь такого кода нет. У Message487 есть отдельные Python-тесты релизной автоматизации;
-классификатора изменений и поиска прошлых успешных проверок MegaProxy здесь нет.
+CI загружает XML/HTML тестов/lint и после ошибок; APK и HTML/Logcat эмуляторов хранятся 14 дней.
+Python XML: `test-results/python/`, n8n XML: `test-results/server/`, device XML:
+`app/build/outputs/androidTest-results/connected/`, Android JVM XML: `app/build/test-results/`.
+Python использует `unittest-xml-reporting`, Node — встроенный reporter, Android — Gradle JUnit XML.
 
-Compose-тесты используют настоящую навигацию, экраны, ViewModel и настройки с тестовым
-Application без запуска Worker и установки глобального обработчика крешей. Явная
-фабрика ViewModel привязывает каждый тест к своему Application; перед проверками
-дожидаются фоновых операций. Покрыты переходы и возврат, валидация и сохранение подключения,
-массовый выбор приложений, очистка диагностики.
+[test-reports.yml](../../.github/workflows/test-reports.yml) публикует завершённые наборы в GitHub
+Checks и сворачиваемых summary. Внутренние job вызывают его напрямую, fork PR — через доверенный
+`workflow_run`. Reporter разбирает артефакты без запуска кода PR; отсутствие XML не превращает
+ошибку job в успех. JVM-результаты подписанных сборок публикуются отдельно.
+[pr-artifacts-description.yml](../../.github/workflows/pr-artifacts-description.yml) из основной
+ветки обновляет только отмеченный блок APK-ссылок после успешного CI, сохраняет остальной текст
+и отвергает устаревшие head/run. Он не исполняет код PR и не пишет комментарии.
+Локальный успех не подтверждает результат GitHub CI.
 
-Эти тесты не подтверждают системную доставку SMS/уведомлений, работу разрешений,
-планирование WorkManager, настоящий Android Keystore, смерть процесса или почтовый клиент.
-Для этого нужны устройства/эмулятор; сценарий креша описан в [диагностике](diagnostics.md).
-Отдельные эмуляторные проверки используют настоящий Keystore, хранилище, HTTP и provider.
-Для CI эмуляторов нужен KVM; ошибка запуска или теста оставляет проверку красной.
-Автоматического повтора упавших assertions нет.
+## Одноразовые эмуляторы
 
-Подписанная release-сборка отдельно запускает Android-тесты и lint с signing-переменными.
-PR-проверки отвергают эти переменные и остаются неподписанными. См. [релизы](releases.md).
+Используйте Google APIs AVD `message487-tests`, `message487-tests-26` или `message487-tests-35`.
+**Тесты очищают настройки и очередь Message487.** Подключите только этот эмулятор: lane отвергает
+физические устройства, другие имена AVD и лишние подключения. CI создаёт чистые AVD API 26/35
+без signing-секретов, требует KVM и не повторяет упавшие assertions автоматически.
 
-## Эмуляторы и JUnit
-
-Используйте **одноразовый** Google APIs AVD с именем `message487-tests`,
-`message487-tests-26` или `message487-tests-35`. Тесты очищают настройки и очередь
-Message487 на выбранном эмуляторе. Подключите только его и задайте `ANDROID_SERIAL`
-и `ANDROID_HOME`: lane отвергает физические устройства, другие имена AVD и дополнительные
-подключённые устройства. CI создаёт чистый AVD для каждого API и собирает debug/test APK
-без release signing secrets.
-
-Для локального AVD используйте `arm64-v8a` на Apple Silicon или `x86_64` на Intel/Linux:
+На Apple Silicon используйте `arm64-v8a`, на Intel/Linux — `x86_64`:
 
 ```sh
 sdkmanager "system-images;android-35;google_apis;arm64-v8a"
@@ -69,45 +58,23 @@ emulator -avd message487-tests-35 -no-snapshot
 ANDROID_SERIAL=emulator-5554 bundle exec fastlane android device_tests
 ```
 
-Повторите с API 26. Проверяется повторное открытие хранилищ; смерть процесса, системный
-приём SMS/уведомлений, расписание WorkManager, ограничения OEM и обновление подписанного APK
-остаются сценариями приёмки на устройствах. Debug-эмуляторы не сертифицируют релизный кандидат.
+Повторите с API 26. Успех debug-эмулятора не сертифицирует подписанный релизный кандидат.
 
-Android сохраняет JUnit XML средствами Gradle; Python и live n8n smoke используют
-`unittest-xml-reporting`, Node — встроенный JUnit reporter. Для Python и server lane
-установите `requirements-dev.txt`. Python XML: `test-results/python/`, n8n XML:
-`test-results/server/`, device XML: `app/build/outputs/androidTest-results/connected/`.
-CI загружает отчёты и после ошибки тестов; свидетельства эмуляторов включают HTML
-и Logcat и хранятся 14 дней.
+## Границы покрытия
 
-`test-reports.yml` публикует каждый набор в GitHub Checks и сворачиваемом Actions summary
-сразу после завершения job. Внутренний CI и релиз вызывают его напрямую; для fork PR
-используется доверенный `workflow_run` после слияния workflow в основную ветку. Reporter
-только разбирает артефакты и не запускает код PR. Ошибка без XML остаётся ошибкой CI,
-а не успешным тестовым отчётом. JVM-отчёты подписанной сборки публикуются отдельно.
+Compose-тесты используют настоящие экраны/ViewModel/настройки с отдельными тестовыми Application,
+без startup Worker и глобального crash handler, с ожиданием фоновых операций. Регрессии покрывают
+маршрутизацию/отсрочку/повторы/отмену обновлений, повреждённые настройки, ограниченные очереди,
+постраничное восстановление, лимиты метаданных, очистку APK и передачу текста при ошибке выделения
+памяти для изображения. Эмуляторы проверяют настоящую отмену HTTP/таймауты и восстановление
+изображений; искусственный OOM проверяет обработчик, а не исчерпание памяти.
+StrictMode-сценарии и обязательные runtime-проверки — в [регламенте](release-testing.md#свидетельства-ci-для-кандидата).
+Актуальные лимиты очередей, времени и памяти заданы в [захвате](../../app/src/main/java/life/andre/message487/BackgroundOperations.kt),
+[очереди изображений](../../app/src/main/java/life/andre/message487/NotificationImageQueue.kt),
+[outbox](../../app/src/main/java/life/andre/message487/Outbox.kt) и
+[HTTP](../../app/src/main/java/life/andre/message487/WebhookClient.kt).
 
-Полный регламент проверки подписанного кандидата, F-Droid и устройств —
-[Проверка релиза](release-testing.md).
-
-Регрессионные тесты обновлений покрывают диалог при входе, недельную отсрочку/пропуск,
-переход в F-Droid, открытие экрана GitHub без автоматического скачивания, сохранённый
-результат фоновой проверки, повторы временных ошибок, отмену и смену источника.
-HTTP 429/5xx допускают повтор; 404 и неверные ответы — нет. JVM/Compose-проверки
-не подтверждают фактическое время запуска JobScheduler.
-
-Регрессии отказов покрывают ограниченные очереди уведомлений/SMS, передачу текста после
-искусственного OOM при обработке картинки, повреждённые поля настроек, повтор начальной
-загрузки, постраничное восстановление очереди, лимит старых payload, очистку APK-кэша,
-общий таймаут HTTP и отмену корутин. Реальная отмена HTTP, таймауты и восстановление после
-ошибки изображения также проверяются на API 26/35. Искусственный OOM проверяет обработчик,
-а не намеренно исчерпывает память эмулятора.
-
-Очередь уведомлений вмещает 32 ожидающие задачи; у SMS отдельная очередь на 16 задач
-и завершение broadcast не позднее 8 секунд. Переполнение включает существующий индикатор
-ошибки захвата. Общий таймаут HTTP — 2 минуты. Метаданные очереди (включая старые payload
-со встроенными картинками) читаются в пределах 8 МиБ и бюджета доступной памяти; нечитаемая
-запись блокируется с сохранением файлов для ручного повтора. Этот предел не ограничивает
-размер изображений, передаваемых потоком из файлов.
-
-StrictMode также покрывает ошибку начальной загрузки настроек и повтор, очистку временного
-файла при ошибке скачивания обновления и фоновое форматирование диагностики из UI-обработчика.
+Robolectric и эти эмуляторные наборы не подтверждают настоящий приём/разрешения SMS и уведомлений,
+время WorkManager/JobScheduler, смерть процесса, OEM, почтовые клиенты и обновления подписанных APK.
+См. [приёмку релиза](release-testing.md) и [сценарий креша/отчёта](diagnostics.md).
+Go/JNI-кода, native fuzz/race-набора, классификатора изменений и переиспользования прошлых проверок MegaProxy нет.
