@@ -1,6 +1,6 @@
 # Privacy Policy
 
-Last updated: October 19, 2026.
+Last updated: October 20, 2026.
 
 Message487 forwards selected notifications and new incoming SMS to a webhook you configure.
 Notification events can include titles, text, image attachments and optional avatars or app icons.
@@ -103,8 +103,11 @@ Avatars and source app icons are sent only when their separate switches in Sourc
 Output size, dimensions and attachment count are configurable in Sources → Graphics;
 limits are enabled by default and can be disabled. Input decoding safeguards remain active.
 Images may be resized to fit enabled limits. Unreadable images
-are skipped with a local capture error. Manual connection tests send synthetic content and, when avatar/app-icon forwarding is enabled,
-the Message487 logo through the same queue. Android may redact notification content before giving it to the app.
+are skipped with a local capture error. The Overview test sends synthetic text only.
+Connection tests have separate image selections for Big Picture, gallery, avatar and app icon;
+they do not enable notification capture options. Selected avatar/app-icon test images use the
+Message487 logo. Tests use the same image format, quality and limits and the local delivery queue.
+Android may redact notification content before giving it to the app.
 
 The endpoint operator can also see connection metadata such as your IP address. The endpoint and
 any downstream services process data under their own policies. An n8n instance may retain complete

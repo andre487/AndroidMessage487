@@ -219,7 +219,7 @@ or blocked gate means **RELEASE NOT VERIFIED**. State GitHub/F-Droid readiness s
 Fixes use a minimal separate branch, reproduction/regression test, new APK and affected/adjacent
 retests; the old FAIL remains until retest.
 
-Save a sanitized `docs/reviews/release-YYYY-MM-DD.md` with candidate commit/version/code/hash/signer,
+Record a sanitized report in the release PR with candidate commit/version/code/hash/signer,
 artifact origin, devices, command/CI/F-Droid evidence, scenario/device/verdict matrix, findings and
 controls, retest identity, restoration/leftovers and channel-specific decision/blockers/gaps.
 Raw material stays local. Test the signed release-PR candidate before publication; configure

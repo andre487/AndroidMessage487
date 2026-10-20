@@ -19,7 +19,7 @@ DELIVERY AND CONTROL
 
 • Save events in a private local outbox before sending and retry temporary delivery failures in the background.
 • Filter duplicate SMS and notifications independently, with a configurable time window.
-• Pause capture and queued delivery, check delivery status, and manually retry or delete events in Journal.
+• Pause automatic capture and queued delivery; explicit tests remain available. Check status, retry or delete events in Journal.
 • Identify your phone using a custom device code. Retries preserve the event ID so your receiver can deduplicate requests.
 • Use English or Russian interfaces and light or dark themes.
 • Check capture permissions, listener connectivity, network and delivery failures in one place.
@@ -31,6 +31,6 @@ Journal shows delivery metadata, not message contents or image previews. Webhook
 
 PERMISSIONS AND PRIVACY
 
-Notification and SMS capture are off by default, with no apps selected. Each source needs its corresponding Android access or permission. Only new events are captured; existing notifications and SMS history are not imported. Message487 does not send SMS or reply to notifications. Android may hide sensitive notification content; only content exposed by the system can be forwarded.
+Notification and SMS capture are off by default, with no apps selected. Each source needs its corresponding Android access or permission. Automatic capture handles new events only; it does not replay existing notifications or read SMS history. Current notifications can be previewed and sent explicitly. Message487 does not send SMS or reply to notifications. Android may hide sensitive notification content; only content exposed by the system can be forwarded.
 
 Queued message text and request credentials are encrypted on the device. Images are kept as private internal files without additional app-level encryption. Your endpoint and downstream services receive forwarded contents and apply their own retention policies. The app has no advertising, analytics or automatic crash uploads.
