@@ -2,6 +2,25 @@
 
 [English](../en/apk-installation.md) | [Русский](../ru/apk-installation.md)
 
+<table>
+  <tr>
+    <th align="center">GitHub</th>
+    <th align="center">F-Droid</th>
+  </tr>
+  <tr>
+    <td align="center">
+      <a href="https://github.com/andre487/AndroidMessage487/releases/latest/download/message487.apk">
+        <img src="../../assets/branding/get-it-on-github.png" alt="Скачать APK с GitHub" height="75">
+      </a>
+    </td>
+    <td align="center">
+      <a href="https://f-droid.org/packages/life.andre.message487/">
+        <img src="https://fdroid.gitlab.io/artwork/badge/get-it-on.png" alt="Установить из F-Droid" height="75">
+      </a>
+    </td>
+  </tr>
+</table>
+
 ## Обновления приложения
 
 Откройте **Обновления приложения** значком обновления в верхней панели. Для установок из

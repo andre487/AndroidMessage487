@@ -121,3 +121,16 @@ Screenshots in `fastlane/metadata/android/{en-US,ru-RU}/images/phoneScreenshots/
 1080×1920 captures from the API 35 debug emulator with synthetic data and app locales.
 Refresh them from the submitted release when UI changes; generated illustrations and the feature
 banner are not app screenshots. Follow [Google Play asset requirements](https://support.google.com/googleplay/android-developer/answer/9866151?hl=en).
+
+## Download badge
+
+[get-it-on-github.svg](get-it-on-github.svg) is the vector source for the GitHub download
+badge. It uses DejaVu Sans for “GET IT ON”, Roboto Slab Bold for “GitHub”, and the
+GitHub mark from Primer Octicons. Text is outlined so rendering requires no installed fonts.
+Third-party notices are in [get-it-on-github-NOTICES.txt](get-it-on-github-NOTICES.txt).
+
+Regenerate the PNG used in the README and installation guides:
+
+```sh
+rsvg-convert -w 1292 -h 500 assets/branding/get-it-on-github.svg -o assets/branding/get-it-on-github.png
+```
