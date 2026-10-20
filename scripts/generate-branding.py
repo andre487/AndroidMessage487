@@ -171,18 +171,31 @@ def export_pdf(source, destination):
         if not shutil.which(tool):
             raise RuntimeError(f'Required tool is missing: {tool} (install Poppler)')
     info = sp.run(
-        ['pdfinfo', str(source)], check=True, capture_output=True,
-        text=True, env={**os.environ, 'LC_ALL': 'C'},
+        ['pdfinfo', str(source)],
+        check=True,
+        capture_output=True,
+        text=True,
+        env={**os.environ, 'LC_ALL': 'C'},
     ).stdout
     if not re.search(rf'^Pages:\s+{len(ARTBOARDS)}\s*$', info, re.MULTILINE):
-        raise ValueError('Expected four PDF pages in branding.ai; save with PDF compatibility')
+        raise ValueError(
+            'Expected four PDF pages in branding.ai; save with PDF compatibility'
+        )
     with tempfile.TemporaryDirectory(prefix='message487-pdf-') as temp:
         directory = Path(temp)
         for page, (name, size) in enumerate(ARTBOARDS.items(), 1):
             target = directory / f'{name}.svg'
             sp.run(
-                ['pdftocairo', '-svg', '-f', str(page), '-l', str(page),
-                 str(source), str(target)],
+                [
+                    'pdftocairo',
+                    '-svg',
+                    '-f',
+                    str(page),
+                    '-l',
+                    str(page),
+                    str(source),
+                    str(target),
+                ],
                 check=True,
             )
             root = ET.parse(target).getroot()
@@ -343,10 +356,16 @@ def main(argv=None):
         help='Export root (default: repository)',
     )
     mode = parser.add_mutually_exclusive_group()
-    mode.add_argument('--illustrator', action='store_true',
-                      help='Export AI artboards through Illustrator (macOS) before generating assets')
-    mode.add_argument('--pdf', action='store_true',
-                      help='Export PDF-compatible AI pages through Poppler before generating assets')
+    mode.add_argument(
+        '--illustrator',
+        action='store_true',
+        help='Export AI artboards through Illustrator (macOS) before generating assets',
+    )
+    mode.add_argument(
+        '--pdf',
+        action='store_true',
+        help='Export PDF-compatible AI pages through Poppler before generating assets',
+    )
     args = parser.parse_args(argv)
     with tempfile.TemporaryDirectory(prefix='message487-branding-') as temp:
         sources = Path(temp)
