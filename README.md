@@ -36,9 +36,25 @@ Levels 1–4 require only built-in n8n nodes. Import instructions include synthe
 
 ## Getting started
 
-**[Download the latest signed APK](https://github.com/andre487/AndroidMessage487/releases/latest/download/message487.apk)**
+<table>
+  <tr>
+    <th align="center">GitHub</th>
+    <th align="center">F-Droid</th>
+  </tr>
+  <tr>
+    <td align="center">
+      <a href="https://github.com/andre487/AndroidMessage487/releases/latest/download/message487.apk">
+        <img src="https://raw.githubusercontent.com/machiav3lli/oandbackupx/034b226cea5c1b30eb4f6a6f313e4dadcbb0ece4/badge_github.png" alt="Download APK from GitHub" height="75">
+      </a>
+    </td>
+    <td align="center">
+      <a href="https://f-droid.org/packages/life.andre.message487/">
+        <img src="https://fdroid.gitlab.io/artwork/badge/get-it-on.png" alt="Get it on F-Droid" height="75">
+      </a>
+    </td>
+  </tr>
+</table>
 
-Also available from [F-Droid](https://f-droid.org/packages/life.andre.message487/).
 Use **App updates** for updates; see the [installation guide](docs/en/apk-installation.md)
 for permissions, installer restrictions and update sources.
 
