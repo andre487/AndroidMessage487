@@ -139,6 +139,8 @@ def python_checks():
     files = [
         "manage.py",
         "DevServer/tests",
+        "scripts/ci_changes.py",
+        "scripts/ci_history.py",
         "scripts/release_automation.py",
         "scripts/virus_total.py",
         "scripts/generate_n8n_examples.py",

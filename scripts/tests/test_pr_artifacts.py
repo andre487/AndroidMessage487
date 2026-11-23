@@ -14,14 +14,16 @@ const run = {id: 10, run_number: 20, run_attempt: 1, head_sha: 'abc',
 const result = {updates: [], errors: []};
 const github = {
   rest: {
-    actions: {listWorkflowRunArtifacts: 'artifacts'},
+    actions: {listWorkflowRunArtifacts: 'artifacts', listJobsForWorkflowRun: 'jobs'},
     pulls: {
       get: async () => ({data: {body: options.body ?? '', state: 'open',
         head: {sha: options.head ?? 'abc'}}}),
       update: async value => { result.updates.push(value); }
     }
   },
-  paginate: async () => ['debug-apk', 'unsigned-release-apk'].map((suffix, id) =>
+  paginate: async endpoint => endpoint === 'jobs'
+    ? [{name: 'Android tests and checks', conclusion: options.android ?? 'success'}]
+    : ['debug-apk', 'unsigned-release-apk'].map((suffix, id) =>
       ({id, name: 'message487-pr-7-' + suffix, expired: options.expired ?? false}))
 };
 const context = {repo: {owner: 'owner', repo: 'repo'}, serverUrl: 'https://github.com',
@@ -70,6 +72,11 @@ class ArtifactDescriptionTest(unittest.TestCase):
                 result = self.run_workflow(**options)
                 self.assertEqual(result["updates"], [])
                 self.assertEqual(result["errors"], [])
+
+    def test_skipped_android_build_keeps_description(self):
+        self.assertEqual(
+            self.run_workflow(android="skipped"), {"updates": [], "errors": []}
+        )
 
     def test_missing_artifacts_and_broken_markers_fail_without_overwriting(self):
         for options in [

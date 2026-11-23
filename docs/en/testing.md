@@ -22,8 +22,14 @@ Use synthetic data: n8n retains request bodies in execution history.
 
 ## CI and reports
 
-[ci.yml](../../.github/workflows/ci.yml) runs these suites on PRs, main pushes and manual dispatch;
-setting `release_dry_run_version` runs only the release dry run. PR checks reject signing inputs.
+[CI](../../.github/workflows/ci.yml) selects suites for pull requests. Repository Markdown skips all test suites.
+Markdown packaged as an Android asset or resource runs Android checks and both emulator jobs.
+DevServer and n8n example changes run Python and server tests. Shared CI inputs and unknown paths run every suite.
+
+For each suite, CI can reuse a successful ancestor job from the same PR and base commit.
+Without a reusable success, it checks the full PR diff, including deletions. Fork PRs always use the full diff.
+Pushes to main, release PRs, full reruns and manual dispatch run every suite.
+Setting `release_dry_run_version` runs only the release dry run. PR checks reject signing inputs.
 [Signed builds](releases.md) run Android tests/lint separately with signing inputs.
 
 CI uploads test/lint XML/HTML even after failure and retains APKs and emulator HTML/Logcat for
@@ -77,4 +83,3 @@ Current queue/deadline/memory ceilings live in [capture](../../app/src/main/java
 Neither Robolectric nor these emulator suites establish real SMS/notification permissions/capture,
 WorkManager/JobScheduler timing, process death, OEM behavior, email clients or signed upgrades.
 Use [release acceptance](release-testing.md) and the [crash/report scenario](diagnostics.md).
-There is no Go/JNI core, native fuzz/race suite, MegaProxy change classifier or ancestor-check reuse.
