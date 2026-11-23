@@ -24,7 +24,7 @@ Logs use a fixed event vocabulary and typed/allowlisted metadata. Never add mess
 addresses, package names, URLs, event/device IDs, device codes or arbitrary exception messages.
 The archive adds app/Android/device versions, architecture and nonsensitive configuration flags.
 
-Run `bundle exec fastlane android checks`. Diagnostic tests cover rotation/restart, crash retention,
+Run `uv run manage.py android checks`. Diagnostic tests cover rotation/restart, crash retention,
 redaction, storage failure, handler delegation, archive retention and attachment permissions.
 For a manual debug-emulator check, start the app, then run
 `adb shell am crash life.andre.message487` and reopen it. Review the next-launch prompt and ZIP in

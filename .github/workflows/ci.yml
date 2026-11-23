@@ -30,6 +30,9 @@ jobs:
         with:
           fetch-depth: 0
           persist-credentials: false
+      - uses: astral-sh/setup-uv@c771a70e6277c0a99b617c7a806ffedaca235ff9 # v9.0.0
+        with:
+          version: "0.13.8"
       - name: Check release configuration and generate changelogs
         env:
           GH_TOKEN: ${{ secrets.RELEASE_BOT_TOKEN }}
@@ -39,7 +42,7 @@ jobs:
         run: |
           test -n "$GH_TOKEN" && test -n "$OPENAI_API_KEY" && test -n "$OPENAI_RELEASE_MODEL"
           gh auth setup-git
-          python3 scripts/release_automation.py prepare --version "$RELEASE_VERSION" --dry-run
+          uv run --locked manage.py release prepare --dry-run
 
   release-identity:
     name: Release CI identity
@@ -65,10 +68,9 @@ jobs:
           distribution: temurin
           java-version: "21"
       - uses: gradle/actions/setup-gradle@v4
-      - uses: ruby/setup-ruby@v1
+      - uses: astral-sh/setup-uv@c771a70e6277c0a99b617c7a806ffedaca235ff9 # v9.0.0
         with:
-          ruby-version: "3.4.10"
-          bundler-cache: true
+          version: "0.13.8"
       - name: Install Android SDK components
         run: |
           sdkmanager="$ANDROID_HOME/cmdline-tools/latest/bin/sdkmanager"
@@ -77,11 +79,11 @@ jobs:
             exit 1
           fi
           "$sdkmanager" "platforms;android-36" "build-tools;36.0.0"
-      - run: bundle exec fastlane android checks
+      - run: uv run --locked manage.py android checks
       - name: Check branding vector conversion
         env:
           MESSAGE487_TEST_ANDROID_VECTORS: "1"
-        run: python3 -m unittest discover -s scripts/tests -p test_generate_branding.py
+        run: uv run --locked python -m unittest discover -s scripts/tests -p test_generate_branding.py
       - name: Publish test and lint reports
         if: always()
         uses: actions/upload-artifact@v7
@@ -131,17 +133,10 @@ jobs:
       - uses: actions/checkout@v6
         with:
           persist-credentials: false
-      - uses: ruby/setup-ruby@v1
+      - uses: astral-sh/setup-uv@c771a70e6277c0a99b617c7a806ffedaca235ff9 # v9.0.0
         with:
-          ruby-version: "3.4.10"
-          bundler-cache: true
-      - uses: actions/setup-python@v6
-        with:
-          python-version: "3.12"
-          cache: pip
-          cache-dependency-path: requirements-dev.txt
-      - run: python -m pip install -r requirements-dev.txt
-      - run: bundle exec fastlane android python_checks
+          version: "0.13.8"
+      - run: uv run --locked manage.py python-checks
       - name: Upload Python JUnit reports
         if: ${{ !cancelled() }}
         uses: actions/upload-artifact@v7
@@ -160,15 +155,10 @@ jobs:
         with:
           persist-credentials: false
       - run: docker compose -f DevServer/compose.yaml up -d --wait --wait-timeout 300
-      - uses: ruby/setup-ruby@v1
+      - uses: astral-sh/setup-uv@c771a70e6277c0a99b617c7a806ffedaca235ff9 # v9.0.0
         with:
-          ruby-version: "3.4.10"
-          bundler-cache: true
-      - uses: actions/setup-python@v6
-        with:
-          python-version: "3.12"
-      - run: python -m pip install -r requirements-dev.txt
-      - run: bundle exec fastlane android server_tests
+          version: "0.13.8"
+      - run: uv run --locked manage.py server-tests
       - name: Upload n8n JUnit reports
         if: ${{ !cancelled() }}
         uses: actions/upload-artifact@v7

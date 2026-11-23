@@ -1,14 +1,11 @@
 # Message487 development server
 
-Run from the repository root with Docker Compose, Python 3 and Ruby/Bundler installed,
+Run from the repository root with Docker Compose and uv installed,
 and a Docker engine running:
 
 ```sh
-bundle install
 docker compose -f DevServer/compose.yaml up -d --wait
-python3 -m venv .venv
-.venv/bin/python -m pip install -r requirements-dev.txt
-PYTHON=.venv/bin/python bundle exec fastlane android server_tests
+uv run manage.py server-tests
 ```
 
 Open the editor at <http://localhost:5678>. Local development login:

@@ -1,13 +1,11 @@
 # Message487 context
 
-[English](../en/project-context.md) | [Русский](../ru/project-context.md)
-
 ## Scope
 
 Message487 replaces [sms487](https://github.com/andre487/sms487) in a separate repository.
 It forwards selected Android notifications, images and new SMS to n8n or another HTTPS webhook.
 The package ID and supported SDKs are defined in [Gradle](../../app/build.gradle.kts).
-Presentation, Kotlin/Compose style, EN/RU localization and Fastlane conventions follow
+Presentation, Kotlin/Compose style, EN/RU localization and project CLI conventions follow
 [AndroidMegaProxy](https://github.com/andre487/AndroidMegaProxy); VPN/Go/JNI features are outside scope.
 The historical reference was commit `c8190e97b705a2c4578d278c40a690e97c5d5f27`; current CI is
 specified in [Testing](testing.md).

@@ -112,14 +112,14 @@ For diagnostic logs and crash reports, use the top-bar bug icon and follow the
 
 ## Local development
 
-Build with JDK 21, Ruby/Bundler and the Android SDK; the emulator launcher also uses Python 3.
+Build with JDK 21, uv and the Android SDK.
 Use `ANDROID_HOME` or an untracked
 `local.properties` file to point Gradle to your SDK. SDK and library versions are in the Gradle
-build files; Ruby dependencies are pinned by `Gemfile.lock`.
+build files. Python tooling dependencies are pinned in `uv.lock`.
 
 ```sh
-bundle install
-bundle exec fastlane android checks
+uv run manage.py --help
+uv run manage.py android checks
 scripts/run-without-debugging.sh
 ```
 

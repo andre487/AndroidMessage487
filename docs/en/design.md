@@ -1,7 +1,5 @@
 # Interface design
 
-[English](../en/design.md) | [Русский](../ru/design.md)
-
 Message487 uses a restrained Material 3 interface with the standard purple baseline palette from
 Material 3. Both light and dark schemes come directly from the library without color overrides
 or wallpaper-derived dynamic colors. The visual reference is MegaProxy: prominent operational status,
@@ -36,4 +34,4 @@ text heights. Verify both locales, dark mode, large text and narrow/wide windows
 
 The redesign was checked on the API 35 emulator in English and Russian, light and dark mode,
 with enlarged text on a narrow window, and with rail navigation in a wide window. Android Lint,
-JVM tests and both APK builds use the existing Fastlane checks lane.
+JVM tests and both APK builds use `uv run manage.py android checks`.

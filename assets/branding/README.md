@@ -70,8 +70,8 @@ PNGs retain transparency; the white status mark needs a contrasting background.
 ## Samsung preview
 
 ```sh
-python3 scripts/preview-samsung-icon.py --source assets/branding/icon.svg /tmp/message487-samsung.png
-python3 scripts/preview-samsung-icon.py --transparent /tmp/message487-samsung-transparent.png
+uv run python scripts/preview-samsung-icon.py --source assets/branding/icon.svg /tmp/message487-samsung.png
+uv run python scripts/preview-samsung-icon.py --transparent /tmp/message487-samsung-transparent.png
 ```
 
 Regenerate after AI edits before previewing. Use an `.svg` output for a vector preview;
@@ -87,15 +87,15 @@ on the target Samsung device. The preview is not a launcher resource or proof of
 ## Verification
 
 ```sh
-python3 -m unittest discover -s scripts/tests -p test_generate_branding.py
-python3 -m unittest discover -s scripts/tests -p test_preview_samsung_icon.py
+uv run python -m unittest discover -s scripts/tests -p test_generate_branding.py
+uv run python -m unittest discover -s scripts/tests -p test_preview_samsung_icon.py
 ```
 
 Default checks cover SVG preparation, command routing and, when Poppler is available, real PDF
 extraction, page sizes, repeatability and master preservation. Enable Android/PNG checks with:
 
 ```sh
-MESSAGE487_TEST_ANDROID_VECTORS=1 python3 -m unittest discover -s scripts/tests -p test_generate_branding.py
+MESSAGE487_TEST_ANDROID_VECTORS=1 uv run python -m unittest discover -s scripts/tests -p test_generate_branding.py
 ```
 
 CI enables Android conversion after populating the Gradle cache; PNG checks also need the raster
@@ -112,9 +112,9 @@ Maintain these settings manually in Google Play Console:
 
 | Setting | Value |
 | --- | --- |
-| App or game | App (Приложение) |
-| Category | Tools (Инструменты) |
-| Tags | Home automation (Автоматизация дома), Tools (Инструменты) |
+| App or game | App |
+| Category | Tools |
+| Tags | Home automation, Tools |
 | Phone screenshot order, both locales | `1.png`, `2.png`, `3.png` |
 
 Screenshots in `fastlane/metadata/android/{en-US,ru-RU}/images/phoneScreenshots/` are separate

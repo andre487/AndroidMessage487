@@ -1,7 +1,5 @@
 # Signed APK releases
 
-[English](../en/releases.md) | [Русский](../ru/releases.md)
-
 Installing on a phone? See [APK installation and Android restrictions](apk-installation.md).
 
 Use [release automation](release-automation.md) to prepare the version and EN/RU changelog.
@@ -9,8 +7,8 @@ The guide covers manual secret setup and release dispatch.
 
 Before publication, complete [release testing](release-testing.md) on the signed candidate.
 
-Run `bundle exec fastlane android release_artifacts` with JDK 21 and Android SDK 36.
-The lane runs Android JVM/Compose tests and debug/release lint, then builds a signed release APK. It checks the APK certificate, package/version and non-debuggable
+Run `uv run manage.py release artifacts` with JDK 21 and Android SDK 36.
+The command runs Android JVM/Compose tests and debug/release lint, then builds a signed release APK. It checks the APK certificate, package/version and non-debuggable
 flag.
 
 | Output in `dist/release/` | Purpose |
@@ -38,7 +36,7 @@ Signing follows MegaProxy's environment contract with the `MESSAGE487_` prefix:
 | `MESSAGE487_RELEASE_DIR` | `dist/release` |
 
 Gradle reads only the four signing environment variables (path, store password, alias and key
-password). Partial signing configuration fails closed. The PR `checks` lane rejects signing inputs
+password). Partial signing configuration fails closed. The PR `android checks` command rejects signing inputs
 and verifies unsigned release APK files. Passwords are not command-line arguments and must never be
 printed, committed or passed through Gradle `-P` properties.
 
