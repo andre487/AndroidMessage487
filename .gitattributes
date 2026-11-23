@@ -1,1 +1,2 @@
+# Keep historical Illustrator files binary in release diffs spanning the SVG migration.
 *.ai binary

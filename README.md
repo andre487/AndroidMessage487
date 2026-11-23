@@ -3,11 +3,11 @@
 [![CI](https://github.com/andre487/AndroidMessage487/actions/workflows/ci.yml/badge.svg?branch=main&event=push)](https://github.com/andre487/AndroidMessage487/actions/workflows/ci.yml?query=branch%3Amain+event%3Apush)
 [![Release](https://img.shields.io/github/v/release/andre487/AndroidMessage487)](https://github.com/andre487/AndroidMessage487/releases/latest)
 [![VirusTotal: latest report](https://img.shields.io/badge/VirusTotal-latest%20report-blue?logo=virustotal&logoColor=white)](https://github.com/andre487/AndroidMessage487/releases/latest#virustotal)
-[![License: MIT](https://img.shields.io/badge/license-MIT-blue.svg)](LICENSE)
+[![Code license: MIT](https://img.shields.io/badge/code_license-MIT-blue.svg)](LICENSE)
 [![Android 8+](https://img.shields.io/badge/Android-8.0%2B-3DDC84?logo=android&logoColor=white)](https://developer.android.com/about/versions/oreo)
 
 <p align="center">
-  <img src="assets/branding/icon-round.svg" width="160" alt="Message487 app icon">
+  <img src="assets/icon-round.svg" width="160" alt="Message487 app icon">
 </p>
 
 Message487 connects selected Android notifications and incoming SMS to your n8n workflows.
@@ -45,7 +45,7 @@ Levels 1–4 require only built-in n8n nodes. Import instructions include synthe
   <tr>
     <td align="center">
       <a href="https://github.com/andre487/AndroidMessage487/releases/latest/download/message487.apk">
-        <img src="assets/branding/get-it-on-github.png" alt="Download APK from GitHub" height="75">
+        <img src="assets/get-it-on-github.png" alt="Download APK from GitHub" height="75">
       </a>
     </td>
     <td align="center">
@@ -131,9 +131,9 @@ Release builds require HTTPS. Test with synthetic data.
 See [Testing](docs/en/testing.md) for CI and device checks, [Releases](docs/en/releases.md)
 for signed builds, and [release automation](docs/en/release-automation.md) and
 [release testing](docs/en/release-testing.md) for publication.
-[Branding](assets/branding/README.md) covers artwork and resource generation;
+[Branding](assets/README.md) covers artwork and resource generation;
 [design](docs/en/design.md) and [project context](docs/en/project-context.md) cover conventions.
 
 This project succeeds [sms487](https://github.com/andre487/sms487) and follows
 [AndroidMegaProxy](https://github.com/andre487/AndroidMegaProxy) conventions.
-Licensed under the [MIT License](LICENSE).
+The project code is licensed under the [MIT License](LICENSE). For the Message487 artwork and download badge, see [artwork licenses](assets/README.md#licenses).

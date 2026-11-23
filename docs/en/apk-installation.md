@@ -10,7 +10,7 @@
   <tr>
     <td align="center">
       <a href="https://github.com/andre487/AndroidMessage487/releases/latest/download/message487.apk">
-        <img src="../../assets/branding/get-it-on-github.png" alt="Download APK from GitHub" height="75">
+        <img src="../../assets/get-it-on-github.png" alt="Download APK from GitHub" height="75">
       </a>
     </td>
     <td align="center">
