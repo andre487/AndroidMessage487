@@ -191,5 +191,5 @@ or manual deletion. These examples contain no secrets, but configured exports ma
 names/IDs and pinned data: remove them before sharing.
 
 The JSON is generated, not edited independently. After changing shared scripts run
-`python3 scripts/generate_n8n_examples.py`, then `--check`. CI verifies generated files,
+`uv run python scripts/generate_n8n_examples.py`, then `--check`. CI verifies generated files,
 validation, binary payloads, routing, progress keys and the two webhook endpoints in DevServer.

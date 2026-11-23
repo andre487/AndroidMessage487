@@ -1,7 +1,5 @@
 # Release automation
 
-[English](release-automation.md) | [Русский](../ru/release-automation.md)
-
 Once the implementation is merged into `main`, open **Actions → Prepare and merge release →
 Run workflow**, choose `main` and enter a new version without `v`. This authorizes a release PR,
 squash merge after full CI, and a tag on the verified merged commit. **Release Android artifacts**
@@ -12,7 +10,7 @@ This flow does not replace [device release acceptance](release-testing.md).
 ## VirusTotal check
 
 Tag publication (`v*`) requires the Actions secret `VIRUSTOTAL_API_KEY`.
-After signing, the workflow runs `bundle exec fastlane android virus_total`.
+After signing, the workflow runs `uv run manage.py release virus-total`.
 It waits for completed analyses; malicious/suspicious detections, API errors,
 timeouts and a missing key block publication. `VIRUSTOTAL.md` and
 `VIRUSTOTAL.json` are saved in Actions and attached to the release;
@@ -77,7 +75,7 @@ real EN/RU notes through OpenAI. This is a billed API request. Results appear in
 Actions summary. It does not write changelogs, create branches/PRs, merge, tag, sign
 or publish. It does not prove write permissions or satisfaction of branch protection.
 Leaving the field empty runs normal CI. Local equivalent from a clean checkout:
-`bundle exec fastlane android release_prepare version:0.0.6 dry_run:true`.
+`uv run manage.py release prepare --version 0.0.6 --dry-run`.
 
 ## Behavior and recovery
 
@@ -105,7 +103,7 @@ prereleases are unsupported.
 Preview an existing release without writing files or publishing:
 
 ```sh
-GITHUB_REPOSITORY=andre487/AndroidMessage487 bundle exec fastlane android release_notes_preview version:0.0.6 ref:v0.0.6
+GITHUB_REPOSITORY=andre487/AndroidMessage487 uv run manage.py release preview --version 0.0.6 --ref v0.0.6
 ```
 
 Set `OPENAI_API_KEY`, `OPENAI_RELEASE_MODEL` and authenticate `gh` first. This is a billed API
@@ -125,14 +123,14 @@ tag build, retry that build without moving the tag.
 
 If head/base changed, deliberately update the release branch so its single release commit is
 based on current `main`, then wait for full CI. From a trusted `main` checkout with authorized
-`gh` and Fastlane, finish with:
+`gh` and uv, finish with:
 
 ```sh
 export GITHUB_REPOSITORY=andre487/AndroidMessage487
-bundle exec fastlane android release_finish version:0.0.6 pr:123 head:FULL_40_CHARACTER_SHA
+uv run manage.py release finish --version 0.0.6 --pr 123 --head FULL_40_CHARACTER_SHA
 ```
 
 This merges and tags; it is not a dry run. If branch push succeeded but PR creation failed,
 manually create and inspect the PR before using this command. Local preparation from a clean
 current `main` checkout with the same API/token/model configuration:
-`bundle exec fastlane android release_prepare version:0.0.6`.
+`uv run manage.py release prepare --version 0.0.6`.

@@ -26,10 +26,9 @@ jobs:
           distribution: temurin
           java-version: "21"
       - uses: gradle/actions/setup-gradle@v4
-      - uses: ruby/setup-ruby@v1
+      - uses: astral-sh/setup-uv@c771a70e6277c0a99b617c7a806ffedaca235ff9 # v9.0.0
         with:
-          ruby-version: "3.4.10"
-          bundler-cache: true
+          version: "0.13.8"
       - name: Enable hardware acceleration
         run: |
           test -e /dev/kvm
@@ -40,12 +39,17 @@ jobs:
         run: '"$ANDROID_HOME/cmdline-tools/latest/bin/sdkmanager" "platforms;android-36" "build-tools;36.0.0"'
       - name: Build test APKs
         run: ./gradlew assembleDebug assembleDebugAndroidTest --no-daemon
+      - name: Detect emulator ABI
+        id: emulator
+        run: |
+          abi=$(uv run --locked manage.py android emulator-abi)
+          echo "abi=$abi" >> "$GITHUB_OUTPUT"
       - name: Run on disposable Android emulator
         uses: reactivecircus/android-emulator-runner@v2.38.0
         with:
           api-level: ${{ inputs.api }}
           target: google_apis
-          arch: x86_64
+          arch: ${{ steps.emulator.outputs.abi }}
           profile: pixel_5
           avd-name: message487-tests
           disable-animations: true
@@ -53,7 +57,7 @@ jobs:
           script: |
             mkdir -p test-results/android-api${{ inputs.api }}
             adb logcat -v threadtime > test-results/android-api${{ inputs.api }}/logcat.txt &
-            bundle exec fastlane android device_tests
+            uv run --locked manage.py android device-tests
       - name: Upload Android evidence
         if: always()
         uses: actions/upload-artifact@v7
