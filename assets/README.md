@@ -6,7 +6,7 @@ reads this master directly. Each page and its top-level layer share a name.
 | Page | Source size | Use |
 | --- | --- | --- |
 | icon | 500×500 | Adaptive launcher layers and 512×512 store icon |
-| icon-round | 500×500 | Standalone round artwork for the README |
+| icon-round | 500×500 | [Standalone round artwork](icon-round.svg) for the README |
 | status-icon | 32×32 | 24 dp notification vector and themed launcher icon |
 | feature | 1024×500 | Store feature graphic |
 
@@ -20,9 +20,13 @@ uv run scripts/generate-branding.py
 
 This refreshes the Android VectorDrawables and the two opaque store PNGs.
 Use `--output-root /tmp/message487-branding` to inspect a separate output tree.
-Add `--export-pages` to also write individual SVGs to `assets/branding/`, for example
-when refreshing the README illustration. Only `icon-round.svg` is tracked there.
-For a complete export outside the checkout, combine the two options. Save changes to the master before generating.
+To refresh the README icon, export the pages into a temporary output tree and copy the round icon:
+
+```sh
+uv run scripts/generate-branding.py --export-pages --output-root /tmp/message487-branding
+cp /tmp/message487-branding/assets/icon-round.svg assets/icon-round.svg
+```
+
 Commit the master and affected resources together. Android builds use the committed XML.
 
 Keep the named groups `background` and `foreground` inside the `icon` layer.
@@ -34,28 +38,10 @@ Keep artwork self-contained and use vector paths supported by Android's SVG impo
 Generation requires Python 3, `rsvg-convert`, ImageMagick's `magick`, JDK 21, a configured
 Android SDK and Gradle dependencies cached by a normal build. The vector converter runs offline.
 
-## Samsung preview
-
-```sh
-uv run python scripts/preview-samsung-icon.py /tmp/message487-samsung.png
-uv run python scripts/preview-samsung-icon.py --transparent /tmp/message487-samsung-transparent.png
-```
-
-The preview reads the icon page from the saved master. Use an `.svg` output for a vector preview;
-PNG output needs `rsvg-convert`. For size, background and bevel controls, see `--help`.
-The source `viewBox` defines mask bounds; the default source shares the adaptive foreground scale.
-
-The rounded-square mask, shadow and artwork scale approximate the supplied Samsung reference,
-using [SemAppIconSolution](https://github.com/488315/samsung_framework/blob/master/framework/sources/android/app/SemAppIconSolution.java).
-SVG blur and the bevel are approximations; themes, night tint and animations are excluded.
-For an exact-device comparison, use [One UI Icon Extractor](https://github.com/Palmoe/OneUI-Icon-Extractor)
-on the target Samsung device. The preview is not a launcher resource or proof of an exact match.
-
 ## Verification
 
 ```sh
 uv run python -m unittest discover -s scripts/tests -p test_generate_branding.py
-uv run python -m unittest discover -s scripts/tests -p test_preview_samsung_icon.py
 ```
 
 The tests check page names, linked artwork and separation of the Android layers.
@@ -90,10 +76,20 @@ banner are not app screenshots. Follow [Google Play asset requirements](https://
 [get-it-on-github.svg](get-it-on-github.svg) is the vector source for the GitHub download
 badge. It uses DejaVu Sans for “GET IT ON”, Roboto Slab Bold for “GitHub”, and the
 GitHub mark from Primer Octicons. Text is outlined so rendering requires no installed fonts.
-Third-party notices are in [get-it-on-github-NOTICES.txt](get-it-on-github-NOTICES.txt).
 
 Regenerate the PNG used in the README and installation guides:
 
 ```sh
 rsvg-convert -w 1292 -h 500 assets/get-it-on-github.svg -o assets/get-it-on-github.png
 ```
+
+## Licenses
+
+The Message487 artwork in [branding.svg](branding.svg) and its icon and banner exports use
+[Creative Commons Attribution 4.0 International](https://creativecommons.org/licenses/by/4.0/).
+The master and standalone SVG exports carry the license in their metadata.
+When sharing the artwork, credit the source, link to the license and indicate any changes.
+
+The GitHub download badge uses third-party artwork and outlined fonts. The
+[badge notices](get-it-on-github-NOTICES.txt) cover Primer Octicons, Roboto Slab and DejaVu Sans.
+The generator and application code use the repository's [MIT License](../LICENSE).

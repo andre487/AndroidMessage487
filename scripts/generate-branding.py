@@ -131,10 +131,14 @@ def generate(output_root, export_pages=False):
         ET.indent(tree, space='    ')
         destination.write_text(ET.tostring(tree, encoding='unicode') + '\n')
     if export_pages:
-        directory = output_root / 'assets/branding'
+        directory = output_root / 'assets'
         directory.mkdir(parents=True, exist_ok=True)
         for name in branding.PAGES:
-            ET.ElementTree(branding.page(document, name)).write(
+            page = branding.page(document, name)
+            metadata = document.find(branding.SVG + 'metadata')
+            if metadata is not None:
+                page.append(metadata)
+            ET.ElementTree(page).write(
                 directory / f'{name}.svg', encoding='utf-8', xml_declaration=True
             )
 
@@ -145,7 +149,7 @@ def main():
     parser.add_argument(
         '--export-pages',
         action='store_true',
-        help='Also refresh the standalone SVGs in assets/branding',
+        help='Also refresh the standalone SVGs in assets/',
     )
     args = parser.parse_args()
     generate(args.output_root, args.export_pages)

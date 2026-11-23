@@ -88,9 +88,15 @@ class BrandingExportTest(unittest.TestCase):
                 self.assertEqual(pngs[name][25], 2)
             GENERATOR['generate'](output, export_pages=True)
             self.assertEqual(
-                {p.stem for p in (output / 'assets/branding').glob('*.svg')},
+                {p.stem for p in (output / 'assets').glob('*.svg')},
                 set(branding.PAGES),
             )
+            for svg in (output / 'assets').glob('*.svg'):
+                license_tag = './/{http://creativecommons.org/ns#}license'
+                self.assertEqual(
+                    ET.parse(svg).find(license_tag).attrib,
+                    self.master.find(license_tag).attrib,
+                )
             self.assertEqual(
                 pngs, {p.name: p.read_bytes() for p in output.rglob('*.png')}
             )
