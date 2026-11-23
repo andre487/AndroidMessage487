@@ -33,6 +33,9 @@ class DeliveryScheduler(context: Context) {
         return manager.enqueueUniqueWork("event-$id", if (replace) ExistingWorkPolicy.REPLACE else ExistingWorkPolicy.KEEP, work)
     }
 
+    fun requestRecovery() = manager.enqueueUniqueWork("outbox-recovery-now", ExistingWorkPolicy.KEEP,
+        OneTimeWorkRequestBuilder<RecoveryWorker>().build())
+
     fun startRecovery() {
         manager.enqueueUniquePeriodicWork("outbox-recovery", ExistingPeriodicWorkPolicy.KEEP,
             PeriodicWorkRequestBuilder<RecoveryWorker>(15, TimeUnit.MINUTES).build())
@@ -47,6 +50,8 @@ class DeliveryWorker(context: Context, parameters: WorkerParameters) : Coroutine
             if (pauseBlocksDelivery(graph.settings.load().paused, inputData.getBoolean("manual_test", false))) return@withContext Result.retry()
             val attempt = try {
                 graph.outbox.beginAttempt(id)
+            } catch (_: PayloadMemoryException) {
+                return@withContext Result.retry()
             } catch (databaseError: android.database.SQLException) {
                 throw databaseError
             } catch (error: Exception) {

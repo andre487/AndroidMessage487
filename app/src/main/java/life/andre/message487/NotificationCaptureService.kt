@@ -30,7 +30,7 @@ class NotificationCaptureService : NotificationListenerService() {
         ListenerState.mutableConnected.value = true
         val graph = MessageGraph.get(this)
         graph.submitCapture {
-            try { graph.recover() } catch (error: Exception) { graph.captureFailed(error) }
+            try { graph.scheduler.requestRecovery() } catch (error: Exception) { graph.captureFailed(error) }
         }
     }
 
@@ -106,14 +106,15 @@ class NotificationCaptureService : NotificationListenerService() {
                     it.notification.flags and Notification.FLAG_GROUP_SUMMARY == 0 }
                 .sortedByDescending { it.postTime }.take(20).map(::notificationContent)
 
-        internal fun preview(key: String, config: ForwardingSettings): CapturedNotification {
+        internal fun preview(key: String, config: ForwardingSettings, cancellation: android.os.CancellationSignal): CapturedNotification {
             val listener = requireNotNull(activeListener.get()) { "Notification listener disconnected" }
             val current = listener.getActiveNotifications(arrayOf(key)).firstOrNull()
                 ?: error("Notification is no longer available")
             require(current.packageName in config.packages && current.packageName != listener.packageName)
             var imageWarning = false
-            val images = notificationImages(listener, current.notification, config, current.packageName) { imageWarning = true }
-            return notificationContent(current).copy(images = images, imageWarning = imageWarning)
+            val content = notificationContent(current)
+            val images = notificationImages(listener, current.notification, config, current.packageName, cancellation) { imageWarning = true }
+            return content.copy(images = images, imageWarning = imageWarning)
         }
     }
 

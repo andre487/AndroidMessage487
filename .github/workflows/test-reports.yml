@@ -29,8 +29,28 @@ jobs:
     timeout-minutes: 5
     steps:
       # Parse uploaded data only; never check out or run code from the tested PR.
+      - name: Check out the pinned JUnit reporter
+        uses: actions/checkout@v6
+        with:
+          repository: dorny/test-reporter
+          ref: 79b4b4400dc2354b89e9dd811ef9caa9bdd4f665 # Includes retries for checks.update (upstream #867).
+          path: .test-reporter
+          persist-credentials: false
+      - name: Allow a new Check Run to become visible before updating it
+        run: |
+          python3 - <<'PYTHON'
+          from pathlib import Path
+
+          # Upstream retries 404s but sends the first update immediately.
+          entry = Path(".test-reporter/dist/index.js")
+          source = entry.read_text()
+          update = "const resp = await retryOnNotFound(async () => this.octokit.rest.checks.update("
+          if source.count(update) != 1:
+              raise SystemExit("Review the initial Check Run delay for this reporter version")
+          entry.write_text(source.replace(update, "await new Promise(resolve => setTimeout(resolve, 1000));\n" + update))
+          PYTHON
       - name: Publish JUnit results in GitHub Checks
-        uses: dorny/test-reporter@d1b5dff021aa968b288b02285a8bf47471c5928a # v3
+        uses: ./.test-reporter
         with:
           artifact: ${{ inputs.artifact || '/^junit-(.+)$/' }}
           name: 'Test results · $1'
@@ -42,7 +62,7 @@ jobs:
           use-actions-summary: false
       - name: Add collapsible test groups to Actions Summary
         if: ${{ !cancelled() }}
-        uses: dorny/test-reporter@d1b5dff021aa968b288b02285a8bf47471c5928a # v3
+        uses: ./.test-reporter
         with:
           artifact: ${{ inputs.artifact || '/^junit-(.+)$/' }}
           name: 'Test results · $1'

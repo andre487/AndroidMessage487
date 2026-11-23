@@ -17,6 +17,13 @@ import java.util.Base64
 
 internal const val MAX_STORED_PAYLOAD_BYTES = 8 * 1024 * 1024
 
+internal class PayloadMemoryException : java.io.IOException("Insufficient memory to read queued payload")
+
+internal fun checkPayloadSize(size: Long, minimum: Int, available: Long) {
+    if (size !in minimum.toLong()..MAX_STORED_PAYLOAD_BYTES.toLong()) throw java.io.IOException("Invalid queued payload size")
+    if (size > available / 8) throw PayloadMemoryException()
+}
+
 private const val ENTRY_COLUMNS = "id,type,source_name,created_at,state,attempts,outcome,http_code"
 
 enum class QueueState { PENDING, SENDING, RETRY, BLOCKED, ACCEPTED, HTTP_SUCCESS }
@@ -50,7 +57,7 @@ fun deliveryQueueState(result: DeliveryResult): QueueState = when (result.status
     } else QueueState.BLOCKED
 }
 
-class Outbox(context: Context, private val cipher: PayloadCipher) : SQLiteOpenHelper(context, "outbox.db", null, 4) {
+class Outbox(context: Context, private val cipher: PayloadCipher) : SQLiteOpenHelper(context, "outbox.db", null, 5) {
     internal val files by lazy { File(context.noBackupFilesDir, "outbox").apply { mkdirs() } }
     internal val previewDirectories: MutableSet<File> = java.util.concurrent.ConcurrentHashMap.newKeySet()
     private val mutableRevision = MutableStateFlow(0L)
@@ -65,6 +72,7 @@ class Outbox(context: Context, private val cipher: PayloadCipher) : SQLiteOpenHe
         db.execSQL("CREATE INDEX events_state ON events(state)")
         createDeduplicationTable(db)
         createWindowTable(db)
+        createPayloadIndex(db)
     }
 
     override fun onUpgrade(db: SQLiteDatabase, oldVersion: Int, newVersion: Int) {
@@ -81,7 +89,12 @@ class Outbox(context: Context, private val cipher: PayloadCipher) : SQLiteOpenHe
             }
             if (!hasFileColumn) db.execSQL("ALTER TABLE events ADD COLUMN payload_file TEXT")
         }
+        if (oldVersion < 5) createPayloadIndex(db)
     }
+
+    private fun createPayloadIndex(db: SQLiteDatabase) = db.execSQL(
+        "CREATE INDEX events_payload_file ON events(payload_file) WHERE payload_file IS NOT NULL"
+    )
 
     private fun createWindowTable(db: SQLiteDatabase) {
         db.execSQL("""CREATE TABLE message_windows (
@@ -176,7 +189,11 @@ class Outbox(context: Context, private val cipher: PayloadCipher) : SQLiteOpenHe
     ).use { it.moveToFirst(); it.getInt(0) }
 
     @Synchronized
-    fun beginAttempt(id: String): Attempt? {
+    fun beginAttempt(id: String): Attempt? = try {
+        loadAttempt(id)
+    } catch (_: OutOfMemoryError) { throw PayloadMemoryException() }
+
+    private fun loadAttempt(id: String): Attempt? {
         val db = writableDatabase
         val (entry, stored) = db.rawQuery("SELECT $ENTRY_COLUMNS,payload_file FROM events WHERE id = ?", arrayOf(id)).use {
             if (!it.moveToFirst()) return null
@@ -185,10 +202,10 @@ class Outbox(context: Context, private val cipher: PayloadCipher) : SQLiteOpenHe
             entry to it.getString(it.getColumnIndexOrThrow("payload_file"))
         }
         var directory = stored?.let(::snapshotDirectory)
-        val envelope = try {
+        val envelope = run {
             val bytes = if (directory != null) AtomicFile(File(directory, "request.enc")).openRead().use { input ->
                 val size = input.channel.size()
-                if (size !in 28..payloadReadLimit().toLong()) throw java.io.IOException("Queued metadata exceeds memory budget")
+                checkPayloadSize(size, 28, availableMemory())
                 val bytes = ByteArray(size.toInt())
                 var offset = 0
                 while (offset < bytes.size) {
@@ -200,7 +217,7 @@ class Outbox(context: Context, private val cipher: PayloadCipher) : SQLiteOpenHe
                 bytes
             } else readLegacyPayload(id)
             JSONObject(cipher.decrypt(bytes))
-        } catch (_: OutOfMemoryError) { throw java.io.IOException("Queued metadata exceeds available memory") }
+        }
         val authToken = envelope.getString("auth_token")
         require(validAuthToken(authToken)) { "Missing queued authentication token" }
         if (directory == null) {
@@ -320,10 +337,9 @@ class Outbox(context: Context, private val cipher: PayloadCipher) : SQLiteOpenHe
         } catch (error: Exception) { directory.deleteRecursively(); throw error }
     }
 
-    private fun payloadReadLimit(): Int {
+    private fun availableMemory(): Long {
         val runtime = Runtime.getRuntime()
-        val available = runtime.maxMemory() - (runtime.totalMemory() - runtime.freeMemory())
-        return minOf(MAX_STORED_PAYLOAD_BYTES.toLong(), (available / 8).coerceAtLeast(0)).toInt()
+        return runtime.maxMemory() - (runtime.totalMemory() - runtime.freeMemory())
     }
 
     private fun readLegacyPayload(id: String): ByteArray {
@@ -332,7 +348,7 @@ class Outbox(context: Context, private val cipher: PayloadCipher) : SQLiteOpenHe
             check(it.moveToFirst() && !it.isNull(0)) { "Missing queued payload" }
             it.getLong(0)
         }
-        if (size !in 1..payloadReadLimit().toLong()) throw java.io.IOException("Legacy payload exceeds memory budget")
+        checkPayloadSize(size, 1, availableMemory())
         val output = ByteArrayOutputStream(size.toInt())
         var offset = 1
         while (true) {
@@ -347,14 +363,21 @@ class Outbox(context: Context, private val cipher: PayloadCipher) : SQLiteOpenHe
         }
     }
 
-    @Synchronized
     fun cleanupFiles() {
-        val referenced = readableDatabase.rawQuery("SELECT payload_file FROM events WHERE payload_file IS NOT NULL", null).use {
-            buildSet { while (it.moveToNext()) add(it.getString(0)) }
-        }
         val cutoff = System.currentTimeMillis() - TimeUnit.MINUTES.toMillis(5)
-        files.listFiles()?.filter { it.isDirectory && it.name !in referenced && it !in previewDirectories && it.lastModified() < cutoff }
-            ?.forEach { it.deleteRecursively() }
+        java.nio.file.Files.newDirectoryStream(files.toPath()).use { paths ->
+            for (path in paths) {
+                val dir = path.toFile()
+                if (dir.lastModified() >= cutoff) continue
+                synchronized(this) {
+                    if (!dir.isDirectory || dir.lastModified() >= cutoff || dir in previewDirectories) return@synchronized
+                    val referenced = readableDatabase.rawQuery(
+                        "SELECT 1 FROM events WHERE payload_file = ? LIMIT 1", arrayOf(dir.name)
+                    ).use { it.moveToFirst() }
+                    if (!referenced) dir.deleteRecursively()
+                }
+            }
+        }
     }
 
     private fun changed() { mutableRevision.value += 1 }

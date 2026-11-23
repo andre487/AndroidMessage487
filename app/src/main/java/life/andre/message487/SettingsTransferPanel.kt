@@ -24,6 +24,12 @@ internal fun SettingsTransferPanel(model: ConnectionViewModel, busy: Boolean) {
     val import = rememberLauncherForActivityResult(ActivityResultContracts.OpenDocument()) { uri ->
         if (uri != null) model.importDocument(uri)
     }
+    val transferring by model.transferring.collectAsState()
+    fun openDocumentPicker(launch: () -> Unit) {
+        try { launch() }
+        catch (_: android.content.ActivityNotFoundException) { model.showDocumentPickerError() }
+        catch (_: SecurityException) { model.showDocumentPickerError() }
+    }
     val pending by model.pendingImport.collectAsState()
     Panel {
         SectionTitle(stringResource(R.string.settings_transfer))
@@ -31,20 +37,21 @@ internal fun SettingsTransferPanel(model: ConnectionViewModel, busy: Boolean) {
         Surface(color = MaterialTheme.colorScheme.tertiaryContainer, shape = MaterialTheme.shapes.small) {
             Column(Modifier.padding(12.dp)) {
                 Row(Modifier.fillMaxWidth().heightIn(min = 48.dp).toggleable(
-                    value = includeToken, enabled = !busy, role = Role.Switch, onValueChange = { includeToken = it }),
+                    value = includeToken, enabled = !busy && !transferring, role = Role.Switch, onValueChange = { includeToken = it }),
                     verticalAlignment = Alignment.CenterVertically) {
                     Text(stringResource(R.string.export_include_token), Modifier.weight(1f))
-                    Switch(checked = includeToken, onCheckedChange = null, enabled = !busy)
+                    Switch(checked = includeToken, onCheckedChange = null, enabled = !busy && !transferring)
                 }
                 Text(stringResource(if (includeToken) R.string.export_token_warning else R.string.export_without_token),
                     style = MaterialTheme.typography.bodySmall)
             }
         }
-        Button(onClick = { export.launch("message487-settings.json") }, enabled = !busy, modifier = Modifier.fillMaxWidth()) {
+        Button(onClick = { openDocumentPicker { export.launch("message487-settings.json") } }, enabled = !busy && !transferring, modifier = Modifier.fillMaxWidth()) {
             Text(stringResource(R.string.export_settings))
         }
-        OutlinedButton(onClick = { import.launch(arrayOf("application/json", "text/plain", "application/octet-stream")) },
-            enabled = !busy, modifier = Modifier.fillMaxWidth()) { Text(stringResource(R.string.import_settings)) }
+        OutlinedButton(onClick = { openDocumentPicker { import.launch(arrayOf("application/json", "text/plain", "application/octet-stream")) } },
+            enabled = !busy && !transferring, modifier = Modifier.fillMaxWidth()) { Text(stringResource(R.string.import_settings)) }
+        if (transferring) TextButton(onClick = model::cancelTransfer) { Text(stringResource(R.string.cancel)) }
     }
     pending?.let { settings ->
         AlertDialog(onDismissRequest = { if (!busy) model.cancelImport() },
@@ -58,7 +65,7 @@ internal fun SettingsTransferPanel(model: ConnectionViewModel, busy: Boolean) {
                 Text(stringResource(if (settings.sms) R.string.import_sms_on else R.string.import_sms_off))
                 Text(stringResource(if (settings.authToken.isEmpty()) R.string.import_token_missing else R.string.import_token_present))
             } },
-            confirmButton = { TextButton(onClick = model::confirmImport, enabled = !busy) { Text(stringResource(R.string.apply_settings)) } },
-            dismissButton = { TextButton(onClick = model::cancelImport, enabled = !busy) { Text(stringResource(R.string.cancel)) } })
+            confirmButton = { TextButton(onClick = model::confirmImport, enabled = !busy && !transferring) { Text(stringResource(R.string.apply_settings)) } },
+            dismissButton = { TextButton(onClick = model::cancelImport, enabled = !busy && !transferring) { Text(stringResource(R.string.cancel)) } })
     }
 }

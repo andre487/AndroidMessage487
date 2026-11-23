@@ -153,9 +153,9 @@ private fun decodeImageFile(file: File, maxEdge: Int, limited: Boolean): Bitmap 
 
 internal fun notificationImages(context: Context, notification: Notification, settings: ForwardingSettings,
     sourcePackage: String = context.packageName, cancellation: CancellationSignal = CancellationSignal(),
-    onFailure: (Exception) -> Unit): List<NotificationImage> = withImageMemory({ cancellation.throwIfCanceled() }) {
+    onFailure: (Exception) -> Unit): List<NotificationImage> = try {
         captureNotificationImages(context, notification, settings, sourcePackage, cancellation, onFailure)
-    }
+    } catch (_: OutOfMemoryError) { throw ImageMemoryException() }
 
 @Suppress("DEPRECATION")
 private fun captureNotificationImages(context: Context, notification: Notification, settings: ForwardingSettings,
@@ -204,10 +204,12 @@ private fun captureNotificationImages(context: Context, notification: Notificati
                     } }
                 } finally { cancellation.setOnCancelListener(null) }
             } ?: error("Image is unavailable")
-            val orientation = runCatching { ExifInterface(source.path).getAttributeInt(ExifInterface.TAG_ORIENTATION, ExifInterface.ORIENTATION_NORMAL) }
-                .getOrDefault(ExifInterface.ORIENTATION_NORMAL)
-            val bitmap = decodeImageFile(source, edge, limited)
-            try { add(bitmap, kind, time, orientation, presentation) } finally { bitmap.recycle() }
+            withImageMemory(::checkActive) {
+                val orientation = runCatching { ExifInterface(source.path).getAttributeInt(ExifInterface.TAG_ORIENTATION, ExifInterface.ORIENTATION_NORMAL) }
+                    .getOrDefault(ExifInterface.ORIENTATION_NORMAL)
+                val bitmap = decodeImageFile(source, edge, limited)
+                try { add(bitmap, kind, time, orientation, presentation) } finally { bitmap.recycle() }
+            }
         } finally { source.delete() }
     }
     fun addDrawable(drawable: Drawable, kind: String, presentation: String = "file") {
@@ -226,7 +228,7 @@ private fun captureNotificationImages(context: Context, notification: Notificati
         if (icon.type in setOf(IconCompat.TYPE_URI, IconCompat.TYPE_URI_ADAPTIVE_BITMAP)) addUri(icon.uri, kind, presentation = presentation)
         else {
             require(icon.type in setOf(IconCompat.TYPE_BITMAP, IconCompat.TYPE_ADAPTIVE_BITMAP, IconCompat.TYPE_RESOURCE)) { "Unsupported picture icon" }
-            addDrawable(icon.loadDrawable(context) ?: error("Icon unavailable"), kind, presentation)
+            withImageMemory(::checkActive) { addDrawable(icon.loadDrawable(context) ?: error("Icon unavailable"), kind, presentation) }
         }
     }
     fun attempt(block: () -> Unit) { try { checkActive(); block() } catch (error: Exception) { onFailure(error) } }
@@ -254,7 +256,7 @@ private fun captureNotificationImages(context: Context, notification: Notificati
             else notification.getLargeIcon()?.let { addIcon(requireNotNull(IconCompat.createFromIcon(context, it)), "avatar") }
                 ?: (extras.getParcelable(Notification.EXTRA_LARGE_ICON) as? Bitmap)?.let { add(it, "avatar") }
         }
-        if (settings.forwardAppIcons) attempt { addDrawable(context.packageManager.getApplicationIcon(sourcePackage), "app_icon") }
+        if (settings.forwardAppIcons) attempt { withImageMemory(::checkActive) { addDrawable(context.packageManager.getApplicationIcon(sourcePackage), "app_icon") } }
         var remaining = if (limited) settings.imageTotalKiB.toLong() * 1024 else Long.MAX_VALUE
         // Canonical order precedes count/size limits so input permutations cannot change encoding or selection.
         for ((candidate, _) in candidates.sortedWith(compareBy<Pair<NotificationImage, Long>> {
@@ -263,7 +265,7 @@ private fun captureNotificationImages(context: Context, notification: Notificati
             if (limited && candidate.kind == "attachment" && selected.count { it.kind == "attachment" } >= settings.imageMaxCount) continue
             if (remaining <= 0) break
             attempt {
-                val image = if (candidate.file.length() <= remaining) candidate else {
+                val image = if (candidate.file.length() <= remaining) candidate else withImageMemory(::checkActive) {
                     val bitmap = decodeImageFile(candidate.file, edge, limited)
                     try { encodeNotificationImage(bitmap, settings.imageFormat, settings.imageQuality, directory,
                         remaining, edge, checkActive = ::checkActive).copy(kind = candidate.kind, presentation = candidate.presentation) } finally { bitmap.recycle() }

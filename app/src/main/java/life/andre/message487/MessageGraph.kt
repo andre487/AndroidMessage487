@@ -48,7 +48,7 @@ class MessageGraph internal constructor(private val context: Application) {
         submitCapture {
             settings.update { it }
             scheduler.startRecovery()
-            recover()
+            scheduler.requestRecovery()
         }
     }
 
