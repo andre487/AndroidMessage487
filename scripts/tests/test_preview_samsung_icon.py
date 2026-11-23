@@ -1,21 +1,25 @@
 """Run with python3 -m unittest discover -s scripts/tests -p test_preview_samsung_icon.py."""
 
 import runpy
+import sys
 import tempfile
 import unittest
 import xml.etree.ElementTree as ET
 from pathlib import Path
+
+sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
+
+import branding
 
 
 class SamsungPreviewTest(unittest.TestCase):
     def test_background_defaults_to_white_and_can_be_disabled(self):
         root = Path(__file__).resolve().parents[2]
         script = runpy.run_path(str(root / 'scripts/preview-samsung-icon.py'))
-        source = root / 'assets/branding/icon.svg'
         for effects in (False, True):
-            opaque = ET.fromstring(script['preview_svg'](source, effects=effects))
+            opaque = ET.fromstring(script['preview_svg'](effects=effects))
             transparent = ET.fromstring(
-                script['preview_svg'](source, effects=effects, transparent=True)
+                script['preview_svg'](effects=effects, transparent=True)
             )
             background = opaque[0]
             self.assertEqual(background.tag, '{http://www.w3.org/2000/svg}rect')
@@ -49,10 +53,8 @@ class SamsungPreviewTest(unittest.TestCase):
     def test_square_source_gets_mask_without_changing_artwork(self):
         root = Path(__file__).resolve().parents[2]
         script = runpy.run_path(str(root / 'scripts/preview-samsung-icon.py'))
-        source = ET.parse(root / 'assets/branding/icon.svg').getroot()
-        preview = ET.fromstring(
-            script['preview_svg'](root / 'assets/branding/icon.svg', effects=False)
-        )
+        source = branding.page(ET.parse(branding.MASTER).getroot(), 'icon')
+        preview = ET.fromstring(script['preview_svg'](effects=False))
         ns = {'s': 'http://www.w3.org/2000/svg'}
         group = preview.find('s:g', ns)
         self.assertEqual(group.attrib['clip-path'], 'url(#samsung-preview-mask)')
@@ -64,9 +66,7 @@ class SamsungPreviewTest(unittest.TestCase):
     def test_effects_generate_valid_svg_with_adjustable_bevel(self):
         root = Path(__file__).resolve().parents[2]
         script = runpy.run_path(str(root / 'scripts/preview-samsung-icon.py'))
-        preview = ET.fromstring(
-            script['preview_svg'](root / 'assets/branding/icon-round.svg', bevel=0.3)
-        )
+        preview = ET.fromstring(script['preview_svg'](bevel=0.3))
         ns = {'s': 'http://www.w3.org/2000/svg'}
         effect = preview.find('.//s:filter', ns)
         self.assertEqual(effect.attrib['id'], 'samsung-preview-effects')
@@ -76,7 +76,7 @@ class SamsungPreviewTest(unittest.TestCase):
             preview.find('s:g', ns).attrib['filter'], 'url(#samsung-preview-effects)'
         )
 
-    def test_illustrator_css_clip_is_replaced_without_losing_internal_clip(self):
+    def test_css_clip_is_replaced_without_losing_internal_clip(self):
         root = Path(__file__).resolve().parents[2]
         script = runpy.run_path(str(root / 'scripts/preview-samsung-icon.py'))
         source = '''<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512">

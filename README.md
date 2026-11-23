@@ -45,7 +45,7 @@ Levels 1–4 require only built-in n8n nodes. Import instructions include synthe
   <tr>
     <td align="center">
       <a href="https://github.com/andre487/AndroidMessage487/releases/latest/download/message487.apk">
-        <img src="assets/branding/get-it-on-github.png" alt="Download APK from GitHub" height="75">
+        <img src="assets/get-it-on-github.png" alt="Download APK from GitHub" height="75">
       </a>
     </td>
     <td align="center">
@@ -131,7 +131,7 @@ Release builds require HTTPS. Test with synthetic data.
 See [Testing](docs/en/testing.md) for CI and device checks, [Releases](docs/en/releases.md)
 for signed builds, and [release automation](docs/en/release-automation.md) and
 [release testing](docs/en/release-testing.md) for publication.
-[Branding](assets/branding/README.md) covers artwork and resource generation;
+[Branding](assets/README.md) covers artwork and resource generation;
 [design](docs/en/design.md) and [project context](docs/en/project-context.md) cover conventions.
 
 This project succeeds [sms487](https://github.com/andre487/sms487) and follows

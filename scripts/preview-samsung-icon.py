@@ -7,20 +7,25 @@ import subprocess
 import xml.etree.ElementTree as ET
 from pathlib import Path
 
-ROOT = Path(__file__).resolve().parents[1]
+import branding
+
 SVG = 'http://www.w3.org/2000/svg'
 
 
-def preview_svg(source, bevel=0.18, effects=True, transparent=False):
-    tree = ET.parse(source)
-    root = tree.getroot()
+def preview_svg(source=None, bevel=0.18, effects=True, transparent=False):
+    root = (
+        ET.parse(source).getroot()
+        if source
+        else branding.page(ET.parse(branding.MASTER).getroot(), 'icon')
+    )
     x, y, width, height = map(float, root.attrib['viewBox'].split())
     clip = None
+    svg_text = ET.tostring(root, encoding='unicode')
     for candidate in root.iter(f'{{{SVG}}}clipPath'):
-        # Illustrator renames IDs and references clips through CSS classes.
         # Replace only a full-artboard circle; preserve unrelated internal clipping.
         if (
-            len(candidate) != 1
+            f'url(#{candidate.get("id")})' not in svg_text
+            or len(candidate) != 1
             or candidate[0].tag != f'{{{SVG}}}circle'
             or candidate.get('clipPathUnits', 'userSpaceOnUse') != 'userSpaceOnUse'
             or 'transform' in candidate.attrib
@@ -113,7 +118,7 @@ def preview_svg(source, bevel=0.18, effects=True, transparent=False):
             ),
         )
     ET.register_namespace('', SVG)
-    return ET.tostring(tree.getroot(), encoding='unicode')
+    return ET.tostring(root, encoding='unicode')
 
 
 def main():
@@ -121,8 +126,7 @@ def main():
     parser.add_argument(
         '--source',
         type=Path,
-        default=ROOT / 'assets/branding/icon.svg',
-        help='Editable source SVG (default: assets/branding/icon.svg)',
+        help='Standalone icon SVG (default: icon page from assets/branding.svg)',
     )
     parser.add_argument('--flat', action='store_true', help='Disable shadow and bevel')
     parser.add_argument(
