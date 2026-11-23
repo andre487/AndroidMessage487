@@ -197,16 +197,25 @@ class StorageDeliveryDeviceTest {
             android.app.Notification.MessagingStyle.Message("", 1L, "sender").setData("image/png", uri))
         val notification = android.app.Notification.Builder(context, "test").setSmallIcon(android.R.drawable.ic_dialog_info).setStyle(style).build()
         val delivered = java.util.concurrent.CountDownLatch(1)
+        val captureFinished = java.util.concurrent.CountDownLatch(1)
         val callbackCount = java.util.concurrent.atomic.AtomicInteger()
         val queue = NotificationImageQueue(timeoutMs = 500)
         try {
-            queue.submit("slow", { signal -> notificationImages(context, notification, ForwardingSettings(), cancellation = signal) { } },
+            queue.submit("slow", { signal ->
+                try { notificationImages(context, notification, ForwardingSettings(), cancellation = signal) { } }
+                finally { captureFinished.countDown() }
+            },
                 { images -> if (images.isEmpty()) { callbackCount.incrementAndGet(); delivered.countDown() } }, { })
             assertTrue(delivered.await(3, TimeUnit.SECONDS))
             assertEquals(1, callbackCount.get())
             val opened = context.contentResolver.call(uri, "opened", null, null)!!.getInt("count")
             assertTrue("Provider must have opened a blocking pipe", opened > 0)
-        } finally { context.contentResolver.call(uri, "release", null, null); queue.close() }
+        } finally {
+            context.contentResolver.call(uri, "release", null, null)
+            queue.close()
+            // The timeout callback can finish before the reader releases its capture directory.
+            assertTrue("Capture cleanup must finish before storage teardown", captureFinished.await(5, TimeUnit.SECONDS))
+        }
     }
 
     @Test fun fileProviderSharesApkButRejectsPrivateSettings() {
