@@ -46,17 +46,45 @@ jobs:
 
   release-identity:
     name: Release CI identity
-    if: github.event_name == 'pull_request'
+    if: github.event_name != 'workflow_dispatch' || inputs.release_dry_run_version == ''
+    permissions:
+      contents: read
+      actions: read
+    timeout-minutes: 5
+    outputs:
+      android: ${{ steps.scope.outputs.android }}
+      python: ${{ steps.scope.outputs.python }}
+      dev-server: ${{ steps.scope.outputs.dev-server }}
+      emulator26: ${{ steps.scope.outputs.emulator26 }}
+      emulator35: ${{ steps.scope.outputs.emulator35 }}
     runs-on: ubuntu-latest
     steps:
+      - uses: actions/checkout@v6
+        with:
+          ref: ${{ github.event.pull_request.head.sha || github.sha }}
+          fetch-depth: 0
+          persist-credentials: false
       - name: 'Comparison base: ${{ github.event.pull_request.base.sha }}'
         run: 'true'
       - name: 'Pull request: ${{ github.event.pull_request.number }}'
         run: 'true'
 
+      - name: Select test suites
+        id: scope
+        env:
+          EVENT_NAME: ${{ github.event_name }}
+          BASE_SHA: ${{ github.event.pull_request.base.sha }}
+          HEAD_SHA: ${{ github.event.pull_request.head.sha }}
+          PR_NUMBER: ${{ github.event.pull_request.number }}
+          PR_BRANCH: ${{ github.head_ref }}
+          PR_REPOSITORY: ${{ github.event.pull_request.head.repo.full_name }}
+          GH_TOKEN: ${{ github.token }}
+        run: python3 scripts/ci_changes.py
+
   android:
     name: Android tests and checks
-    if: github.event_name != 'workflow_dispatch' || inputs.release_dry_run_version == ''
+    needs: release-identity
+    if: needs.release-identity.outputs.android == 'true'
     runs-on: ubuntu-latest
     timeout-minutes: 30
     steps:
@@ -125,7 +153,8 @@ jobs:
           echo "[Download unsigned release APK]($RELEASE_URL)" >> "$GITHUB_STEP_SUMMARY"
 
   python:
-    if: github.event_name != 'workflow_dispatch' || inputs.release_dry_run_version == ''
+    needs: release-identity
+    if: needs.release-identity.outputs.python == 'true'
     name: Python tests and style
     runs-on: ubuntu-latest
     timeout-minutes: 10
@@ -147,7 +176,8 @@ jobs:
 
   dev-server:
     name: Development server tests
-    if: github.event_name != 'workflow_dispatch' || inputs.release_dry_run_version == ''
+    needs: release-identity
+    if: needs.release-identity.outputs.dev-server == 'true'
     runs-on: ubuntu-latest
     timeout-minutes: 15
     steps:
@@ -175,16 +205,18 @@ jobs:
 
   emulator26:
     name: Android emulator API 26
-    if: github.event_name != 'workflow_dispatch' || inputs.release_dry_run_version == ''
+    needs: release-identity
     uses: ./.github/workflows/android-device.yml
     with:
+      enabled: ${{ needs.release-identity.outputs.emulator26 == 'true' }}
       api: 26
 
   emulator35:
     name: Android emulator API 35
-    if: github.event_name != 'workflow_dispatch' || inputs.release_dry_run_version == ''
+    needs: release-identity
     uses: ./.github/workflows/android-device.yml
     with:
+      enabled: ${{ needs.release-identity.outputs.emulator35 == 'true' }}
       api: 35
 
   report-android:
@@ -234,9 +266,9 @@ jobs:
 
   report-emulator26:
     name: Publish Android API 26 results
-    needs: emulator26
+    needs: [release-identity, emulator26]
     if: >-
-      !cancelled() && needs.emulator26.result != 'skipped' &&
+      !cancelled() && needs.release-identity.outputs.emulator26 == 'true' && needs.emulator26.result != 'skipped' &&
       (github.event_name != 'pull_request' ||
        github.event.pull_request.head.repo.full_name == github.repository)
     permissions:
@@ -249,9 +281,9 @@ jobs:
 
   report-emulator35:
     name: Publish Android API 35 results
-    needs: emulator35
+    needs: [release-identity, emulator35]
     if: >-
-      !cancelled() && needs.emulator35.result != 'skipped' &&
+      !cancelled() && needs.release-identity.outputs.emulator35 == 'true' && needs.emulator35.result != 'skipped' &&
       (github.event_name != 'pull_request' ||
        github.event.pull_request.head.repo.full_name == github.repository)
     permissions:

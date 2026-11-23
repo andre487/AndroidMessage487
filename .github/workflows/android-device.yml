@@ -6,6 +6,9 @@ on:
       api:
         required: true
         type: number
+      enabled:
+        type: boolean
+        default: true
 
 permissions:
   contents: read
@@ -13,6 +16,7 @@ permissions:
 jobs:
   device:
     name: Device tests
+    if: inputs.enabled
     runs-on: ubuntu-24.04
     timeout-minutes: 45
     env:
