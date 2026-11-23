@@ -25,15 +25,17 @@ internal data class EventPreview(val event: MessageEvent, val settings: Forwardi
 @Composable
 internal fun EventPreviewDialogs(model: ConnectionViewModel, busy: Boolean, paused: Boolean) {
     val preview by model.preview.collectAsState()
+    val loading by model.loadingPreview.collectAsState()
     val candidates by model.previewCandidates.collectAsState()
     candidates?.let { notifications ->
         AlertDialog(onDismissRequest = { if (!busy) model.dismissCandidates() },
             title = { Text(stringResource(R.string.preview_notifications)) },
             text = { Column(Modifier.verticalScroll(rememberScrollState()), verticalArrangement = Arrangement.spacedBy(8.dp)) {
                 SupportingText(stringResource(R.string.preview_capture_hint))
+                if (loading) LinearProgressIndicator(Modifier.fillMaxWidth())
                 if (notifications.isEmpty()) Text(stringResource(R.string.preview_no_notifications))
                 notifications.forEach { notification ->
-                    OutlinedButton(onClick = { model.previewNotification(notification.key) }, enabled = !busy,
+                    OutlinedButton(onClick = { model.previewNotification(notification.key) }, enabled = !busy && !loading,
                         modifier = Modifier.fillMaxWidth()) {
                         Text(notification.packageName + "\n" + notification.title, maxLines = 3)
                     }

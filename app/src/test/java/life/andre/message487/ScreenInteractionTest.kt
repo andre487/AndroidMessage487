@@ -331,6 +331,25 @@ class ScreenInteractionTest {
         assertNull(model.preview.value)
     }
 
+    @Test fun `waiting document import can be cancelled while forwarding controls stay available`() {
+        val release = java.util.concurrent.CountDownLatch(1)
+        documentIo.execute { release.await(10, java.util.concurrent.TimeUnit.SECONDS) }
+        try {
+            compose.runOnIdle {
+                model.importDocument(android.net.Uri.parse("content://example/settings"))
+                assertTrue(model.transferring.value)
+                assertFalse(model.state.value.busy)
+                model.pause(true)
+                model.cancelTransfer()
+            }
+            compose.waitUntil(10_000) {
+                compose.waitForIdle()
+                !model.transferring.value && !model.state.value.busy && model.settings.value.paused
+            }
+            assertNull(model.pendingImport.value)
+        } finally { release.countDown() }
+    }
+
     @Test fun `settings import requires confirmation then pauses and preserves local identity`() {
         val settings = application.graph.settings
         val original = settings.update { it.copy(deviceId = "target-installation", authToken = "old-token") }

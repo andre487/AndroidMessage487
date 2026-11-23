@@ -249,4 +249,7 @@
     <string name="event_queued">Event saved to the queue. Check Journal for its result.</string>
     <string name="preview_duplicate">This event matches a previous capture and was skipped by the duplicate filter. No new request was queued.</string>
     <string name="preview_test_paused">Automatic forwarding is paused. You can send this test without resuming automatic capture or queued message delivery.</string>
+    <string name="document_timeout">Document transfer timed out.</string>
+    <string name="preview_timeout">Notification preview timed out.</string>
+    <string name="document_picker_unavailable">Could not open the Android document picker.</string>
 </resources>

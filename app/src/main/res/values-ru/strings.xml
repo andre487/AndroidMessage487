@@ -249,4 +249,7 @@
     <string name="event_queued">Событие сохранено в очередь. Результат появится в журнале.</string>
     <string name="preview_duplicate">Событие совпало с прежним и пропущено фильтром дублей. Новый запрос не добавлен в очередь.</string>
     <string name="preview_test_paused">Автоматическая пересылка на паузе. Можно отправить этот тест, не возобновляя сбор и доставку сообщений из очереди.</string>
+    <string name="document_timeout">Истекло время передачи файла.</string>
+    <string name="preview_timeout">Истекло время предпросмотра уведомления.</string>
+    <string name="document_picker_unavailable">Не удалось открыть системный выбор файла.</string>
 </resources>

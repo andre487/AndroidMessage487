@@ -7,6 +7,9 @@ import java.io.IOException
 import java.util.concurrent.CountDownLatch
 import java.util.concurrent.TimeUnit
 import java.util.concurrent.atomic.AtomicInteger
+import kotlinx.coroutines.CoroutineStart
+import kotlinx.coroutines.cancelAndJoin
+import kotlinx.coroutines.launch
 import kotlinx.coroutines.runBlocking
 import org.junit.Assert.*
 import org.junit.Test
@@ -18,6 +21,31 @@ import org.robolectric.annotation.Config
 @RunWith(RobolectricTestRunner::class)
 @Config(application = Application::class, sdk = [26, 35], manifest = Config.NONE)
 class AndroidFailureRecoveryTest {
+    @Test fun `cancelled provider operation releases caller and discards a late result`() = runBlocking {
+        val worker = boundedExecutor("provider-test", 1)
+        val started = CountDownLatch(1)
+        val cancelled = CountDownLatch(1)
+        val release = CountDownLatch(1)
+        val discarded = CountDownLatch(1)
+        try {
+            val job = launch(start = CoroutineStart.UNDISPATCHED) {
+                worker.providerOperation(discard = { _: String -> discarded.countDown() }) { signal ->
+                    signal.setOnCancelListener { cancelled.countDown() }
+                    started.countDown()
+                    release.await(5, TimeUnit.SECONDS)
+                    "late result"
+                }
+                fail("Cancelled provider returned a result")
+            }
+            assertTrue(started.await(2, TimeUnit.SECONDS))
+            job.cancelAndJoin()
+            assertTrue(cancelled.await(2, TimeUnit.SECONDS))
+            release.countDown()
+            assertTrue(discarded.await(2, TimeUnit.SECONDS))
+        } finally { release.countDown(); worker.shutdownNow() }
+        Unit
+    }
+
     @Test fun `bounded notification backlog rejects overflow and leaves SMS independent`() {
         val notifications = boundedExecutor("test-notifications", 1)
         val sms = boundedExecutor("test-sms", 1)

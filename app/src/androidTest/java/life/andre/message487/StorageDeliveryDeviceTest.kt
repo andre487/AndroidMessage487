@@ -190,6 +190,34 @@ class StorageDeliveryDeviceTest {
         finally { discardImages(images); input.delete() }
     }
 
+    @Test fun waitingForImageProviderLeavesBitmapBudgetAvailable() {
+        val uri = android.net.Uri.parse("content://life.andre.message487.test.images/slow")
+        context.contentResolver.call(uri, "release", null, null)
+        val style = android.app.Notification.MessagingStyle("self").addMessage(
+            android.app.Notification.MessagingStyle.Message("", 1L, "sender").setData("image/png", uri))
+        val notification = android.app.Notification.Builder(context, "test")
+            .setSmallIcon(android.R.drawable.ic_dialog_info).setStyle(style).build()
+        val executor = java.util.concurrent.Executors.newFixedThreadPool(2)
+        val signal = android.os.CancellationSignal()
+        val capture = executor.submit {
+            try { discardImages(notificationImages(context, notification, ForwardingSettings(), cancellation = signal) {}) }
+            catch (_: android.os.OperationCanceledException) { }
+        }
+        try {
+            val until = android.os.SystemClock.elapsedRealtime() + 3000
+            while (context.contentResolver.call(uri, "opened", null, null)!!.getInt("count") == 0) {
+                check(android.os.SystemClock.elapsedRealtime() < until) { "Provider did not open the pipe" }
+                Thread.sleep(20)
+            }
+            executor.submit { withImageMemory { Unit } }.get(2, TimeUnit.SECONDS)
+            assertFalse(capture.isDone)
+        } finally {
+            signal.cancel()
+            context.contentResolver.call(uri, "release", null, null)
+            try { capture.get(5, TimeUnit.SECONDS) } finally { executor.shutdownNow() }
+        }
+    }
+
     @Test fun blockedContentPipeExpiresAndStillCompletesTextCallback() {
         val uri = android.net.Uri.parse("content://life.andre.message487.test.images/slow")
         context.contentResolver.call(uri, "release", null, null)

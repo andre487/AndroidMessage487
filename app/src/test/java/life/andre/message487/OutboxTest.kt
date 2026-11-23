@@ -42,6 +42,15 @@ class OutboxTest {
         assertTrue(outbox.pendingIds("page-6", 3).isEmpty())
     }
 
+    @Test fun `temporary memory pressure can recover while invalid sizes remain unreadable`() {
+        assertThrows(PayloadMemoryException::class.java) { checkPayloadSize(1024, 28, 2048) }
+        checkPayloadSize(1024, 28, 8192)
+        for (invalid in listOf(27L, MAX_STORED_PAYLOAD_BYTES + 1L)) {
+            val failure = assertThrows(java.io.IOException::class.java) { checkPayloadSize(invalid, 28, 0) }
+            assertFalse(failure is PayloadMemoryException)
+        }
+    }
+
     @Test fun `oversized legacy payload is refused before decryption and retained`() {
         outbox.enqueue(event("huge"), settings)
         outbox.writableDatabase.execSQL("UPDATE events SET payload=zeroblob(?),payload_file=NULL WHERE id='huge'",
@@ -294,13 +303,14 @@ class OutboxTest {
             execSQL("DROP TABLE message_fingerprints")
             execSQL("DROP TABLE message_windows")
             execSQL("CREATE TABLE notifications (notification_key TEXT PRIMARY KEY, fingerprint TEXT NOT NULL)")
+            execSQL("DROP INDEX events_payload_file")
             version = 1
         }
         outbox.close()
         outbox = Outbox(context, codec)
         assertEquals(original.text, JSONObject(outbox.beginAttempt(original.eventId)!!.request.json).getString("text"))
         assertTrue(outbox.enqueue(event(), settings))
-        assertEquals(4, outbox.readableDatabase.version)
+        assertEquals(5, outbox.readableDatabase.version)
     }
 
     @Test fun `version two migration preserves queued payloads and old exact history`() {
@@ -311,6 +321,7 @@ class OutboxTest {
         outbox.writableDatabase.apply {
             execSQL("DROP TABLE message_windows")
             execSQL("INSERT INTO message_fingerprints (fingerprint) VALUES (?)", arrayOf(legacy))
+            execSQL("DROP INDEX events_payload_file")
             version = 2
         }
         outbox.close()
@@ -320,7 +331,7 @@ class OutboxTest {
         val fresh = original.copy(eventId = "fresh", occurredAt = "2026-09-09T10:01:00Z")
         assertTrue(outbox.enqueue(fresh, settings))
         assertFalse(outbox.enqueue(fresh.copy(eventId = "fresh-duplicate", occurredAt = "2026-09-09T10:01:00.500Z"), settings))
-        assertEquals(4, outbox.readableDatabase.version)
+        assertEquals(5, outbox.readableDatabase.version)
     }
 
     @Test fun `invalid acknowledgement blocks automatic delivery until manual retry`() {

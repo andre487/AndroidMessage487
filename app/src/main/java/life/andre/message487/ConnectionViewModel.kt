@@ -11,6 +11,8 @@ import androidx.core.app.NotificationManagerCompat
 import androidx.core.content.ContextCompat
 import androidx.lifecycle.AndroidViewModel
 import androidx.lifecycle.viewModelScope
+import kotlinx.coroutines.Job
+import kotlinx.coroutines.withTimeoutOrNull
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.asStateFlow
@@ -64,21 +66,55 @@ class ConnectionViewModel @JvmOverloads constructor(application: Application,
     internal val previewCandidates = mutableCandidates.asStateFlow()
     private var previewClosed = false
 
-    fun exportDocument(uri: android.net.Uri, includeToken: Boolean) = action(R.string.settings_exported) {
-        val json = exportSettings(graph.settings.load(), includeToken)
-        require(json.toByteArray(Charsets.UTF_8).size <= MAX_SETTINGS_FILE_BYTES)
-        requireNotNull(getApplication<Application>().contentResolver.openOutputStream(uri, "wt")).use {
-            it.write(json.toByteArray(Charsets.UTF_8))
+    private var transferJob: Job? = null
+    private val mutableTransferring = MutableStateFlow(false)
+    val transferring = mutableTransferring.asStateFlow()
+
+    fun cancelTransfer() { transferJob?.cancel() }
+
+    private fun transfer(errorNotice: Int, operation: suspend () -> Unit) {
+        if (mutableTransferring.value || !settingsLoaded.value) return
+        mutableTransferring.value = true
+        transferJob = viewModelScope.launch {
+            try {
+                if (withTimeoutOrNull(30_000) { operation(); true } == null) {
+                    mutableState.value = state.value.copy(notice = R.string.document_timeout)
+                }
+            } catch (cancelled: kotlinx.coroutines.CancellationException) { throw cancelled }
+            catch (_: Exception) { mutableState.value = state.value.copy(notice = errorNotice) }
+            finally { mutableTransferring.value = false }
         }
     }
 
-    fun importDocument(uri: android.net.Uri) = action(failureNotice = R.string.invalid_settings_file) {
-        try {
-            val text = requireNotNull(getApplication<Application>().contentResolver.openInputStream(uri)).use(::readSettingsFile)
-            mutableImport.value = importSettings(text, graph.settings.load())
-        } catch (error: Exception) {
-            // Parser/provider errors can include file contents or credentials. Do not log them.
-            throw java.io.IOException("Settings file could not be imported")
+    fun exportDocument(uri: android.net.Uri, includeToken: Boolean) = transfer(R.string.local_error) {
+        documentIo.providerOperation { signal ->
+            val bytes = exportSettings(graph.settings.load(), includeToken).toByteArray(Charsets.UTF_8)
+            require(bytes.size <= MAX_SETTINGS_FILE_BYTES)
+            withDocument(uri, "wt", signal) { asset ->
+                asset.createOutputStream().use { it.write(bytes) }
+            }
+        }
+        mutableState.value = state.value.copy(notice = R.string.settings_exported)
+    }
+
+    fun importDocument(uri: android.net.Uri) = transfer(R.string.invalid_settings_file) {
+        mutableImport.value = documentIo.providerOperation { signal ->
+            val text = withDocument(uri, "r", signal) { asset ->
+                asset.createInputStream().use(::readSettingsFile)
+            }
+            signal.throwIfCanceled()
+            importSettings(text, graph.settings.load())
+        }
+    }
+
+    private fun <T> withDocument(uri: android.net.Uri, mode: String, signal: android.os.CancellationSignal,
+        action: (android.content.res.AssetFileDescriptor) -> T): T {
+        val resolver = getApplication<Application>().contentResolver
+        signal.throwIfCanceled()
+        return requireNotNull(resolver.openAssetFileDescriptor(uri, mode, signal)).use { asset ->
+            signal.setOnCancelListener { runCatching { asset.close() } }
+            try { signal.throwIfCanceled(); action(asset) }
+            finally { signal.setOnCancelListener(null) }
         }
     }
 
@@ -112,15 +148,37 @@ class ConnectionViewModel @JvmOverloads constructor(application: Application,
         mutableCandidates.value = NotificationCaptureService.previewCandidates(settings.value.packages)
     }
 
-    internal fun previewNotification(key: String) = action {
-        val config = graph.settings.load()
-        val notification = NotificationCaptureService.preview(key, config)
-        try { replacePreview(EventPreview(graph.notificationEvent(notification, config), config, notification.imageWarning)) }
-        catch (error: Exception) { discardImages(notification.images); throw error }
-        mutableCandidates.value = null
+    private var previewJob: Job? = null
+    private val mutableLoadingPreview = MutableStateFlow(false)
+    internal val loadingPreview = mutableLoadingPreview.asStateFlow()
+
+    internal fun previewNotification(key: String) {
+        if (previewJob?.isActive == true || state.value.busy) return
+        mutableLoadingPreview.value = true
+        previewJob = viewModelScope.launch {
+            try {
+                val completed = withTimeoutOrNull(10_000) {
+                    val result = previewIo.providerOperation(discard = { discardImages(it.event.images) }) { signal ->
+                        val config = graph.settings.load()
+                        val notification = NotificationCaptureService.preview(key, config, signal)
+                        try { EventPreview(graph.notificationEvent(notification, config), config, notification.imageWarning) }
+                        catch (error: Exception) { discardImages(notification.images); throw error }
+                    }
+                    replacePreview(result)
+                    mutableCandidates.value = null
+                    true
+                }
+                if (completed == null) mutableState.value = state.value.copy(notice = R.string.preview_timeout)
+            } catch (cancelled: kotlinx.coroutines.CancellationException) { throw cancelled }
+            catch (_: Exception) { mutableState.value = state.value.copy(notice = R.string.local_error) }
+            finally { mutableLoadingPreview.value = false }
+        }
     }
 
-    internal fun dismissCandidates() { mutableCandidates.value = null }
+    internal fun dismissCandidates() {
+        previewJob?.cancel()
+        mutableCandidates.value = null
+    }
 
     @Synchronized private fun replacePreview(value: EventPreview) {
         if (previewClosed) { discardImages(value.event.images); return }
@@ -296,7 +354,7 @@ class ConnectionViewModel @JvmOverloads constructor(application: Application,
     }
     fun pause(paused: Boolean) = action {
         graph.settings.update { it.copy(paused = paused) }
-        if (!paused) graph.recover()
+        if (!paused) graph.scheduler.requestRecovery()
     }
     fun retry(id: String) = action {
         if (graph.outbox.retry(id)) {
@@ -323,6 +381,8 @@ class ConnectionViewModel @JvmOverloads constructor(application: Application,
             }
         }
     }
+    fun showDocumentPickerError() { mutableState.value = state.value.copy(notice = R.string.document_picker_unavailable) }
+
     fun showSettingsError() { mutableState.value = state.value.copy(notice = R.string.settings_unavailable) }
 
     private fun action(notice: Int? = null, failureNotice: Int = R.string.local_error, block: () -> Unit) {
