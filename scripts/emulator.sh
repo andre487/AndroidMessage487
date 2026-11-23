@@ -22,7 +22,24 @@ if [[ -z "$sdk_dir" || ! -x "$sdk_dir/emulator/emulator" ]]; then
     exit 1
 fi
 
+cd "$(dirname "$0")/.."
+abi=$(uv run manage.py android emulator-abi)
 avd_name=Message487_API_35
+avd_home="${ANDROID_AVD_HOME:-${ANDROID_USER_HOME:-$HOME/.android}/avd}"
+
+# Preserve the old device if its system image belongs to another host architecture.
+avd_dir=""
+if [[ -f "$avd_home/$avd_name.ini" ]]; then
+    avd_dir=$(sed -n 's/^path=//p' "$avd_home/$avd_name.ini")
+fi
+config="${avd_dir:-$avd_home/$avd_name.avd}/config.ini"
+if [[ -f "$config" ]]; then
+    existing_abi=$(sed -n 's/^abi[.]type[[:space:]]*=[[:space:]]*//p' "$config")
+    if [[ -n "$existing_abi" && "$existing_abi" != "$abi" ]]; then
+        avd_name="${avd_name}_$abi"
+    fi
+fi
+
 adb="$sdk_dir/platform-tools/adb"
 find_serial() {
     local serial state current_avd
@@ -43,10 +60,6 @@ if [[ -n "$serial" ]]; then
     if [[ "$background" == false ]]; then exit 0; fi
 else
 
-    case "$(uname -m)" in
-        arm64|aarch64) abi=arm64-v8a ;;
-        *) abi=x86_64 ;;
-    esac
     system_image="system-images;android-35;google_apis;$abi"
 
     if ! "$sdk_dir/emulator/emulator" -list-avds | rg -qx "$avd_name"; then
@@ -65,7 +78,7 @@ else
     emulator_log="${TMPDIR:-/tmp}/message487-emulator.log"
     echo "Starting $avd_name. Emulator log: $emulator_log" >&2
     # A separate session keeps the emulator alive after the task terminal exits.
-    python3 - "$sdk_dir/emulator/emulator" "$emulator_log" "${emulator_options[@]}" <<'PY'
+    uv run python - "$sdk_dir/emulator/emulator" "$emulator_log" "${emulator_options[@]}" <<'PY'
 import subprocess as sp
 import sys
 

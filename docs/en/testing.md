@@ -1,20 +1,16 @@
 # Tests and CI
 
-[English](../en/testing.md) | [Русский](../ru/testing.md)
-
 | Suite | Command | Coverage |
 | --- | --- | --- |
-| Android | `bundle exec fastlane android checks` | JVM/MockWebServer, Robolectric storage/providers, Compose, localization/security/contrast, debug/release lint, debug and unsigned release APKs |
-| Emulator | `ANDROID_SERIAL=emulator-5554 bundle exec fastlane android device_tests` | Real Keystore, encrypted settings/outbox, HTTP/ACK/redirect/cancellation, image recovery and FileProvider on API 26/35 |
-| Python | `PYTHON=.venv/bin/python bundle exec fastlane android python_checks` | Local HTTP client, release automation with mocked APIs/local Git, branding, Black/isort |
-| n8n | `PYTHON=.venv/bin/python bundle exec fastlane android server_tests` | Live text/image/test/SMS validation, routing/progress keys, HTTP failures, invalid ACK and timeout |
+| Android | `uv run manage.py android checks` | JVM/MockWebServer, Robolectric storage/providers, Compose, localization/security/contrast, debug/release lint, debug and unsigned release APKs |
+| Emulator | `ANDROID_SERIAL=emulator-5554 uv run manage.py android device-tests` | Real Keystore, encrypted settings/outbox, HTTP/ACK/redirect/cancellation, image recovery and FileProvider on API 26/35 |
+| Python | `uv run manage.py python-checks` | Local HTTP client, release automation with mocked APIs/local Git, branding, Black/isort |
+| n8n | `uv run manage.py server-tests` | Live text/image/test/SMS validation, routing/progress keys, HTTP failures, invalid ACK and timeout |
 
-Use JDK 21, Ruby/Bundler and the Android SDK (`ANDROID_HOME`). For Python/server lanes:
+Use JDK 21, uv and the Android SDK (`ANDROID_HOME`). List available commands with
 
 ```sh
-bundle install
-python3 -m venv .venv
-.venv/bin/python -m pip install -r requirements-dev.txt
+uv run manage.py --help
 ```
 
 Before server tests, start [DevServer](../../DevServer/README.md):
@@ -44,18 +40,20 @@ Local success does not establish a GitHub CI result.
 ## Disposable emulators
 
 Use a Google APIs AVD named `message487-tests`, `message487-tests-26` or `message487-tests-35`.
-**Tests clear its Message487 settings and queue.** Connect only that emulator; the lane rejects
+**Tests clear its Message487 settings and queue.** Connect only that emulator; the command rejects
 physical devices, other AVD names and extra devices. CI creates fresh API 26/35 AVDs without
 release secrets, requires KVM and never retries failed assertions automatically.
 
-Use `arm64-v8a` on Apple Silicon or `x86_64` on Intel/Linux:
+Select the system image for the host CPU:
 
 ```sh
-sdkmanager "system-images;android-35;google_apis;arm64-v8a"
-avdmanager create avd --name message487-tests-35 --package "system-images;android-35;google_apis;arm64-v8a" --device pixel_5
+abi=$(uv run manage.py android emulator-abi)
+image="system-images;android-35;google_apis;$abi"
+sdkmanager "$image"
+avdmanager create avd --name message487-tests-35 --package "$image" --device pixel_5
 emulator -avd message487-tests-35 -no-snapshot
 # In another terminal, using the serial from adb devices:
-ANDROID_SERIAL=emulator-5554 bundle exec fastlane android device_tests
+ANDROID_SERIAL=emulator-5554 uv run manage.py android device-tests
 ```
 
 Repeat with API 26. Debug-emulator success does not certify a signed release candidate.

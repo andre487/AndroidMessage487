@@ -1,7 +1,5 @@
 # Message487 release testing
 
-[English](release-testing.md) | [Русский](../ru/release-testing.md)
-
 Test an identified signed release candidate, followed by the published artifact. Green CI,
 a successful dry run and a connection test do not replace Android capture testing.
 This is a procedure, not a record of completed tests.
@@ -33,8 +31,8 @@ uploading to VirusTotal, publishing issues/releases or modifying an external F-D
 | ID | Procedure and evidence |
 | --- | --- |
 | A01 | Record candidate commit, changes since the previous release, versionName/code, SDKs, dependency/toolchain versions and APK origin. Read versions from `app/build.gradle.kts`, expected signing identity from `scripts/build-release-apk.sh`. Preserve existing changes; do not change production versionCode just for a test. |
-| A02 | Run `bundle exec fastlane android checks`, `PYTHON=.venv/bin/python bundle exec fastlane android python_checks` and, with local n8n running, `bundle exec fastlane android server_tests`. Retain results and CI links for the candidate. PR checks receive no signing configuration. See [Tests and CI](testing.md). |
-| A03 | Run `bundle exec fastlane android release_artifacts` or obtain signed artifacts from a build-only mode. Retain SHA256SUMS, `apksigner verify --verbose --print-certs`, `aapt dump badging`, permissions and merged manifest. Verify release/non-debuggable, package/version and existing signing key. Debug builds do not replace this step. |
+| A02 | Run `uv run manage.py android checks`, `uv run manage.py python-checks` and, with local n8n running, `uv run manage.py server-tests`. Retain results and CI links for the candidate. PR checks receive no signing configuration. See [Tests and CI](testing.md). |
+| A03 | Run `uv run manage.py release artifacts` or obtain signed artifacts from a build-only mode. Retain SHA256SUMS, `apksigner verify --verbose --print-certs`, `aapt dump badging`, permissions and merged manifest. Verify release/non-debuggable, package/version and existing signing key. Debug builds do not replace this step. |
 | A04 | Reconcile source/merged manifest, exported components, FileProvider, backup/data extraction, HTTP restrictions, dependency permissions/licenses. Explain RECEIVE_SMS, notification listener, POST_NOTIFICATIONS, REQUEST_INSTALL_PACKAGES and scheduler components. SMS history/default SMS role, Accessibility and QUERY_ALL_PACKAGES are unnecessary. Match store description/PRIVACY to behavior. |
 | A05 | Describe two phones and two dedicated emulators: model, OS/API/OEM build/patch, ABI/page size, display/font/language, package/version/signer/installer, permissions, battery, network, VPN/Private DNS. Emulators cover minimum supported API and a modern API. Without Samsung hardware, its OEM check remains NOT TESTED. |
 | A06 | Preserve phone settings and data; use only synthetic SMS and selected probe apps, never personal apps/OTP. Do not uninstall or clear existing data. Reboots, network/PIN changes and destructive checks need applicable authorization; start on dedicated emulators. |
@@ -46,10 +44,9 @@ uploading to VirusTotal, publishing issues/releases or modifying an external F-D
    `git status`, `git rev-parse HEAD` and the diff; use a separate clean checkout when
    existing work is present. Before publication, test the signed candidate rather than
    the latest published APK at the stable URL.
-2. Prepare JDK 21, Ruby/Bundler, the Android SDK declared in Gradle, Platform Tools,
+2. Prepare JDK 21, uv, the Android SDK declared in Gradle, Platform Tools,
    Python and Docker. Configure the SDK through `ANDROID_HOME` or `local.properties`.
-   Run `python3 -m venv .venv`,
-   `.venv/bin/python -m pip install -r requirements-dev.txt` and `bundle install`.
+   Run `uv sync --locked`.
 3. Start fixtures with
    `docker compose -f DevServer/compose.yaml up -d --wait --wait-timeout 300` and run A02.
    For signed release testing, add private HTTPS ingress with a certificate trusted by

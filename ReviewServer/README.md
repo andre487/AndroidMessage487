@@ -68,7 +68,7 @@ acknowledges valid events but does not deduplicate retries or provide a general 
 ## Verification
 
 ```sh
-python3 ReviewServer/check.py ~/.my-tokens/message487-play-review-158.160.132.57.json
+uv run python ReviewServer/check.py ~/.my-tokens/message487-play-review-158.160.132.57.json
 ```
 
 This checks HTTPS, missing/wrong tokens, invalid payloads and a valid synthetic ACK. It does

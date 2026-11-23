@@ -27,7 +27,7 @@ serial=$("$project_dir/scripts/emulator.sh" --background)
 adb="$sdk_dir/platform-tools/adb"
 
 cd "$project_dir"
-bundle exec fastlane android debug_artifact
+uv run manage.py android debug
 "$adb" -s "$serial" install -r "$project_dir/app/build/outputs/apk/debug/app-debug.apk"
 "$adb" -s "$serial" shell am clear-debug-app
 "$adb" -s "$serial" shell am force-stop life.andre.message487
