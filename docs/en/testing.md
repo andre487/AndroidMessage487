@@ -13,6 +13,9 @@ Use JDK 21, uv and the Android SDK (`ANDROID_HOME`). List available commands wit
 uv run manage.py --help
 ```
 
+Gradle resolves the pinned Android API 26 and 35 SDK jars before JVM tests run. Robolectric
+loads those local jars in offline mode.
+
 Before server tests, start [DevServer](../../DevServer/README.md):
 `docker compose -f DevServer/compose.yaml up -d --wait --wait-timeout 300`.
 Use synthetic data: n8n retains request bodies in execution history.

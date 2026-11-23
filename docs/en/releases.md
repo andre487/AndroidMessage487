@@ -50,12 +50,13 @@ GitHub Release. PR workflows do not consume signing secrets.
 
 - Push a `release-check/*` tag to build and verify signed APK files in GitHub Actions without publishing
   a Release. The signed APK files, checksums, mapping and test reports are available as Actions artifacts.
-- After the workflow is merged into the default branch, manual dispatch also builds artifacts only.
+- Manual dispatch also builds artifacts without publishing a Release.
 - For publication, increment `versionCode`, set the intended `versionName` in `app/build.gradle.kts`,
   and merge the reviewed change after all required PR checks pass. Push the matching `v<versionName>`
   tag. The workflow requires the tag commit to be contained in `main`, the version to match the tag,
-  and EN/RU changelogs for the current `versionCode`. GitHub Release uses these texts.
-  It publishes the verified APKs, mapping and checksums to GitHub Releases. An existing Release is
+  and EN/RU store changelogs for the current `versionCode`. The GitHub Release description comes
+  from `release-notes/<versionName>.md` followed by the VirusTotal summary. The release includes
+  both APKs, the mapping, checksums and the Markdown and JSON VirusTotal reports. An existing Release is
   not overwritten by a rerun.
 
 The first configured version is `0.0.1` with `versionCode = 1`. Later releases must increase

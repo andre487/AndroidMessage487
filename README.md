@@ -70,8 +70,9 @@ Guides: [Install from APK](docs/en/apk-installation.md) · [n8n Cloud](docs/en/n
 
 Both sources start disabled. Avoid selecting apps that receive the forwarded messages: this
 can create a feedback loop. Selecting your SMS app can forward the same message through both sources.
-**Pause forwarding** stops capture and queued delivery; an in-flight request may finish.
-Events received while paused are not saved. Android battery restrictions can delay background
+**Pause forwarding** stops capture and queued delivery of notifications and SMS. An in-flight
+request may finish. Explicitly sent tests and their retries can still run. Notifications and SMS
+received while paused are not saved. Android battery restrictions can delay background
 delivery; after a force-stop, reopen the app. Sensitive notification content may be hidden by Android.
 
 ## Delivery and data

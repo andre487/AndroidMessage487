@@ -1,11 +1,12 @@
 # Privacy Policy
 
-Last updated: October 20, 2026.
+Last updated: November 23, 2026.
 
 Message487 forwards selected notifications and new incoming SMS to a webhook you configure.
 Notification events can include titles, text, image attachments and optional avatars or app icons.
-SMS events include text, sender and time. Events also include a string channel identifier: the
-Android notification channel ID, `sms` for SMS, or `test` for test events. Your n8n workflow or another HTTPS receiver decides
+SMS events include text, sender and time. Notifications include the Android channel ID when available.
+SMS and test events use `sms` and `test` respectively. Older queued events may omit the channel ID.
+Your n8n workflow or another HTTPS receiver decides
 how to process or forward these events; the app does not depend on Telegram.
 Both capture sources are off by default. Notifications require Android notification access and
 selection of source apps. Optional automatic selection of newly detected launcher apps is off by default;
@@ -22,7 +23,7 @@ preferences do not have additional application-level encryption. A webhook URL m
 a secret, so treat it as sensitive. Android cloud backup and device transfer are disabled for app data.
 
 The webhook Bearer token is encrypted with AES-GCM and an Android Keystore key before
-being saved in preferences. It is sent in the Authorization header to your configured endpoint.
+being saved in preferences. It is sent in the Authorization header to your configured endpoint. The app does not follow webhook redirects.
 
 Message text, notification titles, SMS senders and the queued request description (including
 its original destination, authentication token and confirmation mode) are stored in private files
@@ -39,16 +40,16 @@ including when filtering is disabled. These hashes remain after delivery or jour
 app data is cleared or the app is uninstalled. They are not a substitute for encryption against
 guesses of known content.
 
-The journal shows delivery metadata and does not display message contents or image previews. Confirmed events have
-their request and image files removed; only recent delivery metadata is retained. Undelivered payloads are not automatically deleted by age. Abandoned temporary files are cleaned during recovery after a grace period. File and database
+The journal shows delivery metadata and does not display message contents or image previews. After a successful delivery (HTTP success or the required acknowledgement), the app removes the request
+and image files. It keeps metadata for up to 100 completed events. Undelivered payloads are not automatically deleted by age. Abandoned temporary files are cleaned during recovery after a grace period. File and database
 deletion do not guarantee forensic erasure of previously allocated storage.
 Message bodies, image data and server response bodies are not written to diagnostic logs by the app.
 
 ## Event preview and settings files
 
 Event previews are opened only by an explicit user action. They show test events or the contents
-of currently active notifications from selected apps, including text, source package, channel ID
-and available images. They use the same image conversion and limits as capture. Opening a preview
+of a notification you choose from the 20 most recent clearable notifications still active in selected apps.
+The list excludes group summaries. A preview can include text, source package, channel ID and available images. They use the same image conversion and limits as capture. Opening a preview
 makes no webhook request and does not stop automatic capture; use Pause first if needed. Preview
 images are temporary private files, removed when the preview is closed or its screen model is
 cleared; abandoned files are handled by the existing recovery cleanup. Sending a preview requires
@@ -81,7 +82,8 @@ Diagnostic files reside in private app storage without additional encryption. Th
 are limited to 256 KiB each, with a separate last-crash file up to 256 KiB. In Diagnostics you can
 view recent logs, clear them, or prepare an email to **der-morgenstern@yandex.ru**. The ZIP attachment
 includes these logs and an environment summary: app version, Android version/security patch,
-manufacturer/model, CPU architecture, enabled-source flags and selected-app count. Up to three
+manufacturer/model, CPU architecture, whether the connection is configured, acknowledgement and pause
+settings, enabled sources and selected-app count. Up to three
 archives are retained in private cache. Clearing logs also removes the last crash and cached archives.
 
 Nothing is sent automatically. Your selected email/sharing app receives temporary read access to
@@ -136,13 +138,12 @@ F-Droid installs check f-droid.org. You can change the source or disable automat
 App updates. These services receive the IP address and a Message487 update User-Agent; the app
 does not include message contents, webhook credentials, device codes or installation IDs.
 
-GitHub APK downloads require explicit consent and are stored in the app's update cache. The app
-checks the release digest, package, increasing version code and matching installed signing
-certificate before offering the system installer. Installation requires a separate user action
+When you choose to download a GitHub APK, the app contacts GitHub and may follow a redirect to
+release-assets.githubusercontent.com. It stores the APK in its update cache and verifies its size,
+digest, package name, release version name, increasing version code and signing certificates before offering the system installer. Installation requires a separate user action
 and Android's install permission. F-Droid updates open its app page and are handled by its client.
-Notification permission is used only for update reminders. The source, automatic-check setting,
-skipped versions and notification times are stored in private preferences without additional
-encryption. Cached APKs can be removed by clearing the app cache; clearing app data removes
+Notification permission is used only for update reminders. Private preferences store the update source and automatic-check setting, detected and skipped
+versions, reminder times, and the source, time and status of background checks without additional encryption. Cached APKs can be removed by clearing the app cache; clearing app data removes
 update preferences as well.
 
 ## Controls and deletion
@@ -155,10 +156,10 @@ We delete the received email, its attachments and associated sender address from
 These are otherwise retained only until the reported problem is fixed. This request does not
 delete data held by your webhook, n8n, downstream services or your email provider.
 
-Disable a source to stop capturing its new events. Pause forwarding to also pause queued delivery;
-a request already running may finish. Neither action erases previously queued events. Delete
-individual records from the journal to remove them from the active database and stop future
-attempts. Clearing app data or uninstalling removes local app data and resets the installation
+Disable a source to stop capturing its new events. Pause stops capture and queued delivery of ordinary
+messages. An in-flight request may finish, and explicitly sent tests can still run and retry.
+Previously queued events stay on the device. You can delete a journal entry while it is not being
+sent to remove its record and stop future attempts. Clearing app data or uninstalling removes local app data and resets the installation
 identity. These actions do not remove copies already received by the webhook or downstream services.
 Delete n8n execution history and downstream copies separately using those services' controls.
 
