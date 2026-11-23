@@ -1,0 +1,4 @@
+- Settings import and export can be cancelled and time out after 30 seconds without blocking forwarding controls.
+- Notification previews show loading progress and time out after 10 seconds.
+- Queued messages retry automatically when temporary low memory prevents reading them.
+- Update results and download or install buttons scroll into view on short screens.
